@@ -1,0 +1,177 @@
+import React, { useCallback, useState } from 'react';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
+import { fetchPortfolio } from '../../api/portfolio';
+import { listTicketForSale, cancelTicketListing } from '../../api/tickets';
+import { Holding, Portfolio } from '../../types';
+import { showAlert } from '../../utils/alert';
+import { colors, spacing } from '../../theme';
+import { HoldingCard } from '../../components/HoldingCard';
+import { SellTicketModal } from '../../components/SellTicketModal';
+
+function ReturnText({ value }: { value: number }) {
+  const { t } = useTranslation();
+  const color = value >= 0 ? colors.success : colors.danger;
+  const sign = value >= 0 ? '+' : '';
+  return (
+    <Text style={{ color, fontWeight: '600' }}>
+      {sign}
+      {value.toLocaleString(undefined, { maximumFractionDigits: 2 })} {t('common.currency')}
+    </Text>
+  );
+}
+
+export function PortfolioScreen() {
+  const { t } = useTranslation();
+  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [listingHolding, setListingHolding] = useState<Holding | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setPortfolio(await fetchPortfolio());
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  const handleConfirmListing = async (quantity: number, askingPrice: number) => {
+    if (!listingHolding) return;
+    setSubmitting(true);
+    try {
+      await listTicketForSale(listingHolding.ticketIds, quantity, askingPrice);
+      showAlert(t('portfolio.listingSuccess'));
+      setListingHolding(null);
+      await load();
+    } catch (err: any) {
+      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancelListing = async (ticketId: string) => {
+    setCancellingId(ticketId);
+    try {
+      await cancelTicketListing(ticketId);
+      await load();
+    } catch (err: any) {
+      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
+  const summary = portfolio?.summary;
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.header}>{t('portfolio.title')}</Text>
+      <FlatList
+        data={portfolio?.holdings ?? []}
+        keyExtractor={(item) => item.ticketId}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+        contentContainerStyle={styles.list}
+        ListHeaderComponent={
+          summary ? (
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{t('portfolio.totalInvested')}</Text>
+                <Text style={styles.summaryValue}>
+                  {summary.totalInvested.toLocaleString()} {t('common.currency')}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{t('portfolio.currentValue')}</Text>
+                <Text style={styles.summaryValue}>
+                  {summary.totalCurrentValue.toLocaleString()} {t('common.currency')}
+                </Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{t('portfolio.todayReturn')}</Text>
+                <ReturnText value={summary.todayReturn} />
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{t('portfolio.monthReturn')}</Text>
+                <ReturnText value={summary.monthReturn} />
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>{t('portfolio.totalReturn')}</Text>
+                <ReturnText value={summary.totalReturnAmount} />
+              </View>
+            </View>
+          ) : null
+        }
+        renderItem={({ item }) => (
+          <HoldingCard
+            holding={item}
+            onSellPress={setListingHolding}
+            onCancelListing={handleCancelListing}
+            cancellingId={cancellingId}
+          />
+        )}
+        ListEmptyComponent={!loading ? <Text style={styles.empty}>{t('portfolio.noHoldings')}</Text> : null}
+      />
+
+      <SellTicketModal
+        holding={listingHolding}
+        submitting={submitting}
+        onClose={() => setListingHolding(null)}
+        onConfirm={handleConfirmListing}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  header: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    padding: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  list: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
+  },
+  summaryCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.xs,
+  },
+  summaryLabel: {
+    color: colors.textMuted,
+  },
+  summaryValue: {
+    fontWeight: '600',
+    color: colors.text,
+  },
+  empty: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    marginTop: spacing.xl,
+  },
+});

@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+.expo/
+web-build/
+*.tsbuildinfo
+
+# uploaded user content / local data dumps
+backend/uploads/
+*.zip
+*.dump
+
+# env files
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+
+# local machine-specific Claude settings
+.claude/settings.local.json
