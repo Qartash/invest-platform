@@ -257,6 +257,49 @@ export class ProjectsService {
     return saved;
   }
 
+  // Admin edits skip the pending-changes moderation loop entirely: the moderator
+  // is the one making the change, so it applies to the live project immediately
+  // and is recorded in the review history as its own action.
+  async adminUpdate(id: string, dto: UpdateProjectDto, moderatorId: string, moderatorName: string): Promise<Project> {
+    const project = await this.findOne(id);
+    if (project.deletedAt) {
+      throw new BadRequestException('Cannot edit a deleted project. Restore it first.');
+    }
+
+    const normalized: Record<string, any> = { ...dto };
+    if (dto.targetAmount !== undefined) normalized.targetAmount = dto.targetAmount.toFixed(2);
+    if (dto.ticketPrice !== undefined) normalized.ticketPrice = dto.ticketPrice.toFixed(2);
+    if (dto.expectedAnnualReturnPercent !== undefined) {
+      normalized.expectedAnnualReturnPercent = dto.expectedAnnualReturnPercent.toFixed(2);
+    }
+    if (dto.priceTierIncrementPercent !== undefined) {
+      normalized.priceTierIncrementPercent = dto.priceTierIncrementPercent.toFixed(2);
+    }
+    if (dto.deadline !== undefined) normalized.deadline = dto.deadline;
+
+    const changes: Record<string, any> = {};
+    for (const field of ProjectsService.EDITABLE_FIELDS) {
+      if (normalized[field] === undefined) continue;
+      const currentValue = (project as any)[field];
+      if (JSON.stringify(currentValue ?? null) !== JSON.stringify(normalized[field] ?? null)) {
+        changes[field] = normalized[field];
+      }
+    }
+
+    if (Object.keys(changes).length === 0) {
+      return project;
+    }
+
+    Object.assign(project, changes);
+    const saved = await this.projectsRepository.save(project);
+    await this.logReview(saved.id, ProjectReviewAction.ADMIN_EDITED, {
+      changes,
+      moderatorId,
+      moderatorName,
+    });
+    return saved;
+  }
+
   async cancelReview(id: string, founderId: string): Promise<Project> {
     const project = await this.findOne(id);
     if (project.founderId !== founderId) {
@@ -360,9 +403,9 @@ export class ProjectsService {
     return saved;
   }
 
-  async setCoverImage(id: string, founderId: string, coverImageUrl: string): Promise<Project> {
+  async setCoverImage(id: string, founderId: string, coverImageUrl: string, userRole?: UserRole): Promise<Project> {
     const project = await this.findOne(id);
-    if (project.founderId !== founderId) {
+    if (project.founderId !== founderId && userRole !== UserRole.ADMIN) {
       throw new ForbiddenException('Not your project');
     }
     project.coverImageUrl = coverImageUrl;
@@ -373,9 +416,10 @@ export class ProjectsService {
     id: string,
     founderId: string,
     file: { fileName: string; fileUrl: string; fileSize: number; mimeType: string | null },
+    userRole?: UserRole,
   ): Promise<ProjectAttachment> {
     const project = await this.findOne(id);
-    if (project.founderId !== founderId) {
+    if (project.founderId !== founderId && userRole !== UserRole.ADMIN) {
       throw new ForbiddenException('Not your project');
     }
     const existingCount = await this.attachmentsRepository.count({ where: { projectId: id } });
@@ -399,9 +443,9 @@ export class ProjectsService {
     });
   }
 
-  async deleteAttachment(id: string, attachmentId: string, founderId: string): Promise<void> {
+  async deleteAttachment(id: string, attachmentId: string, founderId: string, userRole?: UserRole): Promise<void> {
     const project = await this.findOne(id);
-    if (project.founderId !== founderId) {
+    if (project.founderId !== founderId && userRole !== UserRole.ADMIN) {
       throw new ForbiddenException('Not your project');
     }
     const attachment = await this.attachmentsRepository.findOne({ where: { id: attachmentId, projectId: id } });

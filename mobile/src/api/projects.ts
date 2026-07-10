@@ -42,6 +42,12 @@ export function fetchAllProjectsForModeration() {
   return apiClient.get<Project[]>('/projects/all').then((r) => r.data);
 }
 
+// Admin edits apply to the live project immediately, without the founder's
+// pending-changes moderation round-trip.
+export function updateProjectAsAdmin(id: string, data: Record<string, unknown>) {
+  return apiClient.patch<Project>(`/projects/${id}/admin-edit`, data).then((r) => r.data);
+}
+
 export function approveProject(id: string, comment: string) {
   return apiClient.patch<Project>(`/projects/${id}/approve`, { comment }).then((r) => r.data);
 }

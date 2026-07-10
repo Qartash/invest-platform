@@ -231,18 +231,23 @@ const styles = StyleSheet.create({
   },
   filterRow: {
     flexGrow: 0,
-    marginBottom: spacing.sm,
+    // Without flexShrink 0 the overflowing FlatList below makes flexbox
+    // shrink this row to a sliver, clipping the chips.
+    flexShrink: 0,
+    height: 44,
+    marginBottom: spacing.xs,
   },
   filterRowContent: {
     paddingHorizontal: spacing.lg,
+    alignItems: 'center',
   },
   filterChip: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 999,
     paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    marginRight: spacing.xs,
+    paddingVertical: 6,
+    marginRight: spacing.sm,
     backgroundColor: colors.surface,
   },
   filterChipActive: {
@@ -250,7 +255,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   filterChipText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textMuted,
   },

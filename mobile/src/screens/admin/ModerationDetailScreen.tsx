@@ -167,6 +167,15 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
         <Text style={styles.historyLinkText}>{t('founder.historyTitle')}</Text>
       </Pressable>
 
+      {!project.deletedAt && (
+        <Pressable
+          style={styles.historyLink}
+          onPress={() => navigation.navigate('ModerationEdit', { projectId: project.id, adminEdit: true })}
+        >
+          <Text style={styles.historyLinkText}>✏️ {t('founder.editProject')}</Text>
+        </Pressable>
+      )}
+
       <Text style={styles.section}>{t('project.priorityLevelLabel')}</Text>
       <View style={styles.levelRow}>
         {PRIORITY_LEVELS.map((lvl) => (

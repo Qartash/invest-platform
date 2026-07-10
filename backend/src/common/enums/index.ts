@@ -90,4 +90,5 @@ export enum ProjectReviewAction {
   DELETED = 'deleted',
   RESTORED = 'restored',
   PRIORITY_CHANGED = 'priority_changed',
+  ADMIN_EDITED = 'admin_edited',
 }

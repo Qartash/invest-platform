@@ -7,7 +7,9 @@ import { ProjectFinanceScreen } from '../screens/founder/ProjectFinanceScreen';
 
 export type FounderStackParamList = {
   MyProjects: undefined;
-  CreateProject: { projectId?: string } | undefined;
+  // adminEdit is set when the same form is mounted in the moderation stack —
+  // saving then goes through the admin endpoint instead of pending changes.
+  CreateProject: { projectId?: string; adminEdit?: boolean } | undefined;
   ProjectFinance: { projectId: string };
 };
 

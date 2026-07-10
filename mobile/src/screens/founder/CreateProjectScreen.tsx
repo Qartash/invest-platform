@@ -17,6 +17,7 @@ import {
   fetchProjectBudgetItems,
   setProjectPriority,
   updateProject,
+  updateProjectAsAdmin,
   uploadCoverImage,
   uploadProjectAttachment,
 } from '../../api/projects';
@@ -104,6 +105,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
   const { t } = useTranslation();
   const projectId = route.params?.projectId;
   const isEditing = !!projectId;
+  const isAdminEdit = !!route.params?.adminEdit;
 
   const [activeLang, setActiveLang] = useState<SupportedLanguage>('hy');
   const [title, setTitle] = useState<Record<string, string>>({ hy: '', ru: '', en: '' });
@@ -149,7 +151,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!projectId) return;
     fetchProject(projectId).then((project) => {
-      if (project.status === 'pending_review') {
+      if (project.status === 'pending_review' && !isAdminEdit) {
         showAlert(t('founder.reviewPendingNotice'));
         navigation.goBack();
         return;
@@ -318,10 +320,13 @@ export function CreateProjectScreen({ route, navigation }: Props) {
         expectedAnnualReturnPercent: expectedAnnualReturnNum || 20,
         payoutStartDays: payoutStartDaysNum >= 0 ? payoutStartDaysNum : 30,
         priority,
-        changeReason: isEditing && !isRichTextEmpty(changeReason) ? changeReason.trim() : undefined,
+        changeReason: isEditing && !isAdminEdit && !isRichTextEmpty(changeReason) ? changeReason.trim() : undefined,
         budgetItems: !isEditing ? validNewBudgetItems : undefined,
       };
-      const savedProjectId = isEditing && projectId ? (await updateProject(projectId, data)).id : (await createProject(data)).id;
+      const savedProjectId =
+        isEditing && projectId
+          ? (await (isAdminEdit ? updateProjectAsAdmin(projectId, data) : updateProject(projectId, data))).id
+          : (await createProject(data)).id;
       // Priority isn't part of the reviewed diff — it's meta info for triage, so it
       // applies immediately via its own endpoint instead of waiting on moderation.
       if (isEditing && savedProjectId) {
@@ -458,7 +463,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
         ))}
       </View>
 
-      {isEditing && (
+      {isEditing && !isAdminEdit && (
         <View>
           <View style={styles.hintRow}>
             <Text style={styles.hintRowLabel}>{t('founder.changeReasonField')}</Text>

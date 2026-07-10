@@ -172,6 +172,19 @@ export class ProjectsController {
     return toProjectResponse(project);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch(':id/admin-edit')
+  async adminUpdate(@CurrentUser() user: User, @Param('id') id: string, @Body() dto: UpdateProjectDto) {
+    const project = await this.projectsService.adminUpdate(
+      id,
+      dto,
+      user.id,
+      user.fullName || user.username || user.email || 'Unknown',
+    );
+    return toProjectResponse(project);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Patch(':id/cancel-review')
   async cancelReview(@CurrentUser() user: User, @Param('id') id: string) {
@@ -243,7 +256,7 @@ export class ProjectsController {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-    const project = await this.projectsService.setCoverImage(id, user.id, `/uploads/projects/${file.filename}`);
+    const project = await this.projectsService.setCoverImage(id, user.id, `/uploads/projects/${file.filename}`, user.role);
     return toProjectResponse(project);
   }
 
@@ -280,12 +293,17 @@ export class ProjectsController {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
-    return this.projectsService.addAttachment(id, user.id, {
-      fileName: file.originalname,
-      fileUrl: `/uploads/attachments/${file.filename}`,
-      fileSize: file.size,
-      mimeType: file.mimetype ?? null,
-    });
+    return this.projectsService.addAttachment(
+      id,
+      user.id,
+      {
+        fileName: file.originalname,
+        fileUrl: `/uploads/attachments/${file.filename}`,
+        fileSize: file.size,
+        mimeType: file.mimetype ?? null,
+      },
+      user.role,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -295,7 +313,7 @@ export class ProjectsController {
     @Param('id') id: string,
     @Param('attachmentId') attachmentId: string,
   ) {
-    await this.projectsService.deleteAttachment(id, attachmentId, user.id);
+    await this.projectsService.deleteAttachment(id, attachmentId, user.id, user.role);
     return { success: true };
   }
 

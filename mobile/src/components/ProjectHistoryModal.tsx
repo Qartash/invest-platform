@@ -26,6 +26,7 @@ const ACTION_STYLES: Record<string, { icon: string; labelKey: string; color: str
   deleted: { icon: '🗑', labelKey: 'founder.historyDeleted', color: colors.danger },
   restored: { icon: '♻️', labelKey: 'founder.historyRestored', color: colors.success },
   priority_changed: { icon: '🚩', labelKey: 'founder.historyPriorityChanged', color: colors.textMuted },
+  admin_edited: { icon: '🛠', labelKey: 'founder.historyAdminEdited', color: colors.warning },
 };
 
 export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {

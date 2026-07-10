@@ -348,7 +348,8 @@
     "attachmentsLimitReached": "File limit reached. Remove one of the attached files to add a new one.",
     "expectedAnnualReturnFieldHint": "The expected annual return investors will earn on the amount they invest, e.g. 20%.",
     "payoutStartDaysFieldHint": "How many days after buying a ticket an investor starts earning payouts.",
-    "resaleEnabledFieldHint": "If enabled, investors can resell their tickets to other investors right within the platform."
+    "resaleEnabledFieldHint": "If enabled, investors can resell their tickets to other investors right within the platform.",
+    "historyAdminEdited": "Edited by administrator"
   },
   "moderation": {
     "tabPending": "Pending review",
