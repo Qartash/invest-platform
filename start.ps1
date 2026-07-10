@@ -28,24 +28,24 @@ if (Test-NetConnection localhost -Port 3000 -InformationLevel Quiet -WarningActi
     Start-Process powershell -ArgumentList '-NoExit', '-Command', "`$Host.UI.RawUI.WindowTitle = 'invest-platform BACKEND'; Set-Location '$root\backend'; npm run start:dev"
 }
 
-# 3. Mobile web на :8099 (пропускаем, если уже запущен)
-if (Test-NetConnection localhost -Port 8099 -InformationLevel Quiet -WarningAction SilentlyContinue) {
-    Write-Host "Mobile web уже запущен на :8099 — пропускаю" -ForegroundColor Yellow
+# 3. Mobile web на :80 (пропускаем, если уже запущен)
+if (Test-NetConnection localhost -Port 80 -InformationLevel Quiet -WarningAction SilentlyContinue) {
+    Write-Host "Mobile web уже запущен на :80 — пропускаю" -ForegroundColor Yellow
 } else {
-    Write-Host "Запускаю mobile web (http://localhost:8099)..." -ForegroundColor Cyan
-    Start-Process powershell -ArgumentList '-NoExit', '-Command', "`$Host.UI.RawUI.WindowTitle = 'invest-platform MOBILE WEB'; Set-Location '$root\mobile'; npm run web -- --port 8099"
+    Write-Host "Запускаю mobile web (http://localhost)..." -ForegroundColor Cyan
+    Start-Process powershell -ArgumentList '-NoExit', '-Command', "`$Host.UI.RawUI.WindowTitle = 'invest-platform MOBILE WEB'; Set-Location '$root\mobile'; npm run web -- --port 80"
 }
 
 # 4. Ждём, пока веб-клиент начнёт отвечать, и открываем браузер
-Write-Host "Жду, пока поднимется http://localhost:8099 ..." -ForegroundColor Cyan
+Write-Host "Жду, пока поднимется http://localhost ..." -ForegroundColor Cyan
 $up = $false
 foreach ($i in 1..60) {
-    if (Test-NetConnection localhost -Port 8099 -InformationLevel Quiet -WarningAction SilentlyContinue) { $up = $true; break }
+    if (Test-NetConnection localhost -Port 80 -InformationLevel Quiet -WarningAction SilentlyContinue) { $up = $true; break }
     Start-Sleep -Seconds 2
 }
 if ($up) {
     Write-Host "Готово! Открываю браузер." -ForegroundColor Green
-    Start-Process 'http://localhost:8099/'
+    Start-Process 'http://localhost/'
 } else {
     Write-Host "Веб-клиент не поднялся за 2 минуты — смотрите окно 'invest-platform MOBILE WEB'." -ForegroundColor Red
 }

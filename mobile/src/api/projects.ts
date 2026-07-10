@@ -38,6 +38,10 @@ export function fetchPendingProjects() {
   return apiClient.get<Project[]>('/projects/pending').then((r) => r.data);
 }
 
+export function fetchAllProjectsForModeration() {
+  return apiClient.get<Project[]>('/projects/all').then((r) => r.data);
+}
+
 export function approveProject(id: string, comment: string) {
   return apiClient.patch<Project>(`/projects/${id}/approve`, { comment }).then((r) => r.data);
 }

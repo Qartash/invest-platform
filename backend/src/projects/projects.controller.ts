@@ -87,6 +87,14 @@ export class ProjectsController {
     return this.withInvestorCounts(projects);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('all')
+  async findAllForModeration() {
+    const projects = await this.projectsService.findAllForModeration();
+    return projects.map(toProjectResponse);
+  }
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     const project = await this.projectsService.findOne(id);

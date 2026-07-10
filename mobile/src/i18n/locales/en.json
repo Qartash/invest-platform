@@ -104,7 +104,8 @@
       "active": "Raising",
       "funded": "Funded",
       "closed": "Closed",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "deleted": "Deleted"
     },
     "calculatorTitle": "Return forecast",
     "ticketsToReceive": "Tickets you'll receive",
@@ -370,6 +371,8 @@
         "database": "Database",
         "console": "Console"
       }
-    }
+    },
+    "tabAll": "All projects",
+    "filterAll": "All"
   }
 }

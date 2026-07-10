@@ -73,6 +73,14 @@ export class ProjectsService {
     });
   }
 
+  // Moderation overview: every project regardless of status, deleted ones included.
+  findAllForModeration(): Promise<Project[]> {
+    return this.projectsRepository.find({
+      relations: { founder: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async findOne(id: string): Promise<Project> {
     const project = await this.projectsRepository.findOne({ where: { id }, relations: { founder: true } });
     if (!project) {
