@@ -76,7 +76,6 @@ export function PortfolioScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>{t('portfolio.title')}</Text>
       <FlatList
         data={portfolio?.holdings ?? []}
         keyExtractor={(item) => item.ticketId}
@@ -138,16 +137,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    padding: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
   list: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingVertical: spacing.lg,
   },
   summaryCard: {
     backgroundColor: colors.surface,

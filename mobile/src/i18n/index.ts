@@ -31,7 +31,9 @@ function detectDeviceLanguage(): SupportedLanguage {
 
 export async function initI18n(): Promise<void> {
   const storedLanguage = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
-  const language = (storedLanguage as SupportedLanguage) ?? detectDeviceLanguage();
+  const language = (SUPPORTED_LANGUAGES as readonly string[]).includes(storedLanguage ?? '')
+    ? (storedLanguage as SupportedLanguage)
+    : detectDeviceLanguage();
 
   await i18n.use(initReactI18next).init({
     resources,

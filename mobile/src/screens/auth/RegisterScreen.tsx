@@ -38,8 +38,21 @@ export function RegisterScreen() {
   return (
     <View style={styles.container}>
       <TextField label={t('auth.fullName')} value={fullName} onChangeText={setFullName} />
-      <TextField label={t('auth.username')} value={username} onChangeText={setUsername} autoCapitalize="none" />
-      <TextField label={t('auth.password')} value={password} onChangeText={setPassword} secureTextEntry />
+      <TextField
+        label={t('auth.username')}
+        value={username}
+        onChangeText={setUsername}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+      <TextField
+        label={t('auth.password')}
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
       {error && <Text style={styles.error}>{error}</Text>}
       <PrimaryButton
         title={t('auth.registerButton')}

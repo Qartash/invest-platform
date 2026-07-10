@@ -42,7 +42,9 @@
     "tabRaising": "Собираются",
     "tabStarted": "Уже начались",
     "started": "Старт",
-    "deadline": "Окончание"
+    "deadline": "Окончание",
+    "ofGoal": "из {{amount}} {{currency}}",
+    "percentFunded": "{{percent}}% собрано"
   },
   "project": {
     "about": "О проекте",
@@ -55,6 +57,7 @@
     "purchaseSuccess": "Покупка прошла успешно",
     "currentRound": "Этап {{current}} из {{total}}",
     "roundLabel": "Этап {{round}}",
+    "roundNow": "СЕЙЧАС",
     "priceChart": "Изменение цены",
     "chartPriceAxis": "Цена",
     "chartQuantityAxis": "Количество",
@@ -194,7 +197,15 @@
     "deposit": "Пополнить",
     "withdraw": "Вывести",
     "history": "История транзакций",
-    "amount": "Сумма"
+    "amount": "Сумма",
+    "noTransactions": "Пока нет транзакций",
+    "txType": {
+      "deposit": "Пополнение",
+      "withdraw": "Вывод средств",
+      "buy": "Покупка тикетов",
+      "sell": "Продажа тикетов",
+      "dividend": "Выплата дохода"
+    }
   },
   "profile": {
     "title": "Профиль",

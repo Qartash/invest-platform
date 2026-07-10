@@ -23,6 +23,7 @@ import { StatBlock } from '../../components/StatBlock';
 import { HintModal } from '../../components/HintModal';
 import { RichTextView } from '../../components/RichTextView';
 import { BuyListingModal } from '../../components/BuyListingModal';
+import { RoundLadder } from '../../components/RoundLadder';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
 
 // Raw DOM tag — real YouTube embed on web; native shows an "open in YouTube" link instead.
@@ -37,6 +38,47 @@ function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+// Secondary metadata (risk, investor count, dates) doesn't carry its own purchase-decision
+// weight the way ticket price/availability does, so it's a row of compact chips rather than
+// full bordered stat cards — keeps a single visual tier for "supporting info" instead of
+// mixing full-size cards with colored vs. plain borders depending on whether one is tappable.
+function MetaChip({
+  icon,
+  label,
+  value,
+  onPress,
+  onHintPress,
+}: {
+  icon: string;
+  label: string;
+  value: React.ReactNode;
+  onPress?: () => void;
+  onHintPress?: () => void;
+}) {
+  const clickable = !!onPress;
+  return (
+    <Pressable style={styles.metaChip} onPress={onPress} disabled={!clickable}>
+      <Text style={styles.metaChipIcon}>{icon}</Text>
+      <View style={styles.metaChipTextBlock}>
+        <Text style={styles.metaChipLabel} numberOfLines={1}>
+          {label}
+        </Text>
+        <View style={styles.metaChipValueRow}>
+          <Text style={[styles.metaChipValue, clickable && styles.metaChipValueClickable]} numberOfLines={1}>
+            {value}
+          </Text>
+          {clickable && <Text style={styles.metaChipChevron}>›</Text>}
+          {onHintPress && (
+            <Pressable hitSlop={10} onPress={onHintPress}>
+              <Text style={styles.metaChipHintIcon}>ⓘ</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
 }
 
 // Plain DOM style object (not StyleSheet.create) since this styles a raw <iframe>.
@@ -85,6 +127,11 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
     fetchProjectListings(projectId).then(setListings);
     fetchProjectAttachments(projectId).then(setAttachments);
   }, [projectId]);
+
+  useEffect(() => {
+    if (!project) return;
+    navigation.setOptions({ title: getLocalizedText(project.title, i18n.language) });
+  }, [project, i18n.language, navigation]);
 
   useEffect(() => {
     if (!project || !route.params.scrollToResale || consumedResaleScrollParam.current) return;
@@ -276,16 +323,21 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
         </View>
       )}
 
+      <View style={styles.fundingHeroRow}>
+        <Text style={styles.fundingHeroValue}>
+          {collected.toLocaleString()} {t('common.currency')}
+        </Text>
+        <View style={styles.percentBadge}>
+          <Text style={styles.percentBadgeText}>
+            {t('home.percentFunded', { percent: Math.round(fundingProgress * 100) })}
+          </Text>
+        </View>
+      </View>
+      <Text style={styles.fundingGoalMeta}>
+        {t('home.ofGoal', { amount: target.toLocaleString(), currency: t('common.currency') })}
+      </Text>
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${fundingProgress * 100}%` }]} />
-      </View>
-      <View style={[styles.statsRow, styles.fundingRow]}>
-        <Text style={styles.meta}>
-          {t('home.raised')}: {collected.toLocaleString()} {t('common.currency')}
-        </Text>
-        <Text style={styles.meta}>
-          {t('home.goal')}: {target.toLocaleString()} {t('common.currency')}
-        </Text>
       </View>
 
       <View style={styles.statsGrid}>
@@ -303,42 +355,47 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           onNotePress={hasActiveListings ? scrollToResale : undefined}
           onHintPress={() => showHint(t('project.ticketsLeft'), t('project.ticketsLeftHint'))}
         />
+      </View>
+
+      <View style={styles.metaChipsRow}>
         {project.riskLevel && (
-          <StatBlock
+          <MetaChip
             icon="⚠️"
             label={t('project.riskLevel')}
             value={t(`project.risk.${project.riskLevel}`)}
             onPress={() => setRiskModalVisible(true)}
           />
         )}
-        <StatBlock
+        <MetaChip
           icon="👥"
           label={t('project.investors')}
           value={project.investorCount ?? 0}
-          onPress={() => setInvestorsModalVisible(true)}
-          disabled={investorSummaries.length === 0}
+          onPress={investorSummaries.length > 0 ? () => setInvestorsModalVisible(true) : undefined}
         />
-        <StatBlock
+        <MetaChip
           icon="📅"
           label={t('home.started')}
           value={formatDate(project.createdAt, i18n.language)}
           onHintPress={() => showHint(t('home.started'), t('project.startedHint'))}
         />
         {project.deadline && (
-          <StatBlock
+          <MetaChip
             icon="⏳"
             label={t('home.deadline')}
             value={formatDate(project.deadline, i18n.language)}
             onHintPress={() => showHint(t('home.deadline'), t('project.deadlineHint'))}
           />
         )}
-        <StatBlock
-          icon="💰"
-          label={t('project.finance.title')}
-          value={t('project.finance.viewAction')}
-          onPress={() => navigation.navigate('ProjectFinance', { projectId: project.id })}
-        />
       </View>
+
+      <Pressable
+        style={styles.financeLinkRow}
+        onPress={() => navigation.navigate('ProjectFinance', { projectId: project.id })}
+      >
+        <Text style={styles.financeLinkIcon}>💰</Text>
+        <Text style={styles.financeLinkLabel}>{t('project.finance.title')}</Text>
+        <Text style={styles.financeLinkAction}>{t('project.finance.viewAction')} ›</Text>
+      </Pressable>
 
       {project.resaleEnabled ? (
         <Pressable
@@ -378,15 +435,8 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
       <Text style={styles.section}>{t('project.priceChart')}</Text>
       <TicketPriceChart points={chartPoints} isProjected={purchases.length === 0} />
 
-      <View style={styles.tierList}>
-        {pricing.tiers.map((tier) => (
-          <View key={tier.tier} style={styles.tierRow}>
-            <Text style={[styles.tierText, tier.tier === pricing.currentTier && styles.tierTextActive]}>
-              {t('project.roundLabel', { round: tier.tier + 1 })} ({tier.ticketsFrom}–{tier.ticketsTo}):{' '}
-              {tier.price.toLocaleString()} {t('common.currency')}
-            </Text>
-          </View>
-        ))}
+      <View style={styles.roundLadderWrapper}>
+        <RoundLadder tiers={pricing.tiers} currentTier={pricing.currentTier} />
       </View>
 
       <TextField
@@ -397,45 +447,51 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
         value={quantity}
         onChangeText={setQuantity}
       />
-      <Text style={styles.totalCost}>
-        {t('project.totalCost')}: {totalCost.toLocaleString()} {t('common.currency')}
-      </Text>
-
-      {parsedQuantity > 0 && (
-        <View style={styles.calculator}>
-          <Pressable
-            style={styles.calculatorTitleRow}
-            onPress={() => showHint(t('project.calculatorTitle'), t('project.calculatorHint'))}
-          >
-            <Text style={styles.calculatorTitle}>{t('project.calculatorTitle')}</Text>
-            <Text style={styles.hintIconInline}>ⓘ</Text>
-          </Pressable>
-          <View style={styles.calcRow}>
-            <Text style={styles.calcLabel}>{t('project.ticketsToReceive')}</Text>
-            <Text style={styles.calcValue}>{parsedQuantity}</Text>
-          </View>
-          <View style={styles.calcRow}>
-            <Text style={styles.calcLabel}>{t('project.payoutStarts')}</Text>
-            <Text style={styles.calcValue}>{t('project.inDays', { days: project.payoutStartDays })}</Text>
-          </View>
-          <View style={styles.calcRow}>
-            <Text style={styles.calcLabel}>{t('project.expectedDailyProfit')}</Text>
-            <Text style={styles.calcValue}>
-              {expectedDailyProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} {t('common.currency')}
-            </Text>
-          </View>
-          <View style={styles.calcRow}>
-            <Text style={styles.calcLabel}>{t('project.expectedMonthlyProfit')}</Text>
-            <Text style={styles.calcValue}>
-              {expectedMonthlyProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} {t('common.currency')}
-            </Text>
-          </View>
-          <View style={styles.calcRow}>
-            <Text style={styles.calcLabel}>{t('project.paybackPeriod')}</Text>
-            <Text style={styles.calcValue}>{t('project.paybackPeriodValue', { days: paybackDays })}</Text>
-          </View>
+      <View style={styles.calculator}>
+        <View style={styles.calcRow}>
+          <Text style={styles.totalCostLabel}>{t('project.totalCost')}</Text>
+          <Text style={styles.totalCostValue}>
+            {totalCost.toLocaleString()} {t('common.currency')}
+          </Text>
         </View>
-      )}
+
+        {parsedQuantity > 0 && (
+          <>
+            <View style={styles.calcDivider} />
+            <Pressable
+              style={styles.calculatorTitleRow}
+              onPress={() => showHint(t('project.calculatorTitle'), t('project.calculatorHint'))}
+            >
+              <Text style={styles.calculatorTitle}>{t('project.calculatorTitle')}</Text>
+              <Text style={styles.hintIconInline}>ⓘ</Text>
+            </Pressable>
+            <View style={styles.calcRow}>
+              <Text style={styles.calcLabel}>{t('project.ticketsToReceive')}</Text>
+              <Text style={styles.calcValue}>{parsedQuantity}</Text>
+            </View>
+            <View style={styles.calcRow}>
+              <Text style={styles.calcLabel}>{t('project.payoutStarts')}</Text>
+              <Text style={styles.calcValue}>{t('project.inDays', { days: project.payoutStartDays })}</Text>
+            </View>
+            <View style={styles.calcRow}>
+              <Text style={styles.calcLabel}>{t('project.expectedDailyProfit')}</Text>
+              <Text style={styles.calcValue}>
+                {expectedDailyProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} {t('common.currency')}
+              </Text>
+            </View>
+            <View style={styles.calcRow}>
+              <Text style={styles.calcLabel}>{t('project.expectedMonthlyProfit')}</Text>
+              <Text style={styles.calcValueHighlight}>
+                {expectedMonthlyProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} {t('common.currency')}
+              </Text>
+            </View>
+            <View style={styles.calcRow}>
+              <Text style={styles.calcLabel}>{t('project.paybackPeriod')}</Text>
+              <Text style={styles.calcValue}>{t('project.paybackPeriodValue', { days: paybackDays })}</Text>
+            </View>
+          </>
+        )}
+      </View>
 
       <PrimaryButton
         title={t('project.confirmPurchase')}
@@ -612,11 +668,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.lg,
   },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -624,23 +675,125 @@ const styles = StyleSheet.create({
     columnGap: spacing.md,
     marginBottom: spacing.md,
   },
+  metaChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: spacing.sm,
+    columnGap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexGrow: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+  },
+  metaChipIcon: {
+    fontSize: 15,
+    marginRight: spacing.xs,
+  },
+  metaChipTextBlock: {
+    flexShrink: 1,
+  },
+  metaChipLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
+  metaChipValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metaChipValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  metaChipValueClickable: {
+    color: colors.primary,
+  },
+  metaChipChevron: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.primary,
+    marginLeft: 2,
+  },
+  metaChipHintIcon: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '700',
+    marginLeft: spacing.xs,
+    padding: 2,
+  },
+  financeLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  financeLinkIcon: {
+    fontSize: 18,
+    marginRight: spacing.sm,
+  },
+  financeLinkLabel: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  financeLinkAction: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  fundingHeroRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  fundingHeroValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  percentBadge: {
+    backgroundColor: 'rgba(34, 165, 89, 0.12)',
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  percentBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.success,
+  },
+  fundingGoalMeta: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+  },
   progressTrack: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 999,
     backgroundColor: colors.border,
     overflow: 'hidden',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.md,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.primary,
-  },
-  fundingRow: {
-    marginBottom: spacing.md,
-  },
-  meta: {
-    fontSize: 13,
-    color: colors.textMuted,
+    borderRadius: 999,
+    backgroundColor: colors.success,
   },
   resaleNote: {
     fontSize: 12,
@@ -691,34 +844,32 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: '700',
   },
-  tierList: {
+  roundLadderWrapper: {
     marginTop: spacing.sm,
     marginBottom: spacing.lg,
-  },
-  tierRow: {
-    paddingVertical: spacing.xs,
-  },
-  tierText: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  tierTextActive: {
-    color: colors.text,
-    fontWeight: '600',
-  },
-  totalCost: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.md,
   },
   calculator: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 14,
     padding: spacing.md,
     marginBottom: spacing.md,
+  },
+  totalCostLabel: {
+    fontSize: 14,
+    color: colors.textMuted,
+  },
+  totalCostValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  calcDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
   },
   calculatorTitleRow: {
     flexDirection: 'row',
@@ -734,6 +885,7 @@ const styles = StyleSheet.create({
   calcRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: spacing.xs,
   },
   calcLabel: {
@@ -746,6 +898,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
+  calcValueHighlight: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.success,
+  },
   historyHeader: {
     marginTop: spacing.xl,
   },
@@ -756,7 +913,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
@@ -791,7 +948,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },

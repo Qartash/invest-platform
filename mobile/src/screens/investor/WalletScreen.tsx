@@ -5,12 +5,29 @@ import { useTranslation } from 'react-i18next';
 import { deposit, fetchTransactions, fetchWallet, Transaction, withdraw } from '../../api/wallet';
 import { Wallet } from '../../types';
 import { colors, spacing } from '../../theme';
+import { formatDateTime } from '../../utils/date';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { showAlert } from '../../utils/alert';
 
+const TX_ICON: Record<string, string> = {
+  deposit: '⬇️',
+  withdraw: '⬆️',
+  buy: '🎟️',
+  sell: '💱',
+  dividend: '💰',
+};
+
+const TX_IS_CREDIT: Record<string, boolean> = {
+  deposit: true,
+  withdraw: false,
+  buy: false,
+  sell: true,
+  dividend: true,
+};
+
 export function WalletScreen() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [amount, setAmount] = useState('');
@@ -64,7 +81,6 @@ export function WalletScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>{t('wallet.title')}</Text>
       <FlatList
         data={transactions}
         keyExtractor={(item) => item.id}
@@ -104,14 +120,23 @@ export function WalletScreen() {
             <Text style={styles.historyHeader}>{t('wallet.history')}</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <View style={styles.txRow}>
-            <Text style={styles.txType}>{item.type}</Text>
-            <Text style={styles.txAmount}>
-              {parseFloat(item.amount).toLocaleString()} {t('common.currency')}
-            </Text>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const isCredit = TX_IS_CREDIT[item.type] ?? true;
+          return (
+            <View style={styles.txRow}>
+              <Text style={styles.txIcon}>{TX_ICON[item.type] ?? '•'}</Text>
+              <View style={styles.txInfo}>
+                <Text style={styles.txType}>{t(`wallet.txType.${item.type}`, { defaultValue: item.type })}</Text>
+                <Text style={styles.txDate}>{formatDateTime(item.createdAt, i18n.language)}</Text>
+              </View>
+              <Text style={[styles.txAmount, { color: isCredit ? colors.success : colors.text }]}>
+                {isCredit ? '+' : '−'}
+                {parseFloat(item.amount).toLocaleString()} {t('common.currency')}
+              </Text>
+            </View>
+          );
+        }}
+        ListEmptyComponent={!loading ? <Text style={styles.empty}>{t('wallet.noTransactions')}</Text> : null}
       />
     </View>
   );
@@ -122,31 +147,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  header: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    padding: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
   list: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingVertical: spacing.lg,
   },
   balanceCard: {
     backgroundColor: colors.primary,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: spacing.lg,
     marginBottom: spacing.md,
   },
   balanceLabel: {
     color: '#DDEBE0',
+    fontSize: 13,
     marginBottom: spacing.xs,
   },
   balanceValue: {
     color: '#fff',
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '700',
+    fontVariant: ['tabular-nums'],
   },
   actionsRow: {
     flexDirection: 'row',
@@ -163,20 +183,38 @@ const styles = StyleSheet.create({
   },
   txRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
+    borderRadius: 12,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
+  txIcon: {
+    fontSize: 18,
+    marginRight: spacing.sm,
+  },
+  txInfo: {
+    flex: 1,
+  },
   txType: {
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.text,
-    textTransform: 'capitalize',
+  },
+  txDate: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginTop: 1,
   },
   txAmount: {
-    color: colors.text,
-    fontWeight: '600',
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  empty: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    marginTop: spacing.xl,
   },
 });

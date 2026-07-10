@@ -42,7 +42,9 @@
     "tabRaising": "Հավաքագրվում է",
     "tabStarted": "Սկսվել է",
     "started": "Մեկնարկը",
-    "deadline": "Ավարտը"
+    "deadline": "Ավարտը",
+    "ofGoal": "{{amount}} {{currency}}-ից",
+    "percentFunded": "{{percent}}% հավաքված"
   },
   "project": {
     "about": "Նախագծի մասին",
@@ -55,6 +57,7 @@
     "purchaseSuccess": "Գնումը հաջողվեց",
     "currentRound": "Փուլ {{current}} / {{total}}",
     "roundLabel": "Փուլ {{round}}",
+    "roundNow": "ՀԻՄԱ",
     "priceChart": "Գնի փոփոխությունը",
     "chartPriceAxis": "Գին",
     "chartQuantityAxis": "Քանակ",
@@ -194,7 +197,15 @@
     "deposit": "Համալրել",
     "withdraw": "Դուրսբերում",
     "history": "Գործարքների պատմություն",
-    "amount": "Գումար"
+    "amount": "Գումար",
+    "noTransactions": "Գործարքներ դեռ չկան",
+    "txType": {
+      "deposit": "Համալրում",
+      "withdraw": "Դուրսբերում",
+      "buy": "Բաժնետոմսի գնում",
+      "sell": "Բաժնետոմսի վաճառք",
+      "dividend": "Եկամտի վճարում"
+    }
   },
   "profile": {
     "title": "Իմ էջը",

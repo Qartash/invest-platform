@@ -38,41 +38,51 @@ export function ProjectCard({ project, onPress, onResalePress }: Props) {
           </Text>
         </Pressable>
       )}
-      <Text style={styles.title}>{getLocalizedText(project.title, i18n.language)}</Text>
+
+      <View style={styles.titleRow}>
+        <Text style={styles.title} numberOfLines={2}>
+          {getLocalizedText(project.title, i18n.language)}
+        </Text>
+        <View style={styles.percentBadge}>
+          <Text style={styles.percentBadgeText}>{t('home.percentFunded', { percent: Math.round(progress * 100) })}</Text>
+        </View>
+      </View>
       {project.founderName && (
         <Text style={styles.founder}>
           {t('project.by')} {project.founderName}
         </Text>
       )}
+
+      <View style={styles.heroRow}>
+        <Text style={styles.heroValue}>
+          {collected.toLocaleString()} {t('common.currency')}
+        </Text>
+        <Text style={styles.heroMeta}>{t('home.ofGoal', { amount: target.toLocaleString(), currency: t('common.currency') })}</Text>
+      </View>
+
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
       </View>
-      <View style={styles.row}>
-        <Text style={styles.meta}>
-          {t('home.raised')}: {collected.toLocaleString()} {t('common.currency')}
-        </Text>
-        <Text style={styles.meta}>
-          {t('home.goal')}: {target.toLocaleString()} {t('common.currency')}
-        </Text>
-      </View>
-      <View style={styles.row}>
-        <Text style={styles.meta}>
-          {t('project.ticketsLeft')}: {ticketsLeft} / {project.totalTickets}
-        </Text>
-        <Text style={styles.meta}>
-          {t('project.investors')}: {project.investorCount ?? 0}
-        </Text>
-      </View>
-      <View style={styles.row}>
-        <Text style={styles.meta}>
-          {t('home.started')}: {formatDate(project.createdAt, i18n.language)}
-        </Text>
-        {project.deadline && (
-          <Text style={styles.meta}>
-            {t('home.deadline')}: {formatDate(project.deadline, i18n.language)}
-            {typeof project.daysLeft === 'number' ? ` (${project.daysLeft} ${t('home.daysLeft')})` : ''}
+
+      <View style={styles.statRow}>
+        <View style={styles.stat}>
+          <Text style={styles.statIcon}>📦</Text>
+          <Text style={styles.statText}>
+            {ticketsLeft}/{project.totalTickets}
           </Text>
-        )}
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statIcon}>👥</Text>
+          <Text style={styles.statText}>{project.investorCount ?? 0}</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statIcon}>📅</Text>
+          <Text style={styles.statText}>
+            {project.deadline && typeof project.daysLeft === 'number'
+              ? `${project.daysLeft} ${t('home.daysLeft')}`
+              : formatDate(project.createdAt, i18n.language)}
+          </Text>
+        </View>
       </View>
     </Pressable>
   );
@@ -81,7 +91,7 @@ export function ProjectCard({ project, onPress, onResalePress }: Props) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.md,
     borderWidth: 1,
@@ -90,39 +100,85 @@ const styles = StyleSheet.create({
   cover: {
     width: '100%',
     height: 140,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: spacing.sm,
     backgroundColor: colors.border,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 2,
+  },
   title: {
-    fontSize: 17,
+    flex: 1,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-    marginBottom: 2,
+    marginRight: spacing.sm,
+  },
+  percentBadge: {
+    backgroundColor: 'rgba(34, 165, 89, 0.12)',
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  percentBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.success,
   },
   founder: {
     fontSize: 12,
     color: colors.textMuted,
+    marginBottom: spacing.md,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
     marginBottom: spacing.sm,
   },
+  heroValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    marginRight: spacing.xs,
+    fontVariant: ['tabular-nums'],
+  },
+  heroMeta: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
   progressTrack: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 999,
     backgroundColor: colors.border,
     overflow: 'hidden',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.primary,
+    borderRadius: 999,
+    backgroundColor: colors.success,
   },
-  row: {
+  statRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
   },
-  meta: {
+  stat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  statIcon: {
     fontSize: 13,
+    marginRight: spacing.xs,
+  },
+  statText: {
+    fontSize: 12,
+    fontWeight: '500',
     color: colors.textMuted,
   },
   resaleBadge: {

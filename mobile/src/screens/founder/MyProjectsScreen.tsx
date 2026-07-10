@@ -150,16 +150,38 @@ export function MyProjectsScreen({ navigation }: Props) {
             {item.coverImageUrl ? (
               <Image source={{ uri: resolveMediaUrl(item.coverImageUrl) }} style={styles.cover} />
             ) : null}
-            <Text style={styles.title}>{getLocalizedText(item.title, i18n.language)}</Text>
-            <View style={styles.row}>
-              <Text style={[styles.statusBadge, item.status === 'rejected' && styles.statusBadgeRejected]}>
-                {t(`project.status.${item.status}`)}
+            <View style={styles.titleRow}>
+              <Text style={styles.title} numberOfLines={2}>
+                {getLocalizedText(item.title, i18n.language)}
               </Text>
-              <Text style={styles.meta}>
-                {parseFloat(item.collectedAmount).toLocaleString()} / {parseFloat(item.targetAmount).toLocaleString()}{' '}
-                {t('common.currency')}
-              </Text>
+              <View style={[styles.statusBadge, item.status === 'rejected' && styles.statusBadgeRejected]}>
+                <Text
+                  style={[styles.statusBadgeText, item.status === 'rejected' && styles.statusBadgeTextRejected]}
+                >
+                  {t(`project.status.${item.status}`)}
+                </Text>
+              </View>
             </View>
+            {(() => {
+              const collected = parseFloat(item.collectedAmount);
+              const target = parseFloat(item.targetAmount);
+              const progress = target > 0 ? Math.min(collected / target, 1) : 0;
+              return (
+                <>
+                  <View style={styles.heroRow}>
+                    <Text style={styles.heroValue}>
+                      {collected.toLocaleString()} {t('common.currency')}
+                    </Text>
+                    <Text style={styles.heroMeta}>
+                      {t('home.ofGoal', { amount: target.toLocaleString(), currency: t('common.currency') })}
+                    </Text>
+                  </View>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+                  </View>
+                </>
+              );
+            })()}
             {!!item.reviewComment && (
               <View style={styles.reviewCommentBox}>
                 <Text style={styles.reviewCommentLabel}>{t('founder.reviewCommentLabel')}:</Text>
@@ -401,36 +423,74 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
   cover: {
     width: '100%',
     height: 140,
-    borderRadius: 8,
+    borderRadius: 12,
     marginBottom: spacing.sm,
     backgroundColor: colors.border,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+  },
   title: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
+    marginRight: spacing.sm,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
     marginBottom: spacing.xs,
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  heroValue: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginRight: spacing.xs,
+    fontVariant: ['tabular-nums'],
   },
-  meta: {
+  heroMeta: {
+    fontSize: 12,
     color: colors.textMuted,
   },
+  progressTrack: {
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: colors.background,
+    overflow: 'hidden',
+    marginBottom: spacing.sm,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: colors.success,
+  },
   statusBadge: {
-    fontSize: 13,
-    fontWeight: '600',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(46, 111, 69, 0.12)',
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
     color: colors.primary,
   },
   statusBadgeRejected: {
+    backgroundColor: 'rgba(220, 38, 38, 0.1)',
+  },
+  statusBadgeTextRejected: {
     color: colors.danger,
   },
   reviewCommentBox: {

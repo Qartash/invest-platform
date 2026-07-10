@@ -18,7 +18,7 @@ export function StatBlock({ icon, label, value, note, onPress, onHintPress, onNo
   const clickable = !!onPress && !disabled;
 
   const body = (
-    <View style={[styles.card, clickable && styles.cardClickable, style]}>
+    <View style={[styles.card, style]}>
       <View style={styles.topRow}>
         <Text style={styles.icon}>{icon}</Text>
         {onHintPress && (
@@ -73,9 +73,6 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: 12,
     padding: spacing.md,
-  },
-  cardClickable: {
-    borderColor: colors.primary,
   },
   pressed: {
     opacity: 0.7,

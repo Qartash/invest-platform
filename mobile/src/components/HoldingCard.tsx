@@ -23,34 +23,54 @@ export function HoldingCard({ holding, onPressTitle, onSellPress, onCancelListin
   const heldDays = Math.max(0, Math.floor((Date.now() - new Date(holding.purchaseDate).getTime()) / MS_PER_DAY));
   const unitPrice = holding.quantity > 0 ? holding.purchasePrice / holding.quantity : 0;
 
+  const isPositive = holding.returnAmount >= 0;
+  const returnColor = isPositive ? colors.success : colors.danger;
+  const returnBg = isPositive ? 'rgba(34, 165, 89, 0.12)' : 'rgba(220, 38, 38, 0.1)';
+
   const body = (
     <>
-      <Text style={styles.title}>{getLocalizedText(holding.projectTitle, i18n.language)}</Text>
-      <View style={styles.row}>
-        <Text style={styles.meta}>x{holding.quantity}</Text>
-        <Text style={styles.meta}>
+      <View style={styles.titleRow}>
+        <Text style={styles.title} numberOfLines={1}>
+          {getLocalizedText(holding.projectTitle, i18n.language)}
+        </Text>
+        <View style={[styles.returnBadge, { backgroundColor: returnBg }]}>
+          <Text style={[styles.returnBadgeText, { color: returnColor }]}>
+            {isPositive ? '+' : ''}
+            {holding.returnPercent.toFixed(1)}%
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.heroRow}>
+        <Text style={styles.heroValue}>
           {holding.currentValue.toLocaleString()} {t('common.currency')}
         </Text>
-        <Text style={{ color: holding.returnAmount >= 0 ? colors.success : colors.danger, fontWeight: '600' }}>
-          {holding.returnAmount >= 0 ? '+' : ''}
+        <Text style={[styles.heroDelta, { color: returnColor }]}>
+          {isPositive ? '+' : ''}
           {holding.returnAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })} {t('common.currency')}
         </Text>
       </View>
-      <View style={styles.row}>
-        <Text style={styles.meta}>
-          {t('portfolio.totalInvested')}: {holding.purchasePrice.toLocaleString()} {t('common.currency')}
-        </Text>
-        <Text style={styles.meta}>
-          {unitPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })} {t('common.currency')}/
-          {t('project.perUnit')}
-        </Text>
+
+      <View style={styles.statRow}>
+        <View style={styles.stat}>
+          <Text style={styles.statIcon}>🎟️</Text>
+          <Text style={styles.statText}>x{holding.quantity}</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statIcon}>🏷️</Text>
+          <Text style={styles.statText}>
+            {unitPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}/{t('project.perUnit')}
+          </Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={styles.statIcon}>📅</Text>
+          <Text style={styles.statText}>{t('portfolio.heldForDays', { days: heldDays })}</Text>
+        </View>
       </View>
-      <View style={styles.row}>
-        <Text style={styles.metaSecondary}>
-          {t('portfolio.purchaseDate')}: {formatDate(holding.purchaseDate, i18n.language)}
-        </Text>
-        <Text style={styles.metaSecondary}>{t('portfolio.heldForDays', { days: heldDays })}</Text>
-      </View>
+      <Text style={styles.investedNote}>
+        {t('portfolio.totalInvested')}: {holding.purchasePrice.toLocaleString()} {t('common.currency')} ·{' '}
+        {formatDate(holding.purchaseDate, i18n.language)}
+      </Text>
     </>
   );
 
@@ -97,12 +117,14 @@ export function HoldingCard({ holding, onPressTitle, onSellPress, onCancelListin
       )}
       {holding.status === 'listed_for_sale' && (
         <View style={styles.sellRow}>
-          <Text style={styles.listedText}>
-            {t('portfolio.listedForSale', {
-              price: (holding.askingPrice ?? 0).toLocaleString(),
-              currency: t('common.currency'),
-            })}
-          </Text>
+          <View style={styles.listedBadge}>
+            <Text style={styles.listedBadgeText}>
+              {t('portfolio.listedForSale', {
+                price: (holding.askingPrice ?? 0).toLocaleString(),
+                currency: t('common.currency'),
+              })}
+            </Text>
+          </View>
           <View style={styles.actionRow}>
             <PrimaryButton
               title={t('portfolio.cancelListing')}
@@ -121,29 +143,75 @@ export function HoldingCard({ holding, onPressTitle, onSellPress, onCancelListin
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
     marginBottom: spacing.sm,
   },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.sm,
+  },
   title: {
+    flex: 1,
     fontSize: 15,
     fontWeight: '600',
     color: colors.text,
+    marginRight: spacing.sm,
+  },
+  returnBadge: {
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  returnBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  heroRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  heroValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  heroDelta: {
+    fontSize: 13,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  statRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
     marginBottom: spacing.xs,
   },
-  row: {
+  stat: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginRight: spacing.md,
   },
-  meta: {
-    color: colors.textMuted,
-  },
-  metaSecondary: {
+  statIcon: {
     fontSize: 12,
+    marginRight: spacing.xs,
+  },
+  statText: {
+    fontSize: 12,
+    fontWeight: '500',
     color: colors.textMuted,
-    marginTop: spacing.xs,
+  },
+  investedNote: {
+    fontSize: 11,
+    color: colors.textMuted,
   },
   expandRow: {
     marginTop: spacing.xs,
@@ -176,8 +244,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
   },
-  listedText: {
-    fontSize: 13,
-    color: colors.textMuted,
+  listedBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  listedBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.warning,
   },
 });

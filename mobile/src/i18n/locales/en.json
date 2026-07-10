@@ -42,7 +42,9 @@
     "tabRaising": "Raising",
     "tabStarted": "Started",
     "started": "Started",
-    "deadline": "Ends"
+    "deadline": "Ends",
+    "ofGoal": "of {{amount}} {{currency}}",
+    "percentFunded": "{{percent}}% funded"
   },
   "project": {
     "about": "About the project",
@@ -55,6 +57,7 @@
     "purchaseSuccess": "Purchase successful",
     "currentRound": "Round {{current}} of {{total}}",
     "roundLabel": "Round {{round}}",
+    "roundNow": "NOW",
     "priceChart": "Price history",
     "chartPriceAxis": "Price",
     "chartQuantityAxis": "Quantity",
@@ -194,7 +197,15 @@
     "deposit": "Deposit",
     "withdraw": "Withdraw",
     "history": "Transaction history",
-    "amount": "Amount"
+    "amount": "Amount",
+    "noTransactions": "No transactions yet",
+    "txType": {
+      "deposit": "Deposit",
+      "withdraw": "Withdrawal",
+      "buy": "Ticket purchase",
+      "sell": "Ticket sale",
+      "dividend": "Payout"
+    }
   },
   "profile": {
     "title": "Profile",
