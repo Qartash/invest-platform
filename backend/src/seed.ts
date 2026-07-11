@@ -9,7 +9,7 @@ import { TicketsService } from './tickets/tickets.service';
 import { ProjectFinanceService } from './project-finance/project-finance.service';
 import { User } from './users/entities/user.entity';
 import { Project } from './projects/entities/project.entity';
-import { ExpenseCategory, KycStatus, UserRole } from './common/enums';
+import { ExpenseCategory, FinancialReportStatus, KycStatus, UserRole } from './common/enums';
 
 const LEGACY_PASSWORD = 'password123';
 
@@ -216,7 +216,7 @@ async function seed() {
   const activeProject = (await projectsRepo.find({ where: { founderId: founder.id } })).find(
     (p) => p.title?.en === activeTitle,
   );
-  if (activeProject && (await financeService.listExpenses(activeProject.id)).length === 0) {
+  if (activeProject) {
     const period = (monthsAgo: number) => {
       const now = new Date();
       const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
@@ -251,18 +251,32 @@ async function seed() {
       }
     };
 
-    // Entries first, reports after — a published report freezes its month.
-    await seedMonthEntries(period(2), 1);
-    await seedMonthEntries(period(1), 1.15);
-    await seedMonthEntries(period(0), 0.6, new Date().getDate());
+    // Each step checks its own state so an interrupted earlier run gets
+    // completed instead of skipped. Entries first, reports after — a
+    // published report freezes its month.
+    if ((await financeService.listExpenses(activeProject.id)).length === 0) {
+      await seedMonthEntries(period(2), 1);
+      await seedMonthEntries(period(1), 1.15);
+      await seedMonthEntries(period(0), 0.6, new Date().getDate());
+      console.log('Seeded finance entries for three months');
+    }
 
-    const paidReport = await financeService.addReport(...asFounder, { period: period(2) });
-    // Top up the founder's wallet so the seeded dividend payment succeeds
-    // and there is balance left to pay last month's report from the app.
-    await walletsService.deposit(founder.id, 500_000);
-    await financeService.payReport(activeProject.id, paidReport.id, founder.id);
-    await financeService.addReport(...asFounder, { period: period(1) });
-    console.log('Seeded finance history: paid report, published report and an open current month');
+    const reports = await financeService.listReports(activeProject.id, founder.id);
+    let paidReport = reports.find((r) => r.period === period(2));
+    if (!paidReport) {
+      paidReport = await financeService.addReport(...asFounder, { period: period(2) });
+    }
+    if (paidReport.status !== FinancialReportStatus.PAID) {
+      // Top up the founder's wallet so the seeded dividend payment succeeds
+      // and there is balance left to pay last month's report from the app.
+      await walletsService.deposit(founder.id, 500_000);
+      await financeService.payReport(activeProject.id, paidReport.id, founder.id);
+      console.log(`Paid dividends for the ${paidReport.period} report`);
+    }
+    if (!reports.find((r) => r.period === period(1))) {
+      await financeService.addReport(...asFounder, { period: period(1) });
+      console.log(`Published the ${period(1)} report (left payable)`);
+    }
   }
 
   console.log('\nTest accounts:');

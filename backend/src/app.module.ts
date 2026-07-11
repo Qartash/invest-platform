@@ -30,6 +30,7 @@ import { EarningsSnapshot } from './earnings/entities/earnings-snapshot.entity';
 import { ProjectExpense } from './project-finance/entities/project-expense.entity';
 import { ProjectIncome } from './project-finance/entities/project-income.entity';
 import { ProjectFinancialReport } from './project-finance/entities/project-financial-report.entity';
+import { ReportPayout } from './project-finance/entities/report-payout.entity';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { ProjectFinancialReport } from './project-finance/entities/project-finan
           ProjectExpense,
           ProjectIncome,
           ProjectFinancialReport,
+          ReportPayout,
           SystemLog,
           LogSettings,
         ],
