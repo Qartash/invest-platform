@@ -13,6 +13,8 @@ export interface PeriodBreakdown {
   year: number;
 }
 
+const LIST_PAGE_SIZE = 20;
+
 const PERIODS: Array<{ key: keyof Omit<PeriodBreakdown, 'total'>; interval: string }> = [
   { key: 'day', interval: '1 day' },
   { key: 'week', interval: '7 days' },
@@ -39,12 +41,27 @@ export class StatsService {
       this.usersRepository.count({ where: { createdAt: MoreThanOrEqual(since(7)) } }),
       this.usersRepository.count({ where: { createdAt: MoreThanOrEqual(since(30)) } }),
       this.usersRepository.count({ where: { createdAt: MoreThanOrEqual(since(365)) } }),
-      this.usersRepository.find({ order: { createdAt: 'DESC' }, take: 15 }),
+      this.getLatestUsers(1),
     ]);
 
     return {
       registered: { total, day, week, month, year } satisfies PeriodBreakdown,
-      latest: latest.map((user) => ({
+      latest: latest.items,
+    };
+  }
+
+  // One page of newest users, newest first, with the grand total for paging.
+  async getLatestUsers(page: number) {
+    const safePage = Math.max(1, Math.floor(page) || 1);
+    const [items, total] = await this.usersRepository.findAndCount({
+      order: { createdAt: 'DESC' },
+      skip: (safePage - 1) * LIST_PAGE_SIZE,
+      take: LIST_PAGE_SIZE,
+    });
+
+    return {
+      total,
+      items: items.map((user) => ({
         id: user.id,
         fullName: user.fullName,
         username: user.username,
@@ -90,7 +107,7 @@ export class StatsService {
     const [depositors, withdrawers, history] = await Promise.all([
       this.sumByUser(TransactionType.DEPOSIT),
       this.sumByUser(TransactionType.WITHDRAW),
-      this.getMoneyHistory(),
+      this.getMoneyHistory(1),
     ]);
 
     // Turnover = money spent on tickets (primary sales + marketplace buys).
@@ -100,12 +117,15 @@ export class StatsService {
       withdrawals: toBreakdown(byType.get(TransactionType.WITHDRAW)),
       depositors,
       withdrawers,
-      history,
+      history: history.items,
+      historyTotal: history.total,
     };
   }
 
-  // Latest deposit/withdraw operations with the user attached, newest first.
-  private async getMoneyHistory() {
+  // One page of deposit/withdraw operations with the user attached, newest
+  // first, plus the grand total for paging.
+  async getMoneyHistory(page: number) {
+    const safePage = Math.max(1, Math.floor(page) || 1);
     const rows: Array<{
       id: string;
       type: string;
@@ -130,11 +150,25 @@ export class StatsService {
        JOIN users u ON u.id = t.user_id
        WHERE t.status = $1 AND t.type IN ($2, $3)
        ORDER BY t.created_at DESC
-       LIMIT 100`,
+       LIMIT $4 OFFSET $5`,
+      [
+        TransactionStatus.COMPLETED,
+        TransactionType.DEPOSIT,
+        TransactionType.WITHDRAW,
+        LIST_PAGE_SIZE,
+        (safePage - 1) * LIST_PAGE_SIZE,
+      ],
+    );
+
+    const countRows: Array<{ count: string }> = await this.transactionsRepository.query(
+      `SELECT COUNT(*) AS count FROM transactions WHERE status = $1 AND type IN ($2, $3)`,
       [TransactionStatus.COMPLETED, TransactionType.DEPOSIT, TransactionType.WITHDRAW],
     );
 
-    return rows.map((row) => ({ ...row, amount: parseFloat(row.amount) }));
+    return {
+      total: parseInt(countRows[0].count, 10),
+      items: rows.map((row) => ({ ...row, amount: parseFloat(row.amount) })),
+    };
   }
 
   // Per-user totals for one transaction type, biggest first.

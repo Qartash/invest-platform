@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, DefaultValuePipe, Get, ParseIntPipe, Query, UseGuards } from '@nestjs/common';
 import { StatsService } from './stats.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -12,8 +12,18 @@ export class StatsController {
     return this.statsService.getUsersStats();
   }
 
+  @Get('users/latest')
+  getLatestUsers(@Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number) {
+    return this.statsService.getLatestUsers(page);
+  }
+
   @Get('money')
   getMoney() {
     return this.statsService.getMoneyStats();
+  }
+
+  @Get('money/history')
+  getMoneyHistory(@Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number) {
+    return this.statsService.getMoneyHistory(page);
   }
 }

@@ -413,6 +413,9 @@
     "withdrawers": "Выводы по пользователям",
     "operations": "операций: {{count}}",
     "noData": "Пока нет данных",
-    "history": "История операций"
+    "history": "История операций",
+    "totalUsers": "Всего: {{count}}",
+    "totalOperations": "Всего: {{count}}",
+    "pageOf": "Стр. {{page}} из {{pages}}"
   }
 }

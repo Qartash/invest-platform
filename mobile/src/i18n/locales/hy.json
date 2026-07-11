@@ -413,6 +413,9 @@
     "withdrawers": "Կանխիկացումներ ըստ օգտատերերի",
     "operations": "գործարքներ՝ {{count}}",
     "noData": "Դեռ տվյալներ չկան",
-    "history": "Գործարքների պատմություն"
+    "history": "Գործարքների պատմություն",
+    "totalUsers": "Ընդամենը՝ {{count}}",
+    "totalOperations": "Ընդամենը՝ {{count}}",
+    "pageOf": "Էջ {{page}}/{{pages}}"
   }
 }

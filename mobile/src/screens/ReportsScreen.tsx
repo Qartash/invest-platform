@@ -3,11 +3,15 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import {
+  fetchLatestUsers,
+  fetchMoneyHistory,
   fetchMoneyStats,
   fetchUsersStats,
+  LatestUser,
   MoneyHistoryEntry,
   MoneyStats,
   PeriodBreakdown,
+  STATS_PAGE_SIZE,
   UserMoneyTotal,
   UsersStats,
 } from '../api/stats';
@@ -36,6 +40,39 @@ function PeriodCard({ title, data, suffix }: { title: string; data: PeriodBreakd
           </Text>
         </View>
       ))}
+    </View>
+  );
+}
+
+function Pagination({
+  page,
+  total,
+  onChange,
+}: {
+  page: number;
+  total: number;
+  onChange: (page: number) => void;
+}) {
+  const { t } = useTranslation();
+  const pageCount = Math.max(1, Math.ceil(total / STATS_PAGE_SIZE));
+  if (pageCount <= 1) return null;
+  return (
+    <View style={styles.pagination}>
+      <Pressable
+        disabled={page <= 1}
+        onPress={() => onChange(page - 1)}
+        style={[styles.pageButton, page <= 1 && styles.pageButtonDisabled]}
+      >
+        <Text style={styles.pageButtonText}>‹</Text>
+      </Pressable>
+      <Text style={styles.pageInfo}>{t('reports.pageOf', { page, pages: pageCount })}</Text>
+      <Pressable
+        disabled={page >= pageCount}
+        onPress={() => onChange(page + 1)}
+        style={[styles.pageButton, page >= pageCount && styles.pageButtonDisabled]}
+      >
+        <Text style={styles.pageButtonText}>›</Text>
+      </Pressable>
     </View>
   );
 }
@@ -102,6 +139,10 @@ export function ReportsScreen() {
   const [money, setMoney] = useState<MoneyStats | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
+  const [usersPage, setUsersPage] = useState(1);
+  const [latestUsers, setLatestUsers] = useState<LatestUser[]>([]);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyItems, setHistoryItems] = useState<MoneyHistoryEntry[]>([]);
 
   const load = useCallback(() => {
     setLoadFailed(false);
@@ -109,11 +150,29 @@ export function ReportsScreen() {
       .then(([usersStats, moneyStats]) => {
         setUsers(usersStats);
         setMoney(moneyStats);
+        setUsersPage(1);
+        setLatestUsers(usersStats.latest);
+        setHistoryPage(1);
+        setHistoryItems(moneyStats.history);
       })
       .catch(() => setLoadFailed(true));
   }, []);
 
   useFocusEffect(load);
+
+  const changeUsersPage = (page: number) => {
+    setUsersPage(page);
+    fetchLatestUsers(page)
+      .then((res) => setLatestUsers(res.items))
+      .catch(() => setLoadFailed(true));
+  };
+
+  const changeHistoryPage = (page: number) => {
+    setHistoryPage(page);
+    fetchMoneyHistory(page)
+      .then((res) => setHistoryItems(res.items))
+      .catch(() => setLoadFailed(true));
+  };
 
   const currency = t('common.currency');
 
@@ -135,8 +194,11 @@ export function ReportsScreen() {
         <>
           <PeriodCard title={t('reports.registrations')} data={users.registered} />
 
-          <Text style={styles.sectionLabel}>{t('reports.latestUsers')}</Text>
-          {users.latest.map((user) => (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>{t('reports.latestUsers')}</Text>
+            <Text style={styles.sectionCount}>{t('reports.totalUsers', { count: users.registered.total })}</Text>
+          </View>
+          {latestUsers.map((user) => (
             <Pressable key={user.id} style={styles.userRow} onPress={() => setProfileUserId(user.id)}>
               <Avatar avatarUrl={user.avatarUrl} avatarEmoji={user.avatarEmoji} size={40} />
               <View style={styles.userText}>
@@ -149,6 +211,7 @@ export function ReportsScreen() {
               <Text style={styles.chevron}>›</Text>
             </Pressable>
           ))}
+          <Pagination page={usersPage} total={users.registered.total} onChange={changeUsersPage} />
         </>
       )}
 
@@ -170,11 +233,15 @@ export function ReportsScreen() {
             <MoneyUserRow key={entry.id} entry={entry} currency={currency} onPress={() => setProfileUserId(entry.id)} />
           ))}
 
-          <Text style={styles.sectionLabel}>{t('reports.history')}</Text>
-          {money.history.length === 0 && <Text style={styles.emptyText}>{t('reports.noData')}</Text>}
-          {money.history.map((entry) => (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionLabel}>{t('reports.history')}</Text>
+            <Text style={styles.sectionCount}>{t('reports.totalOperations', { count: money.historyTotal })}</Text>
+          </View>
+          {historyItems.length === 0 && <Text style={styles.emptyText}>{t('reports.noData')}</Text>}
+          {historyItems.map((entry) => (
             <HistoryRow key={entry.id} entry={entry} currency={currency} onPress={() => setProfileUserId(entry.userId)} />
           ))}
+          <Pagination page={historyPage} total={money.historyTotal} onChange={changeHistoryPage} />
         </>
       )}
 
@@ -262,6 +329,49 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: colors.primary,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sectionCount: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  pagination: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+  },
+  pageButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageButtonDisabled: {
+    opacity: 0.35,
+  },
+  pageButtonText: {
+    fontSize: 20,
+    color: colors.text,
+    lineHeight: 22,
+  },
+  pageInfo: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginHorizontal: spacing.md,
   },
   sectionLabel: {
     fontSize: 13,

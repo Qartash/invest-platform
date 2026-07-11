@@ -413,6 +413,9 @@
     "withdrawers": "Withdrawals by user",
     "operations": "{{count}} operations",
     "noData": "No data yet",
-    "history": "Operations history"
+    "history": "Operations history",
+    "totalUsers": "Total: {{count}}",
+    "totalOperations": "Total: {{count}}",
+    "pageOf": "Page {{page}} of {{pages}}"
   }
 }

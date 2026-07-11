@@ -52,7 +52,15 @@ export interface MoneyStats {
   depositors: UserMoneyTotal[];
   withdrawers: UserMoneyTotal[];
   history: MoneyHistoryEntry[];
+  historyTotal: number;
 }
+
+export interface PaginatedList<T> {
+  total: number;
+  items: T[];
+}
+
+export const STATS_PAGE_SIZE = 20;
 
 export function fetchUsersStats() {
   return apiClient.get<UsersStats>('/stats/users').then((r) => r.data);
@@ -60,4 +68,12 @@ export function fetchUsersStats() {
 
 export function fetchMoneyStats() {
   return apiClient.get<MoneyStats>('/stats/money').then((r) => r.data);
+}
+
+export function fetchLatestUsers(page: number) {
+  return apiClient.get<PaginatedList<LatestUser>>('/stats/users/latest', { params: { page } }).then((r) => r.data);
+}
+
+export function fetchMoneyHistory(page: number) {
+  return apiClient.get<PaginatedList<MoneyHistoryEntry>>('/stats/money/history', { params: { page } }).then((r) => r.data);
 }
