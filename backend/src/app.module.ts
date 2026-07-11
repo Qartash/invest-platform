@@ -13,6 +13,7 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { EarningsModule } from './earnings/earnings.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
 import { ProjectFinanceModule } from './project-finance/project-finance.module';
+import { StatsModule } from './stats/stats.module';
 import { LogsModule } from './logs/logs.module';
 import { DbQueryLogger } from './logs/db-query-logger';
 import { SystemLog } from './logs/entities/system-log.entity';
@@ -74,6 +75,7 @@ import { ProjectFinancialReport } from './project-finance/entities/project-finan
     EarningsModule,
     PortfolioModule,
     ProjectFinanceModule,
+    StatsModule,
     LogsModule,
   ],
   controllers: [AppController],

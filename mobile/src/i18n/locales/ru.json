@@ -375,5 +375,27 @@
     },
     "tabAll": "Все проекты",
     "filterAll": "Все"
+  },
+  "reports": {
+    "title": "Отчёты",
+    "tabUsers": "Пользователи",
+    "tabMoney": "Деньги",
+    "registrations": "Регистрации",
+    "latestUsers": "Последние регистрации",
+    "turnover": "Оборот (покупки тикетов)",
+    "deposits": "Пополнения",
+    "withdrawals": "Выводы",
+    "periods": {
+      "total": "Всего",
+      "day": "За день",
+      "week": "За неделю",
+      "month": "За месяц",
+      "year": "За год"
+    },
+    "depositors": "Пополнения по пользователям",
+    "withdrawers": "Выводы по пользователям",
+    "operations": "операций: {{count}}",
+    "noData": "Пока нет данных",
+    "history": "История операций"
   }
 }

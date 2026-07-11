@@ -375,5 +375,27 @@
     },
     "tabAll": "All projects",
     "filterAll": "All"
+  },
+  "reports": {
+    "title": "Reports",
+    "tabUsers": "Users",
+    "tabMoney": "Money",
+    "registrations": "Registrations",
+    "latestUsers": "Latest registrations",
+    "turnover": "Turnover (ticket purchases)",
+    "deposits": "Deposits",
+    "withdrawals": "Withdrawals",
+    "periods": {
+      "total": "Total",
+      "day": "Last day",
+      "week": "Last week",
+      "month": "Last month",
+      "year": "Last year"
+    },
+    "depositors": "Deposits by user",
+    "withdrawers": "Withdrawals by user",
+    "operations": "{{count}} operations",
+    "noData": "No data yet",
+    "history": "Operations history"
   }
 }

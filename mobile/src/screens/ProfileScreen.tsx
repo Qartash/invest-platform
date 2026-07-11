@@ -103,6 +103,7 @@ export function ProfileScreen({ navigation }: Props) {
           value={`${portfolio ? portfolio.summary.totalCurrentValue.toLocaleString() : '—'} ${t('common.currency')}`}
           onPress={() => navigation.navigate('Portfolio')}
         />
+        <StatBlock icon="📈" label={t('reports.title')} value=" " onPress={() => navigation.navigate('Reports')} />
       </View>
 
       <Text style={styles.sectionLabel}>{t('profile.language')}</Text>

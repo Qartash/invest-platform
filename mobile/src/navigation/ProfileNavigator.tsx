@@ -6,12 +6,14 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WalletScreen } from '../screens/investor/WalletScreen';
 import { PortfolioScreen } from '../screens/investor/PortfolioScreen';
+import { ReportsScreen } from '../screens/ReportsScreen';
 
 export type ProfileStackParamList = {
   Profile: undefined;
   EditProfile: undefined;
   Wallet: undefined;
   Portfolio: undefined;
+  Reports: undefined;
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -51,6 +53,15 @@ export function ProfileStackNavigator() {
         options={({ navigation }) => ({
           headerShown: true,
           title: t('portfolio.title'),
+          headerLeft: () => <BackToProfileButton navigation={navigation} />,
+        })}
+      />
+      <Stack.Screen
+        name="Reports"
+        component={ReportsScreen}
+        options={({ navigation }) => ({
+          headerShown: true,
+          title: t('reports.title'),
           headerLeft: () => <BackToProfileButton navigation={navigation} />,
         })}
       />
