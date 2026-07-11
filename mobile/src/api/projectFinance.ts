@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { ExpenseCategory, ProjectExpense, ProjectIncome, ProjectFinancialReport } from '../types';
+import { ExpenseCategory, ProjectExpense, ProjectIncome, ProjectFinancialReport, ReportPayoutEntry } from '../types';
 
 export function fetchProjectExpenses(projectId: string) {
   return apiClient.get<ProjectExpense[]>(`/projects/${projectId}/expenses`).then((r) => r.data);
@@ -38,4 +38,16 @@ export function addProjectFinancialReport(projectId: string, data: { period: str
 
 export function deleteProjectFinancialReport(projectId: string, reportId: string) {
   return apiClient.delete(`/projects/${projectId}/financial-reports/${reportId}`).then((r) => r.data);
+}
+
+export function payProjectFinancialReport(projectId: string, reportId: string) {
+  return apiClient
+    .post<ProjectFinancialReport>(`/projects/${projectId}/financial-reports/${reportId}/payout`)
+    .then((r) => r.data);
+}
+
+export function fetchReportPayouts(projectId: string, reportId: string) {
+  return apiClient
+    .get<ReportPayoutEntry[]>(`/projects/${projectId}/financial-reports/${reportId}/payouts`)
+    .then((r) => r.data);
 }

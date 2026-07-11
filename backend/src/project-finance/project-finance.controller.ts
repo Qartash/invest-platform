@@ -57,13 +57,23 @@ export class ProjectFinancialReportsController {
   constructor(private readonly financeService: ProjectFinanceService) {}
 
   @Get()
-  list(@Param('id') projectId: string) {
-    return this.financeService.listReports(projectId);
+  list(@CurrentUser() user: User, @Param('id') projectId: string) {
+    return this.financeService.listReports(projectId, user.id);
   }
 
   @Post()
   create(@CurrentUser() user: User, @Param('id') projectId: string, @Body() dto: CreateFinancialReportDto) {
     return this.financeService.addReport(projectId, user.id, user.role, dto);
+  }
+
+  @Post(':reportId/payout')
+  pay(@CurrentUser() user: User, @Param('id') projectId: string, @Param('reportId') reportId: string) {
+    return this.financeService.payReport(projectId, reportId, user.id);
+  }
+
+  @Get(':reportId/payouts')
+  listPayouts(@Param('id') projectId: string, @Param('reportId') reportId: string) {
+    return this.financeService.listPayouts(projectId, reportId);
   }
 
   @Delete(':reportId')

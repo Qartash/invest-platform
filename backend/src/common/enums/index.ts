@@ -52,6 +52,11 @@ export enum ProjectPriority {
   HIGH = 'high',
 }
 
+export enum FinancialReportStatus {
+  PUBLISHED = 'published',
+  PAID = 'paid',
+}
+
 export enum ExpenseCategory {
   INVESTMENT_SPEND = 'investment_spend',
   DAILY = 'daily',

@@ -27,7 +27,12 @@ export function ProjectFinanceScreen({ route }: Props) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {project && <Text style={styles.title}>{getLocalizedText(project.title, i18n.language)}</Text>}
       <View style={styles.panel}>
-        <ProjectFinancePanel projectId={projectId} canEdit ticketsSold={project?.ticketsSold ?? 0} />
+        <ProjectFinancePanel
+          projectId={projectId}
+          canEdit
+          ticketsSold={project?.ticketsSold ?? 0}
+          totalTickets={project?.totalTickets ?? 0}
+        />
       </View>
     </ScrollView>
   );

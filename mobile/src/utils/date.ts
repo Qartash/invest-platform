@@ -13,6 +13,15 @@ export function formatDate(value: string | Date, language: string): string {
   });
 }
 
+// period is 'YYYY-MM'
+export function formatMonth(period: string, language: string): string {
+  const [year, month] = period.split('-').map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString(LOCALE_MAP[language] ?? 'en-US', {
+    year: 'numeric',
+    month: 'long',
+  });
+}
+
 export function formatDateTime(value: string | Date, language: string): string {
   const date = typeof value === 'string' ? new Date(value) : value;
   return date.toLocaleString(LOCALE_MAP[language] ?? 'en-US', {

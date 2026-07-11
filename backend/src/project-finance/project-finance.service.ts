@@ -1,14 +1,25 @@
-import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { ProjectExpense } from './entities/project-expense.entity';
 import { ProjectIncome } from './entities/project-income.entity';
 import { ProjectFinancialReport } from './entities/project-financial-report.entity';
+import { ReportPayout } from './entities/report-payout.entity';
+import { Project } from '../projects/entities/project.entity';
+import { Ticket } from '../tickets/entities/ticket.entity';
+import { Wallet } from '../wallets/entities/wallet.entity';
+import { Transaction } from '../transactions/entities/transaction.entity';
 import { ProjectsService } from '../projects/projects.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateIncomeDto } from './dto/create-income.dto';
 import { CreateFinancialReportDto } from './dto/create-financial-report.dto';
-import { UserRole } from '../common/enums';
+import { FinancialReportStatus, TransactionStatus, TransactionType, UserRole } from '../common/enums';
 
 @Injectable()
 export class ProjectFinanceService {
@@ -19,7 +30,10 @@ export class ProjectFinanceService {
     private readonly incomesRepository: Repository<ProjectIncome>,
     @InjectRepository(ProjectFinancialReport)
     private readonly reportsRepository: Repository<ProjectFinancialReport>,
+    @InjectRepository(ReportPayout)
+    private readonly payoutsRepository: Repository<ReportPayout>,
     private readonly projectsService: ProjectsService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private async assertCanEdit(projectId: string, userId: string, userRole: UserRole) {
@@ -30,12 +44,23 @@ export class ProjectFinanceService {
     return project;
   }
 
+  // Once a report is published for a month, that month's books are frozen:
+  // no entries may be added to or removed from it.
+  private async assertPeriodOpen(projectId: string, date: string) {
+    const period = date.slice(0, 7);
+    const report = await this.reportsRepository.findOne({ where: { projectId, period } });
+    if (report) {
+      throw new ConflictException('This month is closed by a published report');
+    }
+  }
+
   listExpenses(projectId: string) {
     return this.expensesRepository.find({ where: { projectId }, order: { date: 'DESC', createdAt: 'DESC' } });
   }
 
   async addExpense(projectId: string, userId: string, userRole: UserRole, dto: CreateExpenseDto) {
     await this.assertCanEdit(projectId, userId, userRole);
+    await this.assertPeriodOpen(projectId, dto.date);
     const expense = this.expensesRepository.create({ ...dto, projectId, amount: dto.amount.toFixed(2) });
     return this.expensesRepository.save(expense);
   }
@@ -46,6 +71,7 @@ export class ProjectFinanceService {
     if (!expense) {
       throw new NotFoundException('Expense not found');
     }
+    await this.assertPeriodOpen(projectId, expense.date);
     await this.expensesRepository.remove(expense);
   }
 
@@ -55,6 +81,7 @@ export class ProjectFinanceService {
 
   async addIncome(projectId: string, userId: string, userRole: UserRole, dto: CreateIncomeDto) {
     await this.assertCanEdit(projectId, userId, userRole);
+    await this.assertPeriodOpen(projectId, dto.date);
     const income = this.incomesRepository.create({ ...dto, projectId, amount: dto.amount.toFixed(2) });
     return this.incomesRepository.save(income);
   }
@@ -65,6 +92,7 @@ export class ProjectFinanceService {
     if (!income) {
       throw new NotFoundException('Income not found');
     }
+    await this.assertPeriodOpen(projectId, income.date);
     await this.incomesRepository.remove(income);
   }
 
@@ -100,48 +128,80 @@ export class ProjectFinanceService {
     return this.sumForPeriod(this.incomesRepository, 'income', projectId, period);
   }
 
-  async listReports(projectId: string) {
-    const reports = await this.reportsRepository.find({ where: { projectId }, order: { period: 'DESC' } });
-    return Promise.all(
-      reports.map(async (report) => {
-        const [turnoverAmount, expensesAmount] = await Promise.all([
-          this.incomeForPeriod(projectId, report.period),
-          this.expensesForPeriod(projectId, report.period),
-        ]);
-        return {
-          id: report.id,
-          projectId: report.projectId,
-          period: report.period,
-          turnoverAmount,
-          expensesAmount,
-          netProfit: turnoverAmount - expensesAmount,
-          createdAt: report.createdAt,
-        };
-      }),
-    );
-  }
-
-  async addReport(projectId: string, userId: string, userRole: UserRole, dto: CreateFinancialReportDto) {
-    await this.assertCanEdit(projectId, userId, userRole);
-    const existing = await this.reportsRepository.findOne({ where: { projectId, period: dto.period } });
-    if (existing) {
-      throw new ConflictException('A report for this period already exists');
-    }
-    const report = this.reportsRepository.create({ projectId, period: dto.period });
-    await this.reportsRepository.save(report);
-    const [turnoverAmount, expensesAmount] = await Promise.all([
-      this.incomeForPeriod(projectId, report.period),
-      this.expensesForPeriod(projectId, report.period),
-    ]);
+  private toReportView(report: ProjectFinancialReport, myDividend: number | null) {
     return {
       id: report.id,
       projectId: report.projectId,
       period: report.period,
-      turnoverAmount,
-      expensesAmount,
-      netProfit: turnoverAmount - expensesAmount,
+      status: report.status,
+      turnoverAmount: parseFloat(report.incomeTotal),
+      expensesAmount: parseFloat(report.expensesTotal),
+      netProfit: parseFloat(report.netProfit),
+      payoutTotal: report.payoutTotal === null ? null : parseFloat(report.payoutTotal),
+      publishedAt: report.publishedAt,
+      paidAt: report.paidAt,
+      myDividend,
       createdAt: report.createdAt,
     };
+  }
+
+  // Reports created before totals were snapshotted have publishedAt = null;
+  // compute and freeze their totals on first read.
+  private async backfillLegacyReport(report: ProjectFinancialReport) {
+    const [incomeTotal, expensesTotal] = await Promise.all([
+      this.incomeForPeriod(report.projectId, report.period),
+      this.expensesForPeriod(report.projectId, report.period),
+    ]);
+    report.incomeTotal = incomeTotal.toFixed(2);
+    report.expensesTotal = expensesTotal.toFixed(2);
+    report.netProfit = (incomeTotal - expensesTotal).toFixed(2);
+    report.publishedAt = report.createdAt;
+    return this.reportsRepository.save(report);
+  }
+
+  async listReports(projectId: string, currentUserId: string) {
+    let reports = await this.reportsRepository.find({ where: { projectId }, order: { period: 'DESC' } });
+    reports = await Promise.all(
+      reports.map((report) => (report.publishedAt ? Promise.resolve(report) : this.backfillLegacyReport(report))),
+    );
+
+    const myPayouts = reports.length
+      ? await this.payoutsRepository
+          .createQueryBuilder('payout')
+          .where('payout.user_id = :currentUserId', { currentUserId })
+          .andWhere('payout.report_id IN (:...reportIds)', { reportIds: reports.map((r) => r.id) })
+          .getMany()
+      : [];
+    const myPayoutByReport = new Map(myPayouts.map((payout) => [payout.reportId, parseFloat(payout.amount)]));
+
+    return reports.map((report) => this.toReportView(report, myPayoutByReport.get(report.id) ?? null));
+  }
+
+  async addReport(projectId: string, userId: string, userRole: UserRole, dto: CreateFinancialReportDto) {
+    await this.assertCanEdit(projectId, userId, userRole);
+    const currentPeriod = new Date().toISOString().slice(0, 7);
+    if (dto.period > currentPeriod) {
+      throw new BadRequestException('Cannot publish a report for a future month');
+    }
+    const existing = await this.reportsRepository.findOne({ where: { projectId, period: dto.period } });
+    if (existing) {
+      throw new ConflictException('A report for this period already exists');
+    }
+    const [incomeTotal, expensesTotal] = await Promise.all([
+      this.incomeForPeriod(projectId, dto.period),
+      this.expensesForPeriod(projectId, dto.period),
+    ]);
+    const report = this.reportsRepository.create({
+      projectId,
+      period: dto.period,
+      status: FinancialReportStatus.PUBLISHED,
+      incomeTotal: incomeTotal.toFixed(2),
+      expensesTotal: expensesTotal.toFixed(2),
+      netProfit: (incomeTotal - expensesTotal).toFixed(2),
+      publishedAt: new Date(),
+    });
+    const saved = await this.reportsRepository.save(report);
+    return this.toReportView(saved, null);
   }
 
   async deleteReport(projectId: string, reportId: string, userId: string, userRole: UserRole) {
@@ -150,6 +210,133 @@ export class ProjectFinanceService {
     if (!report) {
       throw new NotFoundException('Report not found');
     }
+    if (report.status === FinancialReportStatus.PAID) {
+      throw new ConflictException('Dividends for this report were already paid; it cannot be deleted');
+    }
     await this.reportsRepository.remove(report);
+  }
+
+  async listPayouts(projectId: string, reportId: string) {
+    const report = await this.reportsRepository.findOne({ where: { id: reportId, projectId } });
+    if (!report) {
+      throw new NotFoundException('Report not found');
+    }
+    const payouts = await this.payoutsRepository.find({
+      where: { reportId },
+      relations: { user: true },
+      order: { amount: 'DESC' },
+    });
+    return payouts.map((payout) => ({
+      id: payout.id,
+      userId: payout.userId,
+      fullName: payout.user.fullName,
+      username: payout.user.username,
+      tickets: payout.tickets,
+      sharePercent: parseFloat(payout.sharePercent),
+      amount: parseFloat(payout.amount),
+    }));
+  }
+
+  // Pays the investors' share of a published report's net profit out of the
+  // founder's wallet, proportionally to tickets held right now. The share base
+  // is totalTickets, so the unsold portion of the project stays with the
+  // founder. Cent remainders from flooring also stay with the founder.
+  async payReport(projectId: string, reportId: string, userId: string) {
+    return this.dataSource.transaction(async (manager) => {
+      const report = await manager.findOne(ProjectFinancialReport, {
+        where: { id: reportId, projectId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!report) {
+        throw new NotFoundException('Report not found');
+      }
+      if (report.status === FinancialReportStatus.PAID) {
+        throw new ConflictException('Dividends for this report were already paid');
+      }
+
+      const project = await manager.findOne(Project, { where: { id: projectId } });
+      if (!project) {
+        throw new NotFoundException('Project not found');
+      }
+      // Only the founder can pay: the money leaves their personal wallet.
+      if (project.founderId !== userId) {
+        throw new ForbiddenException('Only the project founder can pay dividends');
+      }
+
+      const netProfit = parseFloat(report.netProfit);
+      if (netProfit <= 0) {
+        throw new BadRequestException('No profit to distribute for this period');
+      }
+
+      const tickets = await manager.find(Ticket, { where: { projectId } });
+      const ticketsByOwner = new Map<string, number>();
+      for (const ticket of tickets) {
+        if (ticket.ownerId === project.founderId) continue;
+        ticketsByOwner.set(ticket.ownerId, (ticketsByOwner.get(ticket.ownerId) ?? 0) + ticket.quantity);
+      }
+
+      const netCents = BigInt(Math.round(netProfit * 100));
+      const totalTickets = BigInt(project.totalTickets);
+      const holders = [...ticketsByOwner.entries()]
+        .map(([ownerId, quantity]) => ({
+          ownerId,
+          quantity,
+          amountCents: (netCents * BigInt(quantity)) / totalTickets,
+        }))
+        .filter((holder) => holder.amountCents > 0n);
+
+      const payoutTotalCents = holders.reduce((sum, holder) => sum + holder.amountCents, 0n);
+      const payoutTotal = Number(payoutTotalCents) / 100;
+
+      if (payoutTotalCents > 0n) {
+        const founderWallet = await manager.findOne(Wallet, { where: { userId: project.founderId } });
+        if (!founderWallet) {
+          throw new BadRequestException('Founder wallet not found');
+        }
+        const founderBalance = parseFloat(founderWallet.balance);
+        if (founderBalance < payoutTotal) {
+          throw new BadRequestException('Insufficient wallet balance to pay dividends');
+        }
+        founderWallet.balance = (founderBalance - payoutTotal).toFixed(2);
+        await manager.save(founderWallet);
+
+        for (const holder of holders) {
+          const amount = Number(holder.amountCents) / 100;
+
+          let wallet = await manager.findOne(Wallet, { where: { userId: holder.ownerId } });
+          if (!wallet) {
+            wallet = manager.create(Wallet, { userId: holder.ownerId, balance: '0', currency: 'AMD' });
+          }
+          wallet.balance = (parseFloat(wallet.balance) + amount).toFixed(2);
+          await manager.save(wallet);
+
+          await manager.save(
+            manager.create(Transaction, {
+              userId: holder.ownerId,
+              type: TransactionType.DIVIDEND,
+              amount: amount.toFixed(2),
+              quantity: holder.quantity,
+              status: TransactionStatus.COMPLETED,
+            }),
+          );
+
+          await manager.save(
+            manager.create(ReportPayout, {
+              reportId: report.id,
+              userId: holder.ownerId,
+              tickets: holder.quantity,
+              sharePercent: ((holder.quantity / project.totalTickets) * 100).toFixed(4),
+              amount: amount.toFixed(2),
+            }),
+          );
+        }
+      }
+
+      report.status = FinancialReportStatus.PAID;
+      report.paidAt = new Date();
+      report.payoutTotal = payoutTotal.toFixed(2);
+      const saved = await manager.save(report);
+      return this.toReportView(saved, null);
+    });
   }
 }

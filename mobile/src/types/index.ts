@@ -129,14 +129,31 @@ export interface ProjectIncome {
   createdAt: string;
 }
 
+export type FinancialReportStatus = 'published' | 'paid';
+
 export interface ProjectFinancialReport {
   id: string;
   projectId: string;
   period: string;
+  status: FinancialReportStatus;
   turnoverAmount: number;
   expensesAmount: number;
   netProfit: number;
+  payoutTotal: number | null;
+  publishedAt: string | null;
+  paidAt: string | null;
+  myDividend: number | null;
   createdAt: string;
+}
+
+export interface ReportPayoutEntry {
+  id: string;
+  userId: string;
+  fullName: string | null;
+  username: string | null;
+  tickets: number;
+  sharePercent: number;
+  amount: number;
 }
 
 export type BudgetItemStatus = 'not_started' | 'awaiting_payment' | 'completed';
