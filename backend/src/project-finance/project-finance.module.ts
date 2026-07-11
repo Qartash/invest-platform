@@ -15,6 +15,7 @@ import { ProjectsModule } from '../projects/projects.module';
 @Module({
   imports: [TypeOrmModule.forFeature([ProjectExpense, ProjectIncome, ProjectFinancialReport, ReportPayout]), ProjectsModule],
   providers: [ProjectFinanceService],
+  exports: [ProjectFinanceService],
   controllers: [ProjectExpensesController, ProjectIncomesController, ProjectFinancialReportsController],
 })
 export class ProjectFinanceModule {}

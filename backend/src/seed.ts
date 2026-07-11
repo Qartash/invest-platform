@@ -6,9 +6,10 @@ import { AuthService } from './auth/auth.service';
 import { WalletsService } from './wallets/wallets.service';
 import { ProjectsService } from './projects/projects.service';
 import { TicketsService } from './tickets/tickets.service';
+import { ProjectFinanceService } from './project-finance/project-finance.service';
 import { User } from './users/entities/user.entity';
 import { Project } from './projects/entities/project.entity';
-import { KycStatus, UserRole } from './common/enums';
+import { ExpenseCategory, KycStatus, UserRole } from './common/enums';
 
 const LEGACY_PASSWORD = 'password123';
 
@@ -61,6 +62,7 @@ async function seed() {
   const walletsService = app.get(WalletsService);
   const projectsService = app.get(ProjectsService);
   const ticketsService = app.get(TicketsService);
+  const financeService = app.get(ProjectFinanceService);
 
   await attachUsernameByEmail(usersRepo, 'admin@test.com', 'admin');
   await attachUsernameByEmail(usersRepo, 'founder@test.com', 'founder');
@@ -206,6 +208,61 @@ async function seed() {
       admin.fullName ?? admin.username,
     );
     console.log(`Created rejected project "${rejectedTitle}"`);
+  }
+
+  // 4. Finance history for the active project: a paid month, a published
+  //    (still payable) month and the open current month — the full report
+  //    lifecycle is visible and the "pay dividends" step stays testable.
+  const activeProject = (await projectsRepo.find({ where: { founderId: founder.id } })).find(
+    (p) => p.title?.en === activeTitle,
+  );
+  if (activeProject && (await financeService.listExpenses(activeProject.id)).length === 0) {
+    const period = (monthsAgo: number) => {
+      const now = new Date();
+      const d = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    };
+    const asFounder = [activeProject.id, founder.id, UserRole.FOUNDER] as const;
+
+    const seedMonthEntries = async (p: string, scale: number, daysCap = 31) => {
+      const entries = [
+        { kind: 'income', amount: 620_000, description: 'Продажи обжаренного кофе (опт)', day: 5 },
+        { kind: 'income', amount: 280_000, description: 'Розничные продажи в кофейне', day: 18 },
+        { kind: 'income', amount: 150_000, description: 'Кейтеринг и мероприятия', day: 26 },
+        { kind: 'expense', amount: 310_000, description: 'Закупка зелёного кофе', day: 3, category: ExpenseCategory.DAILY },
+        { kind: 'expense', amount: 120_000, description: 'Аренда и коммунальные', day: 10, category: ExpenseCategory.DAILY },
+        { kind: 'expense', amount: 45_000, description: 'Упаковка и этикетки', day: 15, category: ExpenseCategory.ONE_TIME },
+        { kind: 'expense', amount: 60_000, description: 'Реклама в соцсетях', day: 21, category: ExpenseCategory.OTHER },
+      ] as const;
+      for (const entry of entries) {
+        if (entry.day > daysCap) continue;
+        const date = `${p}-${String(entry.day).padStart(2, '0')}`;
+        const amount = Math.round(entry.amount * scale);
+        if (entry.kind === 'income') {
+          await financeService.addIncome(...asFounder, { amount, description: entry.description, date });
+        } else {
+          await financeService.addExpense(...asFounder, {
+            amount,
+            description: entry.description,
+            date,
+            category: entry.category,
+          });
+        }
+      }
+    };
+
+    // Entries first, reports after — a published report freezes its month.
+    await seedMonthEntries(period(2), 1);
+    await seedMonthEntries(period(1), 1.15);
+    await seedMonthEntries(period(0), 0.6, new Date().getDate());
+
+    const paidReport = await financeService.addReport(...asFounder, { period: period(2) });
+    // Top up the founder's wallet so the seeded dividend payment succeeds
+    // and there is balance left to pay last month's report from the app.
+    await walletsService.deposit(founder.id, 500_000);
+    await financeService.payReport(activeProject.id, paidReport.id, founder.id);
+    await financeService.addReport(...asFounder, { period: period(1) });
+    console.log('Seeded finance history: paid report, published report and an open current month');
   }
 
   console.log('\nTest accounts:');
