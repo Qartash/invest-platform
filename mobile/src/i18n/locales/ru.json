@@ -202,6 +202,7 @@
     "currentValue": "Текущая стоимость",
     "todayReturn": "Доход за сегодня",
     "monthReturn": "Доход за месяц",
+    "dividendsReceived": "Полученные дивиденды",
     "totalReturn": "Общий доход",
     "noHoldings": "Вы пока ничего не купили",
     "sellTicket": "Продать",

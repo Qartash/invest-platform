@@ -202,6 +202,7 @@
     "currentValue": "Current value",
     "todayReturn": "Today's return",
     "monthReturn": "Monthly return",
+    "dividendsReceived": "Dividends received",
     "totalReturn": "Total return",
     "noHoldings": "You haven't invested in anything yet",
     "sellTicket": "Sell",

@@ -104,6 +104,12 @@ export function PortfolioScreen() {
                 <Text style={styles.summaryLabel}>{t('portfolio.monthReturn')}</Text>
                 <ReturnText value={summary.monthReturn} />
               </View>
+              {summary.totalDividends > 0 && (
+                <View style={styles.summaryRow}>
+                  <Text style={styles.summaryLabel}>{t('portfolio.dividendsReceived')}</Text>
+                  <ReturnText value={summary.totalDividends} />
+                </View>
+              )}
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{t('portfolio.totalReturn')}</Text>
                 <ReturnText value={summary.totalReturnAmount} />

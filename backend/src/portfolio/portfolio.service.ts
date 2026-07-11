@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { EarningsSnapshot } from '../earnings/entities/earnings-snapshot.entity';
+import { ReportPayout } from '../project-finance/entities/report-payout.entity';
 import { TicketStatus } from '../common/enums';
 
 export interface HoldingLot {
@@ -22,6 +23,7 @@ export interface Holding {
   quantity: number;
   purchasePrice: number;
   currentValue: number;
+  dividendsReceived: number;
   returnAmount: number;
   returnPercent: number;
   status: string;
@@ -40,14 +42,35 @@ export class PortfolioService {
     private readonly ticketsRepository: Repository<Ticket>,
     @InjectRepository(EarningsSnapshot)
     private readonly snapshotsRepository: Repository<EarningsSnapshot>,
+    @InjectRepository(ReportPayout)
+    private readonly payoutsRepository: Repository<ReportPayout>,
   ) {}
 
+  // Dividends this user has been paid, summed per project (payouts link to a
+  // report, and a report belongs to a project). Portfolio return would
+  // otherwise ignore real money earned, since the valuation feed is a
+  // placeholder that carries purchase price forward with zero return.
+  private async dividendsByProject(userId: string): Promise<Map<string, number>> {
+    const rows: Array<{ projectId: string; total: string }> = await this.payoutsRepository
+      .createQueryBuilder('payout')
+      .innerJoin('project_financial_reports', 'report', 'report.id = payout.report_id')
+      .select('report.project_id', 'projectId')
+      .addSelect('COALESCE(SUM(payout.amount), 0)', 'total')
+      .where('payout.user_id = :userId', { userId })
+      .groupBy('report.project_id')
+      .getRawMany();
+    return new Map(rows.map((row) => [row.projectId, parseFloat(row.total)]));
+  }
+
   async getPortfolio(userId: string) {
-    const tickets = await this.ticketsRepository.find({
-      where: { ownerId: userId },
-      relations: { project: true },
-      order: { purchaseDate: 'ASC' },
-    });
+    const [tickets, dividendsByProject] = await Promise.all([
+      this.ticketsRepository.find({
+        where: { ownerId: userId },
+        relations: { project: true },
+        order: { purchaseDate: 'ASC' },
+      }),
+      this.dividendsByProject(userId),
+    ]);
 
     let totalInvested = 0;
     let totalCurrentValue = 0;
@@ -123,6 +146,7 @@ export class PortfolioService {
         quantity: ticket.quantity,
         purchasePrice,
         currentValue,
+        dividendsReceived: 0,
         returnAmount: currentValue - purchasePrice,
         returnPercent: purchasePrice > 0 ? ((currentValue - purchasePrice) / purchasePrice) * 100 : 0,
         status: ticket.status,
@@ -140,20 +164,38 @@ export class PortfolioService {
       }
     }
 
-    for (const holding of groupedHoldings.values()) {
-      holding.returnAmount = holding.currentValue - holding.purchasePrice;
-      holding.returnPercent =
-        holding.purchasePrice > 0 ? ((holding.currentValue - holding.purchasePrice) / holding.purchasePrice) * 100 : 0;
+    // Spread each project's dividends across that project's holding cards in
+    // proportion to quantity, so the per-card returns sum back to the project
+    // total without double counting when a project shows as several lots.
+    const heldQtyByProject = new Map<string, number>();
+    for (const holding of holdings) {
+      heldQtyByProject.set(holding.projectId, (heldQtyByProject.get(holding.projectId) ?? 0) + holding.quantity);
     }
+    for (const holding of holdings) {
+      const projectDividends = dividendsByProject.get(holding.projectId) ?? 0;
+      const projectQty = heldQtyByProject.get(holding.projectId) ?? 0;
+      holding.dividendsReceived = projectQty > 0 ? (projectDividends * holding.quantity) / projectQty : 0;
+    }
+
+    for (const holding of holdings) {
+      holding.returnAmount = holding.currentValue - holding.purchasePrice + holding.dividendsReceived;
+      holding.returnPercent =
+        holding.purchasePrice > 0 ? (holding.returnAmount / holding.purchasePrice) * 100 : 0;
+    }
+
+    // All dividends the user was ever paid, even for projects they have since
+    // fully sold out of — those earnings are real and belong in the total.
+    const totalDividends = [...dividendsByProject.values()].reduce((sum, amount) => sum + amount, 0);
+    const totalReturnAmount = totalCurrentValue - totalInvested + totalDividends;
 
     return {
       holdings,
       summary: {
         totalInvested,
         totalCurrentValue,
-        totalReturnAmount: totalCurrentValue - totalInvested,
-        totalReturnPercent:
-          totalInvested > 0 ? ((totalCurrentValue - totalInvested) / totalInvested) * 100 : 0,
+        totalDividends,
+        totalReturnAmount,
+        totalReturnPercent: totalInvested > 0 ? (totalReturnAmount / totalInvested) * 100 : 0,
         todayReturn,
         monthReturn,
       },

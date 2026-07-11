@@ -71,6 +71,12 @@ export function HoldingCard({ holding, onPressTitle, onSellPress, onCancelListin
         {t('portfolio.totalInvested')}: {holding.purchasePrice.toLocaleString()} {t('common.currency')} ·{' '}
         {formatDate(holding.purchaseDate, i18n.language)}
       </Text>
+      {holding.dividendsReceived > 0 && (
+        <Text style={styles.dividendNote}>
+          {t('portfolio.dividendsReceived')}: +
+          {holding.dividendsReceived.toLocaleString(undefined, { maximumFractionDigits: 2 })} {t('common.currency')}
+        </Text>
+      )}
     </>
   );
 
@@ -212,6 +218,12 @@ const styles = StyleSheet.create({
   investedNote: {
     fontSize: 11,
     color: colors.textMuted,
+  },
+  dividendNote: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.success,
+    marginTop: 1,
   },
   expandRow: {
     marginTop: spacing.xs,

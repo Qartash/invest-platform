@@ -257,6 +257,7 @@ export interface Holding {
   quantity: number;
   purchasePrice: number;
   currentValue: number;
+  dividendsReceived: number;
   returnAmount: number;
   returnPercent: number;
   status: string;
@@ -271,6 +272,7 @@ export interface Holding {
 export interface PortfolioSummary {
   totalInvested: number;
   totalCurrentValue: number;
+  totalDividends: number;
   totalReturnAmount: number;
   totalReturnPercent: number;
   todayReturn: number;
