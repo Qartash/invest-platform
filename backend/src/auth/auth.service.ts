@@ -34,8 +34,11 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const user = await this.usersService.findByUsername(dto.username);
-    if (!user || user.passwordHash !== dto.password) {
+    if (!user || user.passwordHash !== dto.password || user.deletedAt) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+    if (user.bannedAt) {
+      throw new UnauthorizedException('Account is banned');
     }
     return this.buildAuthResponse(user);
   }

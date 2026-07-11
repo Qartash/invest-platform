@@ -39,3 +39,32 @@ export async function uploadAvatar(file: { uri: string; name: string; type: stri
 export function fetchInvestorProfile(id: string) {
   return apiClient.get<InvestorProfile>(`/users/${id}/investor-profile`).then((r) => r.data);
 }
+
+// --- Admin moderation of users ---
+
+export function fetchAllUsers() {
+  return apiClient.get<AuthUser[]>('/users/all').then((r) => r.data);
+}
+
+export function adminUpdateUser(
+  id: string,
+  data: { fullName?: string; username?: string; email?: string; phone?: string; role?: string; kycStatus?: string },
+) {
+  return apiClient.patch<AuthUser>(`/users/${id}/admin`, data).then((r) => r.data);
+}
+
+export function banUser(id: string) {
+  return apiClient.patch<AuthUser>(`/users/${id}/ban`).then((r) => r.data);
+}
+
+export function unbanUser(id: string) {
+  return apiClient.patch<AuthUser>(`/users/${id}/unban`).then((r) => r.data);
+}
+
+export function deleteUser(id: string) {
+  return apiClient.delete<AuthUser>(`/users/${id}`).then((r) => r.data);
+}
+
+export function restoreUser(id: string) {
+  return apiClient.patch<AuthUser>(`/users/${id}/restore`).then((r) => r.data);
+}

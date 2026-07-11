@@ -25,7 +25,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: JwtPayload) {
     const user = await this.usersService.findById(payload.sub);
-    if (!user) {
+    // Banned/deleted users lose access immediately, even with a valid token.
+    if (!user || user.bannedAt || user.deletedAt) {
       throw new UnauthorizedException();
     }
     return user;

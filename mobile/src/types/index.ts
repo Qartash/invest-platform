@@ -21,6 +21,8 @@ export interface AuthUser {
   occupation?: string | null;
   linkedin?: string | null;
   shareContactsPublicly?: boolean;
+  bannedAt?: string | null;
+  deletedAt?: string | null;
   createdAt?: string;
 }
 

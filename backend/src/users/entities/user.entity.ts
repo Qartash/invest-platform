@@ -67,6 +67,14 @@ export class User {
   @Column({ default: false, name: 'share_contacts_publicly' })
   shareContactsPublicly: boolean;
 
+  @Column({ type: 'timestamptz', nullable: true, name: 'banned_at' })
+  bannedAt: Date | null;
+
+  // Soft delete: financial history (wallet, tickets, transactions) must survive,
+  // so profiles are never hard-deleted by moderation.
+  @Column({ type: 'timestamptz', nullable: true, name: 'deleted_at' })
+  deletedAt: Date | null;
+
   @OneToOne(() => Wallet, (wallet) => wallet.user)
   wallet: Wallet;
 

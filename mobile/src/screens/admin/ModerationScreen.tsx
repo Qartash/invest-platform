@@ -4,17 +4,20 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { fetchAllProjectsForModeration, fetchPendingDeletions, fetchPendingProjects } from '../../api/projects';
+import { fetchAllUsers } from '../../api/users';
 import { resolveMediaUrl } from '../../api/client';
-import { Project } from '../../types';
+import { AuthUser, Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { PRIORITY_COLORS } from '../../utils/priority';
+import { Avatar } from '../../components/Avatar';
+import { formatDate } from '../../utils/date';
 import { colors, spacing } from '../../theme';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
 import { LogsScreen } from './LogsScreen';
 
 type Props = NativeStackScreenProps<ModerationStackParamList, 'ModerationList'>;
 
-type Tab = 'pending' | 'all' | 'logs';
+type Tab = 'pending' | 'all' | 'users' | 'logs';
 
 // "deleted" is not a ProjectStatus — it's a soft-delete flag (deletedAt), shown
 // and filtered here as if it were a status because that's how moderators think.
@@ -41,6 +44,7 @@ export function ModerationScreen({ navigation }: Props) {
   const [tab, setTab] = useState<Tab>('pending');
   const [projects, setProjects] = useState<Project[]>([]);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [users, setUsers] = useState<AuthUser[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -70,12 +74,25 @@ export function ModerationScreen({ navigation }: Props) {
     }
   }, []);
 
+  const loadUsers = useCallback(async () => {
+    setLoading(true);
+    setLoadFailed(false);
+    try {
+      setUsers(await fetchAllUsers());
+    } catch {
+      setLoadFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       if (tab === 'pending') load();
       if (tab === 'all') loadAll();
+      if (tab === 'users') loadUsers();
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [load, loadAll, tab]),
+    }, [load, loadAll, loadUsers, tab]),
   );
 
   const filteredAll = useMemo(() => {
@@ -91,6 +108,9 @@ export function ModerationScreen({ navigation }: Props) {
       <Pressable style={[styles.tab, tab === 'all' && styles.tabActive]} onPress={() => setTab('all')}>
         <Text style={[styles.tabText, tab === 'all' && styles.tabTextActive]}>{t('moderation.tabAll')}</Text>
       </Pressable>
+      <Pressable style={[styles.tab, tab === 'users' && styles.tabActive]} onPress={() => setTab('users')}>
+        <Text style={[styles.tabText, tab === 'users' && styles.tabTextActive]}>{t('moderation.users.title')}</Text>
+      </Pressable>
       <Pressable style={[styles.tab, tab === 'logs' && styles.tabActive]} onPress={() => setTab('logs')}>
         <Text style={[styles.tabText, tab === 'logs' && styles.tabTextActive]}>{t('moderation.logs.title')}</Text>
       </Pressable>
@@ -103,6 +123,52 @@ export function ModerationScreen({ navigation }: Props) {
         <Text style={styles.header}>{t('founder.moderation')}</Text>
         {tabSwitcher}
         <LogsScreen />
+      </View>
+    );
+  }
+
+  if (tab === 'users') {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.header}>{t('founder.moderation')}</Text>
+        {tabSwitcher}
+        <FlatList
+          data={users}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <Pressable style={styles.card} onPress={() => navigation.navigate('ModerationUser', { userId: item.id })}>
+              <Avatar avatarUrl={item.avatarUrl} avatarEmoji={item.avatarEmoji} size={44} />
+              <View style={[styles.cardText, styles.userCardText]}>
+                <View style={styles.badgeRow}>
+                  <View style={styles.editBadge}>
+                    <Text style={styles.editBadgeText}>{t(`moderation.users.roles.${item.role}`)}</Text>
+                  </View>
+                  {item.bannedAt && (
+                    <View style={styles.deletionBadge}>
+                      <Text style={styles.deletionBadgeText}>{t('moderation.users.bannedBadge')}</Text>
+                    </View>
+                  )}
+                  {item.deletedAt && (
+                    <View style={styles.deletionBadge}>
+                      <Text style={styles.deletionBadgeText}>{t('project.status.deleted')}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.title}>{item.fullName || item.username || '—'}</Text>
+                <Text style={styles.meta}>
+                  {item.username ? `@${item.username}` : ''}
+                  {item.createdAt ? ` · ${formatDate(item.createdAt, i18n.language)}` : ''}
+                </Text>
+              </View>
+            </Pressable>
+          )}
+          ListEmptyComponent={
+            !loading ? (
+              <Text style={styles.empty}>{loadFailed ? t('common.error') : t('reports.noData')}</Text>
+            ) : null
+          }
+        />
       </View>
     );
   }
@@ -302,6 +368,9 @@ const styles = StyleSheet.create({
   },
   cardText: {
     flex: 1,
+  },
+  userCardText: {
+    marginLeft: spacing.md,
   },
   badgeRow: {
     flexDirection: 'row',

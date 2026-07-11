@@ -374,7 +374,24 @@
       }
     },
     "tabAll": "All projects",
-    "filterAll": "All"
+    "filterAll": "All",
+    "users": {
+      "title": "Users",
+      "bannedBadge": "Banned",
+      "ban": "Ban",
+      "unban": "Unban",
+      "delete": "Delete profile",
+      "restore": "Restore profile",
+      "deleteConfirmTitle": "Delete this profile?",
+      "deleteConfirmMessage": "The user will lose access to the platform. Financial history is kept and the profile can be restored.",
+      "saved": "Saved",
+      "role": "Role",
+      "roles": {
+        "investor": "Investor",
+        "founder": "Founder",
+        "admin": "Administrator"
+      }
+    }
   },
   "reports": {
     "title": "Reports",
