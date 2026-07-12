@@ -8,6 +8,10 @@ import { User } from '../users/entities/user.entity';
 import { UserRole } from '../common/enums';
 import { toPublicUser } from '../users/public-user';
 
+// New accounts without a photo get a random emoji avatar so people are never
+// shown a blank placeholder. Keep in sync with the mobile avatar picker list.
+const DEFAULT_AVATAR_EMOJIS = ['😀', '😎', '🤓', '🦁', '🐯', '🐼', '🦊', '🐸', '🚀', '💼', '🌟', '🔥', '💎', '🏆', '🎯', '🌈'];
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -27,6 +31,7 @@ export class AuthService {
       fullName: dto.fullName,
       role: UserRole.INVESTOR,
       languagePref: dto.languagePref ?? 'hy',
+      avatarEmoji: DEFAULT_AVATAR_EMOJIS[Math.floor(Math.random() * DEFAULT_AVATAR_EMOJIS.length)],
     });
     await this.walletsService.createForUser(user.id);
     return this.buildAuthResponse(user);

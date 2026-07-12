@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { adminUpdateUser, banUser, deleteUser, fetchAllUsers, restoreUser, unbanUser } from '../../api/users';
-import { AuthUser, UserRole } from '../../types';
+import { AuthUser, KycStatus, UserRole } from '../../types';
 import { Avatar } from '../../components/Avatar';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
@@ -16,6 +16,7 @@ import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
 type Props = NativeStackScreenProps<ModerationStackParamList, 'ModerationUser'>;
 
 const ROLES: UserRole[] = ['investor', 'founder', 'admin'];
+const KYC_STATUSES: KycStatus[] = ['none', 'pending', 'approved', 'rejected'];
 
 export function ModerationUserScreen({ route, navigation }: Props) {
   const { userId } = route.params;
@@ -26,6 +27,8 @@ export function ModerationUserScreen({ route, navigation }: Props) {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<UserRole>('investor');
+  const [kycStatus, setKycStatus] = useState<KycStatus>('none');
+  const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(() => {
@@ -40,6 +43,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
       setEmail(found.email ?? '');
       setPhone(found.phone ?? '');
       setRole(found.role);
+      setKycStatus(found.kycStatus);
     });
   }, [userId]);
 
@@ -57,8 +61,11 @@ export function ModerationUserScreen({ route, navigation }: Props) {
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
         role,
+        kycStatus,
+        password: password.trim() || undefined,
       });
       setUser(updated);
+      setPassword('');
       showAlert(t('moderation.users.saved'));
     } catch (err: any) {
       handleError(err);
@@ -158,6 +165,32 @@ export function ModerationUserScreen({ route, navigation }: Props) {
         ))}
       </View>
 
+      <Text style={styles.sectionLabel}>{t('moderation.users.kycStatus')}</Text>
+      <View style={styles.kycRow}>
+        {KYC_STATUSES.map((s) => (
+          <Pressable
+            key={s}
+            style={[styles.roleChip, kycStatus === s && styles.roleChipActive]}
+            onPress={() => setKycStatus(s)}
+          >
+            <Text style={[styles.roleChipText, kycStatus === s && styles.roleChipTextActive]}>
+              {t(`profile.kyc.${s}`)}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.kycHint}>{t('moderation.users.kycHint')}</Text>
+
+      <TextField
+        label={t('moderation.users.newPassword')}
+        value={password}
+        onChangeText={setPassword}
+        autoCapitalize="none"
+        autoCorrect={false}
+        secureTextEntry
+        placeholder={t('moderation.users.newPasswordPlaceholder')}
+      />
+
       <PrimaryButton title={t('common.save')} onPress={handleSave} loading={submitting} />
 
       <Pressable style={[styles.actionButton, styles.banButton]} onPress={handleBanToggle} disabled={submitting}>
@@ -230,6 +263,17 @@ const styles = StyleSheet.create({
   },
   roleRow: {
     flexDirection: 'row',
+    marginBottom: spacing.md,
+  },
+  kycRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  kycHint: {
+    fontSize: 12,
+    color: colors.textMuted,
     marginBottom: spacing.md,
   },
   roleChip: {

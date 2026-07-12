@@ -67,6 +67,10 @@ export class User {
   @Column({ default: false, name: 'share_contacts_publicly' })
   shareContactsPublicly: boolean;
 
+  // When false, other users see the name masked to first+last letters.
+  @Column({ default: true, name: 'show_full_name' })
+  showFullName: boolean;
+
   @Column({ type: 'timestamptz', nullable: true, name: 'banned_at' })
   bannedAt: Date | null;
 

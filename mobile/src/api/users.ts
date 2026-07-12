@@ -8,6 +8,8 @@ export function fetchMe() {
 
 export function updateMe(data: {
   fullName?: string;
+  username?: string;
+  email?: string;
   phone?: string;
   telegram?: string;
   birthDate?: string;
@@ -16,6 +18,7 @@ export function updateMe(data: {
   occupation?: string;
   linkedin?: string;
   shareContactsPublicly?: boolean;
+  showFullName?: boolean;
   avatarEmoji?: string;
 }) {
   return apiClient.patch<AuthUser>('/users/me', data).then((r) => r.data);
@@ -48,7 +51,15 @@ export function fetchAllUsers() {
 
 export function adminUpdateUser(
   id: string,
-  data: { fullName?: string; username?: string; email?: string; phone?: string; role?: string; kycStatus?: string },
+  data: {
+    fullName?: string;
+    username?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+    kycStatus?: string;
+    password?: string;
+  },
 ) {
   return apiClient.patch<AuthUser>(`/users/${id}/admin`, data).then((r) => r.data);
 }

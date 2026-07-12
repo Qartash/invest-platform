@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -24,6 +24,7 @@ import {
 } from '../../utils/projectDiff';
 import { LANGUAGE_LABELS } from '../../i18n';
 import { showAlert } from '../../utils/alert';
+import { useAuthStore } from '../../store/authStore';
 import { colors, spacing } from '../../theme';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { RichTextView } from '../../components/RichTextView';
@@ -40,6 +41,7 @@ type Props = NativeStackScreenProps<FounderStackParamList, 'MyProjects'>;
 
 export function MyProjectsScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
+  const user = useAuthStore((s) => s.user);
   const [tab, setTab] = useState<Tab>('owned');
   const [projects, setProjects] = useState<Project[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
@@ -50,16 +52,30 @@ export function MyProjectsScreen({ navigation }: Props) {
   const [listingSubmitting, setListingSubmitting] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
+  // With no owned projects the "Invested" tab is the useful one, so default to
+  // it (and show it first) — but only until the user taps a tab themselves.
+  const tabTouched = useRef(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const [projectsData, portfolio] = await Promise.all([fetchMyProjects(), fetchPortfolio()]);
       setProjects(projectsData);
       setHoldings(portfolio.holdings);
+      if (!tabTouched.current) {
+        setTab(projectsData.length > 0 ? 'owned' : 'invested');
+      }
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const selectTab = (next: Tab) => {
+    tabTouched.current = true;
+    setTab(next);
+  };
+
+  const tabOrder: Tab[] = projects.length > 0 ? ['owned', 'invested'] : ['invested', 'owned'];
 
   useFocusEffect(
     useCallback(() => {
@@ -106,6 +122,14 @@ export function MyProjectsScreen({ navigation }: Props) {
     }
   };
 
+  const handleCreateProject = () => {
+    if (user?.kycStatus !== 'approved') {
+      showAlert(t('founder.verificationRequiredTitle'), t('founder.verificationRequiredMessage'));
+      return;
+    }
+    navigation.navigate('CreateProject');
+  };
+
   const handleCancelReview = (id: string) => runAction(id, () => cancelProjectReview(id));
   const handleCancelDeletion = (id: string) => runAction(id, () => cancelProjectDeletion(id));
   const handleRestore = (id: string) => runAction(id, () => restoreProject(id));
@@ -130,14 +154,17 @@ export function MyProjectsScreen({ navigation }: Props) {
       <Text style={styles.header}>{t('founder.myProjects')}</Text>
 
       <View style={styles.tabRow}>
-        <Pressable style={[styles.tab, tab === 'owned' && styles.tabActive]} onPress={() => setTab('owned')}>
-          <Text style={[styles.tabText, tab === 'owned' && styles.tabTextActive]}>{t('founder.tabOwned')}</Text>
-        </Pressable>
-        <Pressable style={[styles.tab, tab === 'invested' && styles.tabActive]} onPress={() => setTab('invested')}>
-          <Text style={[styles.tabText, tab === 'invested' && styles.tabTextActive]}>
-            {t('founder.tabInvested')}
-          </Text>
-        </Pressable>
+        {tabOrder.map((key) => (
+          <Pressable
+            key={key}
+            style={[styles.tab, tab === key && styles.tabActive]}
+            onPress={() => selectTab(key)}
+          >
+            <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>
+              {t(key === 'owned' ? 'founder.tabOwned' : 'founder.tabInvested')}
+            </Text>
+          </Pressable>
+        ))}
       </View>
 
       {tab === 'owned' && (
@@ -361,7 +388,10 @@ export function MyProjectsScreen({ navigation }: Props) {
 
       {tab === 'owned' && (
         <View style={styles.footer}>
-          <PrimaryButton title={t('founder.createProject')} onPress={() => navigation.navigate('CreateProject')} />
+          <PrimaryButton title={t('founder.createProject')} onPress={handleCreateProject} />
+          {user?.kycStatus !== 'approved' && (
+            <Text style={styles.verificationNote}>{t('founder.verificationRequiredMessage')}</Text>
+          )}
         </View>
       )}
       {historyProjectId && (
@@ -632,5 +662,11 @@ const styles = StyleSheet.create({
   },
   footer: {
     padding: spacing.lg,
+  },
+  verificationNote: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
 });

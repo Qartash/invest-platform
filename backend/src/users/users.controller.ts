@@ -17,6 +17,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { UsersService } from './users.service';
 import { TicketsService } from '../tickets/tickets.service';
+import { ProjectsService } from '../projects/projects.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -34,6 +35,7 @@ export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly ticketsService: TicketsService,
+    private readonly projectsService: ProjectsService,
   ) {}
 
   @Get('me')
@@ -122,7 +124,10 @@ export class UsersController {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    const projects = await this.ticketsService.findActiveProjectsForOwner(id);
-    return toInvestorProfile(user, projects);
+    const [projects, foundedProjects] = await Promise.all([
+      this.ticketsService.findActiveProjectsForOwner(id),
+      this.projectsService.findByFounder(id),
+    ]);
+    return toInvestorProfile(user, projects, foundedProjects.length > 0);
   }
 }

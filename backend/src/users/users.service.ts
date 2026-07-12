@@ -26,6 +26,7 @@ export class UsersService {
     fullName?: string;
     role: UserRole;
     languagePref?: string;
+    avatarEmoji?: string;
   }): Promise<User> {
     const user = this.usersRepository.create(data);
     return this.usersRepository.save(user);
@@ -37,6 +38,8 @@ export class UsersService {
       Pick<
         User,
         | 'fullName'
+        | 'username'
+        | 'email'
         | 'phone'
         | 'telegram'
         | 'birthDate'
@@ -46,10 +49,20 @@ export class UsersService {
         | 'occupation'
         | 'linkedin'
         | 'shareContactsPublicly'
+        | 'showFullName'
         | 'avatarEmoji'
       >
     >,
   ): Promise<User | null> {
+    // Username/email are unique — reject a clash before hitting the DB constraint.
+    if (data.username) {
+      const taken = await this.usersRepository.findOne({ where: { username: data.username, id: Not(id) } });
+      if (taken) throw new ConflictException('Username already taken');
+    }
+    if (data.email) {
+      const taken = await this.usersRepository.findOne({ where: { email: data.email, id: Not(id) } });
+      if (taken) throw new ConflictException('Email already taken');
+    }
     const update = data.avatarEmoji ? { ...data, avatarUrl: null } : data;
     await this.usersRepository.update(id, update);
     return this.usersRepository.findOneBy({ id });
@@ -64,7 +77,8 @@ export class UsersService {
     return this.usersRepository.find({ order: { createdAt: 'DESC' } });
   }
 
-  // Moderation may edit anyone except admins — admin accounts manage themselves.
+  // Moderation may edit anyone but yourself — including other admins, so a
+  // wrongly-promoted admin can be demoted. Self-moderation is still blocked.
   private async findModerationTarget(id: string, actingAdminId: string): Promise<User> {
     const user = await this.usersRepository.findOneBy({ id });
     if (!user) {
@@ -72,9 +86,6 @@ export class UsersService {
     }
     if (user.id === actingAdminId) {
       throw new BadRequestException('Use your own profile settings instead');
-    }
-    if (user.role === UserRole.ADMIN) {
-      throw new BadRequestException('Admin accounts cannot be moderated');
     }
     return user;
   }
@@ -91,7 +102,12 @@ export class UsersService {
       if (taken) throw new ConflictException('Email already taken');
     }
 
-    Object.assign(user, dto);
+    // password isn't a column — map it onto the hash and drop it before assign.
+    const { password, ...rest } = dto;
+    Object.assign(user, rest);
+    if (password) {
+      user.passwordHash = password;
+    }
     return this.usersRepository.save(user);
   }
 

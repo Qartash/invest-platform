@@ -17,7 +17,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { Project } from './entities/project.entity';
-import { ProjectStatus, UserRole } from '../common/enums';
+import { KycStatus, ProjectStatus, UserRole } from '../common/enums';
 import { toProjectResponse } from './project-response';
 
 const ALLOWED_ATTACHMENT_MIME_TYPES = [
@@ -161,6 +161,11 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard)
   @Post()
   async create(@CurrentUser() user: User, @Body() dto: CreateProjectDto) {
+    // Investing needs no verification, but publishing a project (taking other
+    // people's money) requires a verified identity.
+    if (user.kycStatus !== KycStatus.APPROVED) {
+      throw new ForbiddenException('You must be verified to create a project');
+    }
     const project = await this.projectsService.create(user.id, dto);
     return toProjectResponse(project);
   }

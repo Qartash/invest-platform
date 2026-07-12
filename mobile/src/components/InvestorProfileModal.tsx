@@ -55,7 +55,14 @@ export function InvestorProfileModal({
               <View style={styles.headerRow}>
                 <Avatar avatarUrl={profile.avatarUrl} avatarEmoji={profile.avatarEmoji} size={64} />
                 <View style={styles.headerText}>
-                  <Text style={styles.name}>{profile.fullName}</Text>
+                  <View style={styles.nameRow}>
+                    <Text style={styles.name}>{profile.fullName}</Text>
+                    {profile.role === 'admin' && (
+                      <View style={styles.adminBadge}>
+                        <Text style={styles.adminBadgeText}>🛡 {t('profile.adminBadge')}</Text>
+                      </View>
+                    )}
+                  </View>
                   {profile.occupation && <Text style={styles.meta}>{profile.occupation}</Text>}
                   {profile.verified && <Text style={styles.verified}>✓ {t('profile.verified')}</Text>}
                 </View>
@@ -139,10 +146,27 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.md,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
   name: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
+  },
+  adminBadge: {
+    marginLeft: spacing.sm,
+    backgroundColor: 'rgba(46, 111, 69, 0.12)',
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  adminBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
   },
   verified: {
     fontSize: 12,

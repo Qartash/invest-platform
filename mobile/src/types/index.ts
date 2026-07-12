@@ -21,6 +21,7 @@ export interface AuthUser {
   occupation?: string | null;
   linkedin?: string | null;
   shareContactsPublicly?: boolean;
+  showFullName?: boolean;
   bannedAt?: string | null;
   deletedAt?: string | null;
   createdAt?: string;
@@ -35,6 +36,7 @@ export interface InvestorProfileProject {
 
 export interface InvestorProfile {
   id: string;
+  role: UserRole;
   fullName?: string;
   avatarUrl: string | null;
   avatarEmoji: string | null;

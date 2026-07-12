@@ -26,4 +26,9 @@ export class AdminUpdateUserDto {
   @IsEnum(KycStatus)
   @IsOptional()
   kycStatus?: KycStatus;
+
+  @IsString()
+  @MinLength(6)
+  @IsOptional()
+  password?: string;
 }

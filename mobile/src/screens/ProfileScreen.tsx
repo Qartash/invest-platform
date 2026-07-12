@@ -62,7 +62,14 @@ export function ProfileScreen({ navigation }: Props) {
         <View style={styles.headerRow}>
           <Avatar avatarUrl={user?.avatarUrl} avatarEmoji={user?.avatarEmoji} size={64} />
           <View style={styles.headerText}>
-            <Text style={styles.name}>{user?.fullName || user?.username}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>{user?.fullName || user?.username}</Text>
+              {user?.role === 'admin' && (
+                <View style={styles.adminBadge}>
+                  <Text style={styles.adminBadgeText}>🛡 {t('profile.adminBadge')}</Text>
+                </View>
+              )}
+            </View>
             {!!user?.occupation && <Text style={styles.occupation}>{user.occupation}</Text>}
             {user?.kycStatus === 'approved' && <Text style={styles.verified}>✓ {t('profile.verified')}</Text>}
           </View>
@@ -88,6 +95,10 @@ export function ProfileScreen({ navigation }: Props) {
           />
           <InfoRow label={t('profile.kycStatus')} value={t(`profile.kyc.${user?.kycStatus ?? 'none'}`)} />
         </View>
+
+        <Text style={styles.kycExplain}>
+          {user?.kycStatus === 'approved' ? t('profile.kycExplainVerified') : t('profile.kycExplain')}
+        </Text>
       </View>
 
       <View style={styles.statsGrid}>
@@ -168,10 +179,27 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: spacing.md,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
   name: {
     fontSize: 17,
     fontWeight: '600',
     color: colors.text,
+  },
+  adminBadge: {
+    marginLeft: spacing.sm,
+    backgroundColor: 'rgba(46, 111, 69, 0.12)',
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  adminBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.primary,
   },
   occupation: {
     fontSize: 13,
@@ -197,6 +225,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
     paddingTop: spacing.sm,
+  },
+  kycExplain: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
+    lineHeight: 17,
   },
   infoRow: {
     flexDirection: 'row',

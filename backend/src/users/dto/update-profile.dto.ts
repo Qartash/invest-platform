@@ -1,10 +1,19 @@
-import { IsBoolean, IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 import { Gender } from '../../common/enums';
 
 export class UpdateProfileDto {
   @IsString()
   @IsOptional()
   fullName?: string;
+
+  @IsString()
+  @MinLength(3)
+  @IsOptional()
+  username?: string;
+
+  @IsEmail()
+  @IsOptional()
+  email?: string;
 
   @IsString()
   @IsOptional()
@@ -37,6 +46,10 @@ export class UpdateProfileDto {
   @IsBoolean()
   @IsOptional()
   shareContactsPublicly?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  showFullName?: boolean;
 
   @IsString()
   @IsOptional()
