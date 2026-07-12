@@ -150,7 +150,7 @@ export function TicketPriceChart({ points, isProjected, width = 320, height = 20
             fill={colors.textMuted}
             textAnchor="end"
           >
-            {formatDate(points[n - 1].date, i18n.language)}
+            {formatDate(points[n - 1].date!, i18n.language)}
           </SvgText>
         )}
         <SvgText

@@ -321,7 +321,10 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
             <Pressable
               key={file.id}
               style={styles.attachmentRow}
-              onPress={() => Linking.openURL(resolveMediaUrl(file.fileUrl))}
+              onPress={() => {
+                const url = resolveMediaUrl(file.fileUrl);
+                if (url) Linking.openURL(url);
+              }}
             >
               <Text style={styles.attachmentName} numberOfLines={1}>
                 📄 {file.fileName}

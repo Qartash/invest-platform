@@ -1,4 +1,4 @@
-import { TFunction } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { getLocalizedText } from './localized';
 import { formatDate } from './date';
 import { stripHtml } from './richText';
