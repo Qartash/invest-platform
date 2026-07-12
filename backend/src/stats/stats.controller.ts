@@ -22,6 +22,11 @@ export class StatsController {
     return this.statsService.getMoneyStats();
   }
 
+  @Get('series')
+  getSeries(@Query('range') range = 'month') {
+    return this.statsService.getSeries(range);
+  }
+
   @Get('money/history')
   getMoneyHistory(@Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number) {
     return this.statsService.getMoneyHistory(page);

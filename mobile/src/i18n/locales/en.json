@@ -458,6 +458,18 @@
     "history": "Operations history",
     "totalUsers": "Total: {{count}}",
     "totalOperations": "Total: {{count}}",
-    "pageOf": "Page {{page}} of {{pages}}"
+    "pageOf": "Page {{page}} of {{pages}}",
+    "registrationsChart": "Registrations over time",
+    "moneyChart": "Money over time",
+    "showChart": "Show chart",
+    "hideChart": "Hide chart",
+    "range": {
+      "day": "1D",
+      "5day": "5D",
+      "month": "1M",
+      "year": "1Y",
+      "5year": "5Y",
+      "max": "MAX"
+    }
   }
 }

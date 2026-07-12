@@ -458,6 +458,18 @@
     "history": "Գործարքների պատմություն",
     "totalUsers": "Ընդամենը՝ {{count}}",
     "totalOperations": "Ընդամենը՝ {{count}}",
-    "pageOf": "Էջ {{page}}/{{pages}}"
+    "pageOf": "Էջ {{page}}/{{pages}}",
+    "registrationsChart": "Գրանցումներն ըստ ժամանակի",
+    "moneyChart": "Գումարներն ըստ ժամանակի",
+    "showChart": "Ցուցադրել գրաֆիկը",
+    "hideChart": "Թաքցնել գրաֆիկը",
+    "range": {
+      "day": "1Օ",
+      "5day": "5Օ",
+      "month": "1ԱՄ",
+      "year": "1Տ",
+      "5year": "5Տ",
+      "max": "ԱՄԲ"
+    }
   }
 }

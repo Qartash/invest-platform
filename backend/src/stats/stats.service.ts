@@ -22,6 +22,19 @@ const PERIODS: Array<{ key: keyof Omit<PeriodBreakdown, 'total'>; interval: stri
   { key: 'year', interval: '365 days' },
 ];
 
+// Time-series ranges for the Reports charts. `since`/`unit`/`step` are fixed
+// literals (never user input) so they're safe to inline into SQL.
+type SeriesRange = 'day' | '5day' | 'month' | 'year' | '5year' | 'max';
+
+const SERIES_RANGES: Record<SeriesRange, { since: string | null; unit: 'hour' | 'day' | 'month'; step: string }> = {
+  day: { since: '1 day', unit: 'hour', step: '1 hour' },
+  '5day': { since: '5 days', unit: 'day', step: '1 day' },
+  month: { since: '30 days', unit: 'day', step: '1 day' },
+  year: { since: '1 year', unit: 'month', step: '1 month' },
+  '5year': { since: '5 years', unit: 'month', step: '1 month' },
+  max: { since: null, unit: 'month', step: '1 month' },
+};
+
 @Injectable()
 export class StatsService {
   constructor(
@@ -203,5 +216,61 @@ export class StatsService {
       amount: parseFloat(row.amount),
       count: parseInt(row.count, 10),
     }));
+  }
+
+  // Time series for the Reports charts: new registrations and money moved per
+  // bucket (hour/day/month depending on range). Gap buckets are filled with 0
+  // via generate_series so the chart line is continuous.
+  async getSeries(rangeParam: string) {
+    const range: SeriesRange = (SERIES_RANGES as Record<string, unknown>)[rangeParam]
+      ? (rangeParam as SeriesRange)
+      : 'month';
+    const { since, unit, step } = SERIES_RANGES[range];
+
+    const start = since
+      ? `date_trunc('${unit}', now() - interval '${since}')`
+      : // MAX: earliest activity across users/transactions, else last month
+        `date_trunc('${unit}', COALESCE(
+           LEAST((SELECT MIN(created_at) FROM users), (SELECT MIN(created_at) FROM transactions)),
+           now() - interval '1 month'
+         ))`;
+
+    const buckets = `WITH buckets AS (
+      SELECT generate_series(${start}, date_trunc('${unit}', now()), interval '${step}') AS bucket
+    )`;
+
+    const regRows: Array<{ date: Date; value: string }> = await this.usersRepository.query(
+      `${buckets}
+       SELECT b.bucket AS date, COALESCE(COUNT(u.id), 0) AS value
+       FROM buckets b
+       LEFT JOIN users u ON date_trunc('${unit}', u.created_at) = b.bucket
+       GROUP BY b.bucket
+       ORDER BY b.bucket`,
+    );
+
+    const moneyRows: Array<{ date: Date; turnover: string; deposits: string; withdrawals: string }> =
+      await this.transactionsRepository.query(
+        `${buckets}
+         SELECT b.bucket AS date,
+                COALESCE(SUM(t.amount) FILTER (WHERE t.type = $1), 0) AS turnover,
+                COALESCE(SUM(t.amount) FILTER (WHERE t.type = $2), 0) AS deposits,
+                COALESCE(SUM(t.amount) FILTER (WHERE t.type = $3), 0) AS withdrawals
+         FROM buckets b
+         LEFT JOIN transactions t ON date_trunc('${unit}', t.created_at) = b.bucket AND t.status = $4
+         GROUP BY b.bucket
+         ORDER BY b.bucket`,
+        [TransactionType.BUY, TransactionType.DEPOSIT, TransactionType.WITHDRAW, TransactionStatus.COMPLETED],
+      );
+
+    const points = (rows: Array<Record<string, any>>, key: string) =>
+      rows.map((row) => ({ date: row.date, value: parseFloat(row[key]) }));
+
+    return {
+      range,
+      registrations: regRows.map((row) => ({ date: row.date, value: parseInt(row.value, 10) })),
+      turnover: points(moneyRows, 'turnover'),
+      deposits: points(moneyRows, 'deposits'),
+      withdrawals: points(moneyRows, 'withdrawals'),
+    };
   }
 }

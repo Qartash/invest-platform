@@ -70,6 +70,25 @@ export function fetchMoneyStats() {
   return apiClient.get<MoneyStats>('/stats/money').then((r) => r.data);
 }
 
+export type SeriesRange = 'day' | '5day' | 'month' | 'year' | '5year' | 'max';
+
+export interface SeriesPoint {
+  date: string;
+  value: number;
+}
+
+export interface StatsSeries {
+  range: SeriesRange;
+  registrations: SeriesPoint[];
+  turnover: SeriesPoint[];
+  deposits: SeriesPoint[];
+  withdrawals: SeriesPoint[];
+}
+
+export function fetchStatsSeries(range: SeriesRange) {
+  return apiClient.get<StatsSeries>('/stats/series', { params: { range } }).then((r) => r.data);
+}
+
 export function fetchLatestUsers(page: number) {
   return apiClient.get<PaginatedList<LatestUser>>('/stats/users/latest', { params: { page } }).then((r) => r.data);
 }

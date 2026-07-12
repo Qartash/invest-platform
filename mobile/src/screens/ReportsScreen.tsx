@@ -1,31 +1,71 @@
 import React, { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import {
   fetchLatestUsers,
   fetchMoneyHistory,
   fetchMoneyStats,
+  fetchStatsSeries,
   fetchUsersStats,
   LatestUser,
   MoneyHistoryEntry,
   MoneyStats,
   PeriodBreakdown,
+  SeriesPoint,
+  SeriesRange,
   STATS_PAGE_SIZE,
+  StatsSeries,
   UserMoneyTotal,
   UsersStats,
 } from '../api/stats';
 import { Avatar } from '../components/Avatar';
 import { InvestorProfileModal } from '../components/InvestorProfileModal';
+import { TrendChart } from '../components/TrendChart';
 import { formatDate, formatDateTime } from '../utils/date';
 import { colors, spacing } from '../theme';
 
 type Tab = 'users' | 'money';
 
 const PERIOD_KEYS: Array<keyof PeriodBreakdown> = ['total', 'day', 'week', 'month', 'year'];
+const RANGES: SeriesRange[] = ['day', '5day', 'month', 'year', '5year', 'max'];
 
-function PeriodCard({ title, data, suffix }: { title: string; data: PeriodBreakdown; suffix?: string }) {
+function RangeSelector({ value, onChange }: { value: SeriesRange; onChange: (r: SeriesRange) => void }) {
   const { t } = useTranslation();
+  return (
+    <View style={styles.rangeRow}>
+      {RANGES.map((r) => (
+        <Pressable key={r} style={[styles.rangeChip, value === r && styles.rangeChipActive]} onPress={() => onChange(r)}>
+          <Text style={[styles.rangeChipText, value === r && styles.rangeChipTextActive]}>
+            {t(`reports.range.${r}`)}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+interface CardChart {
+  points: SeriesPoint[];
+  width: number;
+  color?: string;
+  range: SeriesRange;
+  onRangeChange: (r: SeriesRange) => void;
+}
+
+function PeriodCard({
+  title,
+  data,
+  suffix,
+  chart,
+}: {
+  title: string;
+  data: PeriodBreakdown;
+  suffix?: string;
+  chart?: CardChart;
+}) {
+  const { t } = useTranslation();
+  const [chartOpen, setChartOpen] = useState(false);
   return (
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{title}</Text>
@@ -40,6 +80,23 @@ function PeriodCard({ title, data, suffix }: { title: string; data: PeriodBreakd
           </Text>
         </View>
       ))}
+
+      {chart && (
+        <>
+          <Pressable style={styles.chartToggle} onPress={() => setChartOpen((v) => !v)}>
+            <Text style={styles.chartToggleText}>
+              📈 {chartOpen ? t('reports.hideChart') : t('reports.showChart')}
+            </Text>
+            <Text style={styles.chartToggleIcon}>{chartOpen ? '▲' : '▼'}</Text>
+          </Pressable>
+          {chartOpen && (
+            <>
+              <RangeSelector value={chart.range} onChange={chart.onRangeChange} />
+              <TrendChart points={chart.points} width={chart.width} color={chart.color} />
+            </>
+          )}
+        </>
+      )}
     </View>
   );
 }
@@ -143,22 +200,35 @@ export function ReportsScreen() {
   const [latestUsers, setLatestUsers] = useState<LatestUser[]>([]);
   const [historyPage, setHistoryPage] = useState(1);
   const [historyItems, setHistoryItems] = useState<MoneyHistoryEntry[]>([]);
+  const [range, setRange] = useState<SeriesRange>('month');
+  const [series, setSeries] = useState<StatsSeries | null>(null);
+
+  const { width: screenWidth } = useWindowDimensions();
+  const chartWidth = screenWidth - spacing.lg * 2 - spacing.md * 2;
 
   const load = useCallback(() => {
     setLoadFailed(false);
-    Promise.all([fetchUsersStats(), fetchMoneyStats()])
-      .then(([usersStats, moneyStats]) => {
+    Promise.all([fetchUsersStats(), fetchMoneyStats(), fetchStatsSeries(range)])
+      .then(([usersStats, moneyStats, seriesData]) => {
         setUsers(usersStats);
         setMoney(moneyStats);
         setUsersPage(1);
         setLatestUsers(usersStats.latest);
         setHistoryPage(1);
         setHistoryItems(moneyStats.history);
+        setSeries(seriesData);
       })
       .catch(() => setLoadFailed(true));
-  }, []);
+  }, [range]);
 
   useFocusEffect(load);
+
+  const changeRange = (next: SeriesRange) => {
+    setRange(next);
+    fetchStatsSeries(next)
+      .then(setSeries)
+      .catch(() => setLoadFailed(true));
+  };
 
   const changeUsersPage = (page: number) => {
     setUsersPage(page);
@@ -192,7 +262,16 @@ export function ReportsScreen() {
 
       {tab === 'users' && users && (
         <>
-          <PeriodCard title={t('reports.registrations')} data={users.registered} />
+          <PeriodCard
+            title={t('reports.registrations')}
+            data={users.registered}
+            chart={{
+              points: series?.registrations ?? [],
+              width: chartWidth,
+              range,
+              onRangeChange: changeRange,
+            }}
+          />
 
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>{t('reports.latestUsers')}</Text>
@@ -217,9 +296,36 @@ export function ReportsScreen() {
 
       {tab === 'money' && money && (
         <>
-          <PeriodCard title={t('reports.turnover')} data={money.turnover} suffix={currency} />
-          <PeriodCard title={t('reports.deposits')} data={money.deposits} suffix={currency} />
-          <PeriodCard title={t('reports.withdrawals')} data={money.withdrawals} suffix={currency} />
+          <PeriodCard
+            title={t('reports.turnover')}
+            data={money.turnover}
+            suffix={currency}
+            chart={{ points: series?.turnover ?? [], width: chartWidth, range, onRangeChange: changeRange }}
+          />
+          <PeriodCard
+            title={t('reports.deposits')}
+            data={money.deposits}
+            suffix={currency}
+            chart={{
+              points: series?.deposits ?? [],
+              width: chartWidth,
+              color: colors.success,
+              range,
+              onRangeChange: changeRange,
+            }}
+          />
+          <PeriodCard
+            title={t('reports.withdrawals')}
+            data={money.withdrawals}
+            suffix={currency}
+            chart={{
+              points: series?.withdrawals ?? [],
+              width: chartWidth,
+              color: colors.danger,
+              range,
+              onRangeChange: changeRange,
+            }}
+          />
 
           <Text style={styles.sectionLabel}>{t('reports.depositors')}</Text>
           {money.depositors.length === 0 && <Text style={styles.emptyText}>{t('reports.noData')}</Text>}
@@ -301,6 +407,52 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     marginBottom: spacing.sm,
+  },
+  chartToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  chartToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  chartToggleIcon: {
+    fontSize: 11,
+    color: colors.primary,
+  },
+  rangeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  rangeChip: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5,
+    borderRadius: 8,
+    marginRight: spacing.xs,
+    marginBottom: spacing.xs,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  rangeChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  rangeChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  rangeChipTextActive: {
+    color: '#fff',
   },
   periodRow: {
     flexDirection: 'row',

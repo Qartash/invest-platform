@@ -458,6 +458,18 @@
     "history": "История операций",
     "totalUsers": "Всего: {{count}}",
     "totalOperations": "Всего: {{count}}",
-    "pageOf": "Стр. {{page}} из {{pages}}"
+    "pageOf": "Стр. {{page}} из {{pages}}",
+    "registrationsChart": "Регистрации по времени",
+    "moneyChart": "Деньги по времени",
+    "showChart": "Показать график",
+    "hideChart": "Скрыть график",
+    "range": {
+      "day": "1Д",
+      "5day": "5ДН",
+      "month": "1МЕС",
+      "year": "1ГОД",
+      "5year": "5ЛЕТ",
+      "max": "МАКС"
+    }
   }
 }
