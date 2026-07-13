@@ -279,6 +279,12 @@ export function ProjectWorksPanel({
     }
   };
 
+  const openRate = (work: ProjectWork) => {
+    setRateWork(work);
+    setRatingValue(work.review?.rating ?? 5);
+    setRatingComment(work.review?.comment ?? '');
+  };
+
   const handleRate = async () => {
     if (!rateWork) return;
     setSubmitting(true);
@@ -430,9 +436,22 @@ export function ProjectWorksPanel({
               </Pressable>
             )}
             {canEdit && work.status === 'accepted' && (
-              <Pressable style={styles.rateBtn} onPress={() => setRateWork(work)}>
-                <Text style={styles.rateBtnText}>★ {t('works.rateWorker')}</Text>
-              </Pressable>
+              <>
+                <Pressable style={styles.rateBtn} onPress={() => openRate(work)}>
+                  <Text style={styles.rateBtnText}>
+                    ★ {work.review ? t('works.editRating') : t('works.rateWorker')}
+                  </Text>
+                </Pressable>
+                {work.review && (
+                  <View style={styles.reviewBox}>
+                    <Text style={styles.reviewStars}>
+                      {'★'.repeat(work.review.rating)}
+                      <Text style={styles.reviewStarsEmpty}>{'★'.repeat(5 - work.review.rating)}</Text>
+                    </Text>
+                    {!!work.review.comment && <Text style={styles.reviewComment}>{work.review.comment}</Text>}
+                  </View>
+                )}
+              </>
             )}
             {canApply &&
               (work.myApplication ? (
@@ -634,7 +653,7 @@ export function ProjectWorksPanel({
       <Modal visible={!!rateWork} transparent animationType="fade" onRequestClose={() => setRateWork(null)}>
         <View style={styles.backdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t('works.rateWorker')}</Text>
+            <Text style={styles.modalTitle}>{rateWork?.review ? t('works.editRating') : t('works.rateWorker')}</Text>
             <View style={styles.starsRow}>
               {[1, 2, 3, 4, 5].map((n) => (
                 <Pressable key={n} onPress={() => setRatingValue(n)}>
@@ -783,6 +802,15 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   rateBtnText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
+  reviewBox: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.background,
+    borderRadius: 8,
+    padding: spacing.sm,
+  },
+  reviewStars: { fontSize: 16, color: colors.warning, letterSpacing: 2 },
+  reviewStarsEmpty: { color: colors.border },
+  reviewComment: { fontSize: 13, color: colors.text, marginTop: 4 },
   starsRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: spacing.md },
   star: { fontSize: 34, color: colors.border, marginHorizontal: 4 },
   starActive: { color: colors.warning },

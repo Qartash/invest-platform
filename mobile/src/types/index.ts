@@ -219,7 +219,13 @@ export interface ProjectWork {
   deadline: string | null;
   applicationsCount: number;
   myApplication: MyApplication | null;
+  review: WorkReview | null;
   createdAt: string;
+}
+
+export interface WorkReview {
+  rating: number;
+  comment: string | null;
 }
 
 export interface MyApplication {

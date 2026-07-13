@@ -111,8 +111,14 @@ export class ProjectWorksService {
       : [];
     const myByWork = new Map(mine.map((a) => [a.workId, a]));
 
+    // Reviews (one per work) so the panel can show the given rating/comment
+    // and offer to edit it instead of re-rating from scratch.
+    const reviews = await this.reviewsRepository.find({ where: ids.map((id) => ({ workId: id })) });
+    const reviewByWork = new Map(reviews.map((r) => [r.workId, r]));
+
     return works.map((w) => {
       const myApp = myByWork.get(w.id);
+      const review = reviewByWork.get(w.id);
       return {
         id: w.id,
         projectId: w.projectId,
@@ -138,6 +144,7 @@ export class ProjectWorksService {
               decisionReason: myApp.decisionReason,
             }
           : null,
+        review: review ? { rating: review.rating, comment: review.comment } : null,
         createdAt: w.createdAt,
       };
     });
@@ -412,8 +419,14 @@ export class ProjectWorksService {
       throw new ConflictException('Only an accepted work can be rated');
     }
     if (rating < 1 || rating > 5) throw new BadRequestException('Rating must be 1–5');
+    // Upsert: a founder may revise their rating instead of being blocked by a
+    // "already rated" error on a second tap.
     const existing = await this.reviewsRepository.findOne({ where: { workId } });
-    if (existing) throw new ConflictException('This work is already rated');
+    if (existing) {
+      existing.rating = rating;
+      existing.comment = comment ?? null;
+      return this.reviewsRepository.save(existing);
+    }
     const review = this.reviewsRepository.create({
       workId,
       revieweeId: work.assigneeId,

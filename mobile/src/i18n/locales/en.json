@@ -444,6 +444,7 @@
     "dispute": "Dispute",
     "disputeConfirm": "Open a dispute for a moderator to resolve?",
     "rateWorker": "Rate the worker",
+    "editRating": "Edit rating",
     "ratingComment": "Comment (optional)",
     "milestonesLabel": "Milestones (optional)",
     "milestoneTitle": "Milestone title",
