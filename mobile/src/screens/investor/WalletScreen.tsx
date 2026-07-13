@@ -93,6 +93,12 @@ export function WalletScreen() {
               <Text style={styles.balanceValue}>
                 {wallet ? parseFloat(wallet.balance).toLocaleString() : '—'} {t('common.currency')}
               </Text>
+              {wallet && parseFloat(wallet.investCredit ?? '0') > 0 && (
+                <Text style={styles.investCredit}>
+                  {t('wallet.investCredit')}: {parseFloat(wallet.investCredit ?? '0').toLocaleString()}{' '}
+                  {t('common.currency')}
+                </Text>
+              )}
             </View>
             <TextField
               label={t('wallet.amount')}
@@ -161,6 +167,12 @@ const styles = StyleSheet.create({
     color: '#DDEBE0',
     fontSize: 13,
     marginBottom: spacing.xs,
+  },
+  investCredit: {
+    color: '#DDEBE0',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: spacing.xs,
   },
   balanceValue: {
     color: '#fff',

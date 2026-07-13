@@ -31,6 +31,13 @@ import { ProjectExpense } from './project-finance/entities/project-expense.entit
 import { ProjectIncome } from './project-finance/entities/project-income.entity';
 import { ProjectFinancialReport } from './project-finance/entities/project-financial-report.entity';
 import { ReportPayout } from './project-finance/entities/report-payout.entity';
+import { FundReleaseRequest } from './project-funding/entities/fund-release-request.entity';
+import { ProjectWork } from './project-works/entities/project-work.entity';
+import { WorkApplication } from './project-works/entities/work-application.entity';
+import { WorkReview } from './project-works/entities/work-review.entity';
+import { WorkMilestone } from './project-works/entities/work-milestone.entity';
+import { ProjectFundingModule } from './project-funding/project-funding.module';
+import { ProjectWorksModule } from './project-works/project-works.module';
 
 @Module({
   imports: [
@@ -59,6 +66,11 @@ import { ReportPayout } from './project-finance/entities/report-payout.entity';
           ProjectIncome,
           ProjectFinancialReport,
           ReportPayout,
+          FundReleaseRequest,
+          ProjectWork,
+          WorkApplication,
+          WorkReview,
+          WorkMilestone,
           SystemLog,
           LogSettings,
         ],
@@ -77,6 +89,8 @@ import { ReportPayout } from './project-finance/entities/report-payout.entity';
     EarningsModule,
     PortfolioModule,
     ProjectFinanceModule,
+    ProjectFundingModule,
+    ProjectWorksModule,
     StatsModule,
     LogsModule,
   ],

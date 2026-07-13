@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { HomeScreen } from '../screens/investor/HomeScreen';
 import { ProjectDetailScreen } from '../screens/investor/ProjectDetailScreen';
 import { ProjectFinanceScreen } from '../screens/investor/ProjectFinanceScreen';
+import { ProjectWorksScreen } from '../screens/investor/ProjectWorksScreen';
 
 export type InvestorHomeStackParamList = {
   Home: undefined;
   ProjectDetail: { projectId: string; scrollToResale?: boolean };
   ProjectFinance: { projectId: string };
+  ProjectWorks: { projectId: string };
 };
 
 const HomeStack = createNativeStackNavigator<InvestorHomeStackParamList>();
@@ -23,6 +25,11 @@ export function HomeStackNavigator() {
         name="ProjectFinance"
         component={ProjectFinanceScreen}
         options={{ headerShown: true, title: t('project.finance.title') }}
+      />
+      <HomeStack.Screen
+        name="ProjectWorks"
+        component={ProjectWorksScreen}
+        options={{ headerShown: true, title: t('works.title') }}
       />
     </HomeStack.Navigator>
   );

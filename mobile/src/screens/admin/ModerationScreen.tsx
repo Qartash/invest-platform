@@ -14,10 +14,12 @@ import { formatDate } from '../../utils/date';
 import { colors, spacing } from '../../theme';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
 import { LogsScreen } from './LogsScreen';
+import { ModerationReleasesScreen } from './ModerationReleasesScreen';
+import { ModerationDisputesScreen } from './ModerationDisputesScreen';
 
 type Props = NativeStackScreenProps<ModerationStackParamList, 'ModerationList'>;
 
-type Tab = 'pending' | 'all' | 'users' | 'logs';
+type Tab = 'pending' | 'all' | 'users' | 'releases' | 'disputes' | 'logs';
 
 // "deleted" is not a ProjectStatus — it's a soft-delete flag (deletedAt), shown
 // and filtered here as if it were a status because that's how moderators think.
@@ -111,6 +113,12 @@ export function ModerationScreen({ navigation }: Props) {
       <Pressable style={[styles.tab, tab === 'users' && styles.tabActive]} onPress={() => setTab('users')}>
         <Text style={[styles.tabText, tab === 'users' && styles.tabTextActive]}>{t('moderation.users.title')}</Text>
       </Pressable>
+      <Pressable style={[styles.tab, tab === 'releases' && styles.tabActive]} onPress={() => setTab('releases')}>
+        <Text style={[styles.tabText, tab === 'releases' && styles.tabTextActive]}>{t('moderation.releases.tab')}</Text>
+      </Pressable>
+      <Pressable style={[styles.tab, tab === 'disputes' && styles.tabActive]} onPress={() => setTab('disputes')}>
+        <Text style={[styles.tabText, tab === 'disputes' && styles.tabTextActive]}>{t('works.disputesTab')}</Text>
+      </Pressable>
       <Pressable style={[styles.tab, tab === 'logs' && styles.tabActive]} onPress={() => setTab('logs')}>
         <Text style={[styles.tabText, tab === 'logs' && styles.tabTextActive]}>{t('moderation.logs.title')}</Text>
       </Pressable>
@@ -123,6 +131,26 @@ export function ModerationScreen({ navigation }: Props) {
         <Text style={styles.header}>{t('founder.moderation')}</Text>
         {tabSwitcher}
         <LogsScreen />
+      </View>
+    );
+  }
+
+  if (tab === 'releases') {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.header}>{t('founder.moderation')}</Text>
+        {tabSwitcher}
+        <ModerationReleasesScreen />
+      </View>
+    );
+  }
+
+  if (tab === 'disputes') {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.header}>{t('founder.moderation')}</Text>
+        {tabSwitcher}
+        <ModerationDisputesScreen />
       </View>
     );
   }

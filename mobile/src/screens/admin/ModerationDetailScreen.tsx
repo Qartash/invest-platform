@@ -13,6 +13,7 @@ import {
   approveProjectDeletion,
   rejectProjectDeletion,
 } from '../../api/projects';
+import { refundProject } from '../../api/projectFunding';
 import { resolveMediaUrl } from '../../api/client';
 import { Project, ProjectAttachment } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
@@ -173,6 +174,32 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
           onPress={() => navigation.navigate('ModerationEdit', { projectId: project.id, adminEdit: true })}
         >
           <Text style={styles.historyLinkText}>✏️ {t('founder.editProject')}</Text>
+        </Pressable>
+      )}
+
+      {!project.deletedAt && parseFloat(project.treasuryBalance ?? '0') > 0 && (
+        <Pressable
+          style={styles.historyLink}
+          onPress={() =>
+            showAlert(t('moderation.refund.confirmTitle'), t('moderation.refund.confirmMessage'), [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('moderation.refund.action'),
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    const res = await refundProject(project.id);
+                    showAlert(t('moderation.refund.done', { amount: res.refundedTotal.toLocaleString(), count: res.holders }));
+                    navigation.goBack();
+                  } catch (err: any) {
+                    showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+                  }
+                },
+              },
+            ])
+          }
+        >
+          <Text style={[styles.historyLinkText, { color: colors.danger }]}>↩ {t('moderation.refund.action')}</Text>
         </Pressable>
       )}
 

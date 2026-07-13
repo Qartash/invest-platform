@@ -33,14 +33,22 @@ export class TicketsService {
       if (!wallet) {
         throw new BadRequestException('Wallet not found');
       }
+      // Invest credit (earned from work, non-withdrawable) is spent first, then
+      // the withdrawable balance covers the rest.
+      const credit = parseFloat(wallet.investCredit);
       const currentBalance = parseFloat(wallet.balance);
-      if (currentBalance < totalCost) {
+      if (credit + currentBalance < totalCost) {
         throw new BadRequestException('Insufficient wallet balance');
       }
-      wallet.balance = (currentBalance - totalCost).toFixed(2);
+      const fromCredit = Math.min(credit, totalCost);
+      wallet.investCredit = (credit - fromCredit).toFixed(2);
+      wallet.balance = (currentBalance - (totalCost - fromCredit)).toFixed(2);
       await manager.save(wallet);
 
       project.collectedAmount = (parseFloat(project.collectedAmount) + totalCost).toFixed(2);
+      // Investor money is held in the project treasury (escrow), not handed to
+      // the founder — it's released to spendable per stage by a moderator.
+      project.treasuryBalance = (parseFloat(project.treasuryBalance) + totalCost).toFixed(2);
       project.ticketsSold += dto.quantity;
       if (project.ticketsSold >= project.totalTickets) {
         project.status = ProjectStatus.FUNDED;

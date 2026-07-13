@@ -230,6 +230,12 @@ export function MyProjectsScreen({ navigation }: Props) {
               >
                 <Text style={styles.historyLinkText}>{t('project.finance.title')}</Text>
               </Pressable>
+              <Pressable
+                style={styles.historyLink}
+                onPress={() => navigation.navigate('ProjectWorks', { projectId: item.id })}
+              >
+                <Text style={styles.historyLinkText}>{t('works.title')}</Text>
+              </Pressable>
             </View>
 
             {item.deletedAt ? (

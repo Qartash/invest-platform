@@ -400,6 +400,15 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
         <Text style={styles.financeLinkAction}>{t('project.finance.viewAction')} ›</Text>
       </Pressable>
 
+      <Pressable
+        style={styles.financeLinkRow}
+        onPress={() => navigation.navigate('ProjectWorks', { projectId: project.id })}
+      >
+        <Text style={styles.financeLinkIcon}>🛠️</Text>
+        <Text style={styles.financeLinkLabel}>{t('works.title')}</Text>
+        <Text style={styles.financeLinkAction}>{t('works.viewAction')} ›</Text>
+      </Pressable>
+
       {project.resaleEnabled ? (
         <Pressable
           style={styles.resaleBanner}

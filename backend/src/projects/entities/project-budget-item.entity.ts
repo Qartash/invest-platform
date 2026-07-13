@@ -23,6 +23,11 @@ export class ProjectBudgetItem {
   @Column({ type: 'enum', enum: BudgetItemStatus, default: BudgetItemStatus.NOT_STARTED })
   status: BudgetItemStatus;
 
+  // A budget item doubles as a funding stage: its money is released from the
+  // treasury only after a moderator approves a release request for it.
+  @Column({ default: false })
+  released: boolean;
+
   @Column('int')
   order: number;
 

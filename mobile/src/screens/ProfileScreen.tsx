@@ -12,6 +12,7 @@ import { StatBlock } from '../components/StatBlock';
 import { formatDate } from '../utils/date';
 import { fetchWallet } from '../api/wallet';
 import { fetchPortfolio } from '../api/portfolio';
+import { fetchUserWorks } from '../api/projectWorks';
 import { Portfolio, Wallet } from '../types';
 import { ProfileStackParamList } from '../navigation/ProfileNavigator';
 
@@ -33,12 +34,24 @@ export function ProfileScreen({ navigation }: Props) {
   const logout = useAuthStore((s) => s.logout);
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const [worksDone, setWorksDone] = useState(0);
+  const [worksRating, setWorksRating] = useState<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       fetchWallet().then(setWallet);
       fetchPortfolio().then(setPortfolio);
-    }, []),
+      if (user?.id)
+        fetchUserWorks(user.id)
+          .then((w) => {
+            setWorksDone(w.completedCount);
+            setWorksRating(w.averageRating);
+          })
+          .catch(() => {
+            setWorksDone(0);
+            setWorksRating(null);
+          });
+    }, [user?.id]),
   );
 
   const genderLabel = user?.gender
@@ -94,6 +107,14 @@ export function ProfileScreen({ navigation }: Props) {
             value={user?.createdAt ? formatDate(user.createdAt, i18n.language) : undefined}
           />
           <InfoRow label={t('profile.kycStatus')} value={t(`profile.kyc.${user?.kycStatus ?? 'none'}`)} />
+          <InfoRow
+            label={t('works.completedCount')}
+            value={
+              worksDone > 0
+                ? `${worksDone}${worksRating !== null ? ` · ★ ${worksRating.toFixed(1)}` : ''}`
+                : undefined
+            }
+          />
         </View>
 
         <Text style={styles.kycExplain}>
@@ -116,6 +137,14 @@ export function ProfileScreen({ navigation }: Props) {
         />
         <StatBlock icon="📈" label={t('reports.title')} value=" " onPress={() => navigation.navigate('Reports')} />
       </View>
+
+      {wallet && parseFloat(wallet.investCredit ?? '0') > 0 && (
+        <Pressable style={styles.investCreditRow} onPress={() => navigation.navigate('Wallet')}>
+          <Text style={styles.investCreditText}>
+            {t('wallet.investCredit')}: {parseFloat(wallet.investCredit ?? '0').toLocaleString()} {t('common.currency')}
+          </Text>
+        </Pressable>
+      )}
 
       <Text style={styles.sectionLabel}>{t('profile.language')}</Text>
       <View style={styles.languageRow}>
@@ -231,6 +260,15 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.sm,
     lineHeight: 17,
+  },
+  investCreditRow: {
+    marginTop: -spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  investCreditText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
   },
   infoRow: {
     flexDirection: 'row',

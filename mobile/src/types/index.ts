@@ -77,6 +77,8 @@ export interface Project {
   description: LocalizedText;
   targetAmount: string;
   collectedAmount: string;
+  treasuryBalance?: string;
+  spendableBalance?: string;
   ticketPrice: string;
   totalTickets: number;
   ticketsSold: number;
@@ -109,7 +111,7 @@ export interface Project {
   pricing: TicketPricing;
 }
 
-export type ExpenseCategory = 'investment_spend' | 'daily' | 'one_time' | 'other';
+export type ExpenseCategory = 'investment_spend' | 'daily' | 'one_time' | 'work' | 'other';
 
 export interface ProjectExpense {
   id: string;
@@ -166,8 +168,117 @@ export interface ProjectBudgetItem {
   title: string;
   amount: string;
   status: BudgetItemStatus;
+  released: boolean;
   order: number;
   createdAt: string;
+}
+
+export type FundReleaseStatus = 'pending' | 'approved' | 'rejected';
+
+export interface FundReleaseRequest {
+  id: string;
+  projectId: string;
+  budgetItemId: string;
+  amount: string;
+  status: FundReleaseStatus;
+  note: string | null;
+  decisionNote: string | null;
+  createdAt: string;
+}
+
+export interface PendingReleaseRequest {
+  id: string;
+  projectId: string;
+  projectTitle: LocalizedText;
+  budgetItemId: string;
+  stageTitle: string;
+  amount: number;
+  treasuryBalance: number;
+  note: string | null;
+  createdAt: string;
+}
+
+export type WorkStatus = 'open' | 'assigned' | 'submitted' | 'accepted' | 'disputed' | 'cancelled';
+export type WorkPaymentType = 'cash' | 'tickets' | 'either';
+export type WorkApplicationStatus = 'pending' | 'selected' | 'rejected';
+
+export interface ProjectWork {
+  id: string;
+  projectId: string;
+  budgetItemId: string | null;
+  title: string;
+  brief: string;
+  price: number;
+  paymentType: WorkPaymentType;
+  allowCounterOffers: boolean;
+  ticketPremiumPercent: number;
+  status: WorkStatus;
+  assigneeId: string | null;
+  assigneePayment: WorkPaymentType | null;
+  escrowAmount: number | null;
+  deadline: string | null;
+  applicationsCount: number;
+  myApplication: MyApplication | null;
+  createdAt: string;
+}
+
+export interface MyApplication {
+  status: WorkApplicationStatus;
+  coverLetter: string | null;
+  offeredPrice: number | null;
+  preferredPayment: WorkPaymentType;
+  decisionReason: string | null;
+}
+
+export interface WorkApplication {
+  id: string;
+  applicantId: string;
+  fullName: string | null;
+  username: string | null;
+  avatarUrl: string | null;
+  avatarEmoji: string | null;
+  coverLetter: string | null;
+  offeredPrice: number | null;
+  preferredPayment: WorkPaymentType;
+  status: WorkApplicationStatus;
+  decisionReason: string | null;
+  createdAt: string;
+}
+
+export interface UserWorks {
+  completedCount: number;
+  averageRating: number | null;
+  reviewsCount: number;
+  items: Array<{
+    id: string;
+    projectId: string;
+    projectTitle: LocalizedText;
+    title: string;
+    price: number;
+    acceptedAt: string | null;
+  }>;
+}
+
+export type MilestoneStatus = 'pending' | 'submitted' | 'accepted';
+
+export interface WorkMilestone {
+  id: string;
+  workId: string;
+  title: string;
+  amount: string;
+  order: number;
+  status: MilestoneStatus;
+}
+
+export interface DisputedWork {
+  id: string;
+  projectId: string;
+  projectTitle: LocalizedText;
+  title: string;
+  brief: string;
+  escrowAmount: number | null;
+  assigneeId: string | null;
+  assigneeName: string | null;
 }
 
 export interface ProjectAttachment {
@@ -239,6 +350,7 @@ export interface Wallet {
   id: string;
   userId: string;
   balance: string;
+  investCredit?: string;
   currency: string;
 }
 

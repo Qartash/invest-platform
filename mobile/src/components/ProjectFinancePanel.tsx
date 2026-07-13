@@ -22,6 +22,7 @@ import {
   payProjectFinancialReport,
 } from '../api/projectFinance';
 import { fetchProjectBudgetItems, updateProjectBudgetItemStatus } from '../api/projects';
+import { requestRelease } from '../api/projectFunding';
 import { fetchWallet } from '../api/wallet';
 import { formatDate, formatMonth } from '../utils/date';
 import { showAlert } from '../utils/alert';
@@ -307,6 +308,23 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
     load();
   };
 
+  const handleRequestRelease = (item: ProjectBudgetItem) => {
+    showAlert(t('project.finance.requestReleaseConfirm'), undefined, [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('common.confirm'),
+        onPress: async () => {
+          try {
+            await requestRelease(projectId, { budgetItemId: item.id });
+            showAlert(t('project.finance.releaseRequested'));
+          } catch (err: any) {
+            showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+          }
+        },
+      },
+    ]);
+  };
+
   // ---- render helpers ----
 
   const renderStatusChip = (report: ProjectFinancialReport | null) => {
@@ -543,6 +561,14 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
               ) : (
                 <Text style={styles.statusBadge}>{t(`project.finance.status.${item.status}`)}</Text>
               )}
+              {canEdit &&
+                (item.released ? (
+                  <Text style={styles.releasedBadge}>✓ {t('project.finance.released')}</Text>
+                ) : (
+                  <Pressable style={styles.releaseButton} onPress={() => handleRequestRelease(item)}>
+                    <Text style={styles.releaseButtonText}>{t('project.finance.requestRelease')}</Text>
+                  </Pressable>
+                ))}
             </View>
           ))}
         </View>
@@ -956,6 +982,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
+  },
+  releasedBadge: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.success,
+    marginTop: spacing.xs,
+  },
+  releaseButton: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  releaseButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.primary,
   },
   categoryRow: {
     flexDirection: 'row',

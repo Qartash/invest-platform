@@ -142,6 +142,10 @@
       "incomesCaption": "Project revenue — individual dated entries",
       "reportsCaption": "Monthly totals: turnover minus expenses = net profit, plus your share",
       "budgetCaption": "The planned use of investor funds and progress on each item",
+      "requestRelease": "Request release",
+      "requestReleaseConfirm": "Ask a moderator to release this stage's funds from the treasury?",
+      "releaseRequested": "Release requested — awaiting moderator approval",
+      "released": "Released",
       "amountLabel": "Amount",
       "descriptionLabel": "Description",
       "dateLabel": "Date",
@@ -187,6 +191,7 @@
         "investment_spend": "Invested funds",
         "daily": "Daily expenses",
         "one_time": "One-time expenses",
+        "work": "Work payment",
         "other": "Other"
       },
       "status": {
@@ -222,6 +227,7 @@
   "wallet": {
     "title": "Wallet",
     "balance": "Balance",
+    "investCredit": "Investment credit",
     "deposit": "Deposit",
     "withdraw": "Withdraw",
     "history": "Transaction history",
@@ -232,7 +238,8 @@
       "withdraw": "Withdrawal",
       "buy": "Ticket purchase",
       "sell": "Ticket sale",
-      "dividend": "Payout"
+      "dividend": "Payout",
+      "work_payment": "Work payment"
     }
   },
   "profile": {
@@ -389,7 +396,95 @@
     "resaleEnabledFieldHint": "If enabled, investors can resell their tickets to other investors right within the platform.",
     "historyAdminEdited": "Edited by administrator"
   },
+  "works": {
+    "title": "Works",
+    "viewAction": "Open",
+    "caption": "One-off paid tasks the project needs — apply and get paid from the project treasury.",
+    "treasuryFrozen": "In treasury",
+    "treasuryAvailable": "Available",
+    "createWork": "Post a work",
+    "noWorks": "No works yet",
+    "status": {
+      "open": "Open",
+      "assigned": "In progress",
+      "submitted": "On review",
+      "accepted": "Done",
+      "disputed": "Disputed",
+      "cancelled": "Cancelled"
+    },
+    "counterOffersOn": "counter-offers allowed",
+    "payment": {
+      "cash": "Cash",
+      "tickets": "Tickets",
+      "either": "Cash or tickets"
+    },
+    "paymentTypeLabel": "How the worker is paid",
+    "premiumLabel": "Bonus for taking tickets (%)",
+    "premiumHint": "Extra % the worker gets if paid in tickets instead of cash.",
+    "premiumNote": "+{{percent}}% bonus for taking tickets",
+    "asTickets": "as tickets",
+    "howPaid": "How do you want to be paid?",
+    "applicationsCount": "Applications: {{count}}",
+    "accept": "Accept & pay",
+    "cancelRefund": "Cancel (refund)",
+    "submitWork": "Submit work",
+    "apply": "Apply",
+    "applied": "Application sent",
+    "titleLabel": "Title",
+    "briefLabel": "Brief (what's needed)",
+    "priceLabel": "Price",
+    "stageLabel": "Funding stage",
+    "allowCounterOffers": "Allow counter-offers on price",
+    "coverLetter": "Cover letter",
+    "yourPrice": "Your price",
+    "applicationsTitle": "Applications",
+    "noApplications": "No applications yet",
+    "select": "Select",
+    "completedCount": "Works completed",
+    "dispute": "Dispute",
+    "disputeConfirm": "Open a dispute for a moderator to resolve?",
+    "rateWorker": "Rate the worker",
+    "ratingComment": "Comment (optional)",
+    "milestonesLabel": "Milestones (optional)",
+    "milestoneTitle": "Milestone title",
+    "addMilestone": "Add milestone",
+    "milestoneStatus": {
+      "pending": "Pending",
+      "submitted": "On review",
+      "accepted": "Paid"
+    },
+    "disputesTab": "Disputes",
+    "disputePayWorker": "Pay worker",
+    "disputeRefund": "Refund project",
+    "noDisputes": "No disputed works",
+    "editWork": "Edit",
+    "editApplication": "Edit application",
+    "youApplied": "You applied",
+    "appStatus": {
+      "pending": "awaiting decision",
+      "selected": "selected",
+      "rejected": "declined"
+    },
+    "reject": "Decline",
+    "rejectTitle": "Decline this application",
+    "rejectReason": "Reason (shown to the applicant)",
+    "selectNoFundsTitle": "Funds not released",
+    "selectNoFunds": "This stage's funds haven't been released yet. Request a release in the Plan tab and wait for moderator approval, then pick a worker."
+  },
   "moderation": {
+    "refund": {
+      "confirmTitle": "Refund investors?",
+      "confirmMessage": "Mark this project failed and refund the frozen treasury to ticket holders in proportion to tickets held. This cannot be undone.",
+      "action": "Refund investors",
+      "done": "Refunded {{amount}} to {{count}} holders"
+    },
+    "releases": {
+      "tab": "Releases",
+      "treasury": "Treasury",
+      "approve": "Approve",
+      "reject": "Reject",
+      "none": "No pending release requests"
+    },
     "tabPending": "Pending review",
     "logs": {
       "title": "Logs",

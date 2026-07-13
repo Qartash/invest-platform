@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { MyProjectsScreen } from '../screens/founder/MyProjectsScreen';
 import { CreateProjectScreen } from '../screens/founder/CreateProjectScreen';
 import { ProjectFinanceScreen } from '../screens/founder/ProjectFinanceScreen';
+import { ProjectWorksScreen } from '../screens/founder/ProjectWorksScreen';
 
 export type FounderStackParamList = {
   MyProjects: undefined;
@@ -11,6 +12,7 @@ export type FounderStackParamList = {
   // saving then goes through the admin endpoint instead of pending changes.
   CreateProject: { projectId?: string; adminEdit?: boolean } | undefined;
   ProjectFinance: { projectId: string };
+  ProjectWorks: { projectId: string };
 };
 
 const ProjectsStack = createNativeStackNavigator<FounderStackParamList>();
@@ -32,6 +34,11 @@ export function ProjectsStackNavigator() {
         name="ProjectFinance"
         component={ProjectFinanceScreen}
         options={{ headerShown: true, title: t('project.finance.title') }}
+      />
+      <ProjectsStack.Screen
+        name="ProjectWorks"
+        component={ProjectWorksScreen}
+        options={{ headerShown: true, title: t('works.title') }}
       />
     </ProjectsStack.Navigator>
   );

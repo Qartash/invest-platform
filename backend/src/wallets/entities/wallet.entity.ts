@@ -24,6 +24,10 @@ export class Wallet {
   @Column('decimal', { precision: 14, scale: 2, default: 0 })
   balance: string;
 
+  // Non-withdrawable credit earned as a work reward; can only buy tickets.
+  @Column('decimal', { precision: 14, scale: 2, default: 0, name: 'invest_credit' })
+  investCredit: string;
+
   @Column({ default: 'AMD' })
   currency: string;
 

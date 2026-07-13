@@ -38,6 +38,7 @@ export enum TransactionType {
   DEPOSIT = 'deposit',
   WITHDRAW = 'withdraw',
   DIVIDEND = 'dividend',
+  WORK_PAYMENT = 'work_payment',
 }
 
 export enum TransactionStatus {
@@ -61,6 +62,7 @@ export enum ExpenseCategory {
   INVESTMENT_SPEND = 'investment_spend',
   DAILY = 'daily',
   ONE_TIME = 'one_time',
+  WORK = 'work',
   OTHER = 'other',
 }
 
@@ -68,6 +70,39 @@ export enum BudgetItemStatus {
   NOT_STARTED = 'not_started',
   AWAITING_PAYMENT = 'awaiting_payment',
   COMPLETED = 'completed',
+}
+
+export enum FundReleaseStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+}
+
+export enum WorkStatus {
+  OPEN = 'open',
+  ASSIGNED = 'assigned',
+  SUBMITTED = 'submitted',
+  ACCEPTED = 'accepted',
+  DISPUTED = 'disputed',
+  CANCELLED = 'cancelled',
+}
+
+export enum WorkPaymentType {
+  CASH = 'cash',
+  TICKETS = 'tickets',
+  EITHER = 'either',
+}
+
+export enum WorkApplicationStatus {
+  PENDING = 'pending',
+  SELECTED = 'selected',
+  REJECTED = 'rejected',
+}
+
+export enum MilestoneStatus {
+  PENDING = 'pending',
+  SUBMITTED = 'submitted',
+  ACCEPTED = 'accepted',
 }
 
 export enum LogSource {

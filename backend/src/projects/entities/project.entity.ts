@@ -38,6 +38,14 @@ export class Project {
   @Column('decimal', { precision: 14, scale: 2, default: 0, name: 'collected_amount' })
   collectedAmount: string;
 
+  // Investor money sits in the project treasury (escrow); it moves to
+  // spendableBalance only when a moderator approves a stage release.
+  @Column('decimal', { precision: 14, scale: 2, default: 0, name: 'treasury_balance' })
+  treasuryBalance: string;
+
+  @Column('decimal', { precision: 14, scale: 2, default: 0, name: 'spendable_balance' })
+  spendableBalance: string;
+
   @Column('decimal', { precision: 14, scale: 2, name: 'ticket_price' })
   ticketPrice: string;
 
