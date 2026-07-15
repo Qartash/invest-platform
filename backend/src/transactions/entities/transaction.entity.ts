@@ -6,7 +6,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { TransactionStatus, TransactionType } from '../../common/enums';
+import { TransactionAccount, TransactionStatus, TransactionType } from '../../common/enums';
 import { User } from '../../users/entities/user.entity';
 import { Ticket } from '../../tickets/entities/ticket.entity';
 
@@ -37,6 +37,15 @@ export class Transaction {
 
   @Column('int', { nullable: true })
   quantity: number | null;
+
+  // Human-readable context, e.g. the title of the work this payment was for.
+  @Column({ type: 'text', nullable: true })
+  description: string | null;
+
+  // Which wallet balance this affected (cash vs invest-credit). Null for older
+  // rows and transactions where it doesn't apply.
+  @Column({ type: 'enum', enum: TransactionAccount, nullable: true })
+  account: TransactionAccount | null;
 
   @Column({ type: 'enum', enum: TransactionStatus, default: TransactionStatus.COMPLETED })
   status: TransactionStatus;

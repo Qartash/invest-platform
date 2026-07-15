@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Transaction } from './entities/transaction.entity';
-import { TransactionStatus, TransactionType } from '../common/enums';
+import { TransactionAccount, TransactionStatus, TransactionType } from '../common/enums';
 
 @Injectable()
 export class TransactionsService {
@@ -18,6 +18,8 @@ export class TransactionsService {
     ticketId?: string | null;
     quantity?: number | null;
     status?: TransactionStatus;
+    description?: string | null;
+    account?: TransactionAccount | null;
   }): Promise<Transaction> {
     const transaction = this.transactionsRepository.create({
       userId: data.userId,
@@ -26,6 +28,8 @@ export class TransactionsService {
       ticketId: data.ticketId ?? null,
       quantity: data.quantity ?? null,
       status: data.status ?? TransactionStatus.COMPLETED,
+      description: data.description ?? null,
+      account: data.account ?? null,
     });
     return this.transactionsRepository.save(transaction);
   }

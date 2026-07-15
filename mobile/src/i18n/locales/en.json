@@ -240,6 +240,10 @@
       "sell": "Ticket sale",
       "dividend": "Payout",
       "work_payment": "Work payment"
+    },
+    "account": {
+      "balance": "To balance",
+      "invest": "To invest credit"
     }
   },
   "profile": {
@@ -470,7 +474,11 @@
     "rejectTitle": "Decline this application",
     "rejectReason": "Reason (shown to the applicant)",
     "selectNoFundsTitle": "Funds not released",
-    "selectNoFunds": "This stage's funds haven't been released yet. Request a release in the Plan tab and wait for moderator approval, then pick a worker."
+    "selectNoFunds": "This stage's funds haven't been released yet. Request a release in the Plan tab and wait for moderator approval, then pick a worker.",
+    "selectAmountTitle": "Select worker",
+    "selectAmountLabel": "Agreed amount",
+    "selectAmountHint": "Defaults to the worker's price. You can set the actually-agreed amount.",
+    "selectFrozen": "To freeze"
   },
   "moderation": {
     "refund": {

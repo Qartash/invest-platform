@@ -83,6 +83,8 @@ export function ProjectWorksPanel({
   const [applications, setApplications] = useState<WorkApplication[]>([]);
   const [rejectApp, setRejectApp] = useState<WorkApplication | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [selectApp, setSelectApp] = useState<WorkApplication | null>(null);
+  const [selectAmount, setSelectAmount] = useState('');
 
   // rating modal
   const [rateWork, setRateWork] = useState<ProjectWork | null>(null);
@@ -146,7 +148,10 @@ export function ProjectWorksPanel({
     setBudgetItemId(work.budgetItemId);
     setPaymentType(work.paymentType);
     setPremium(work.ticketPremiumPercent > 0 ? String(work.ticketPremiumPercent) : '');
-    setMilestoneRows([]);
+    // Prefill the existing milestones so they can be seen and edited, instead
+    // of showing an empty list.
+    const existing = milestones[work.id] ?? [];
+    setMilestoneRows(existing.map((m) => ({ title: m.title, amount: String(parseFloat(m.amount)) })));
     setCreateVisible(true);
   };
 
@@ -167,13 +172,18 @@ export function ProjectWorksPanel({
         ticketPremiumPercent: paymentType !== 'cash' && premium ? parseFloat(premium) : 0,
         budgetItemId: budgetItemId ?? undefined,
       };
+      const validMilestones = milestoneRows
+        .filter((r) => r.title.trim() && parseFloat(r.amount) > 0)
+        .map((r) => ({ title: r.title.trim(), amount: parseFloat(r.amount) }));
       if (editWorkId) {
         await updateProjectWork(projectId, editWorkId, payload);
+        // Milestones are only editable while the work is open; sync them so
+        // added/changed rows are saved (backend replaces the full set).
+        if (validMilestones.length > 0) {
+          await addWorkMilestones(projectId, editWorkId, validMilestones);
+        }
       } else {
         const created = await createProjectWork(projectId, payload);
-        const validMilestones = milestoneRows
-          .filter((r) => r.title.trim() && parseFloat(r.amount) > 0)
-          .map((r) => ({ title: r.title.trim(), amount: parseFloat(r.amount) }));
         if (validMilestones.length > 0) {
           await addWorkMilestones(projectId, created.id, validMilestones);
         }
@@ -230,18 +240,44 @@ export function ProjectWorksPanel({
     }
   };
 
-  const handleSelect = async (app: WorkApplication) => {
+  // Open the "freeze amount" confirmation, prefilled with the applicant's
+  // offered price (or the work's price). The founder can adjust it to the
+  // actually-agreed sum before assigning.
+  const openSelect = (app: WorkApplication) => {
     if (!appsWork) return;
-    const needed = app.offeredPrice ?? appsWork.price;
-    // Clear, upfront reason instead of a raw backend error: the stage funds
-    // must be released before a worker can be paid from them.
-    if (spendableBalance !== undefined && spendableBalance < needed) {
+    setSelectApp(app);
+    setSelectAmount(String(app.offeredPrice ?? appsWork.price));
+  };
+
+  const selectPayment =
+    appsWork && selectApp
+      ? appsWork.paymentType === 'either'
+        ? selectApp.preferredPayment
+        : appsWork.paymentType
+      : 'cash';
+  // Amount actually frozen from the treasury: the entered sum, plus the ticket
+  // premium when the worker is paid in tickets.
+  const selectFrozen =
+    (parseFloat(selectAmount) || 0) *
+    (selectPayment === 'tickets' && appsWork ? 1 + appsWork.ticketPremiumPercent / 100 : 1);
+
+  const confirmSelect = async () => {
+    if (!appsWork || !selectApp) return;
+    const amount = parseFloat(selectAmount);
+    if (!amount || amount <= 0) {
+      showAlert(t('common.error'));
+      return;
+    }
+    // Availability is checked against the agreed amount (+premium), not the
+    // work's original planned price.
+    if (spendableBalance !== undefined && spendableBalance < selectFrozen) {
       showAlert(t('works.selectNoFundsTitle'), t('works.selectNoFunds'));
       return;
     }
     setSubmitting(true);
     try {
-      await selectWorkApplicant(projectId, appsWork.id, app.id);
+      await selectWorkApplicant(projectId, appsWork.id, selectApp.id, amount);
+      setSelectApp(null);
       setAppsWork(null);
       refresh();
     } catch (err: any) {
@@ -345,6 +381,27 @@ export function ProjectWorksPanel({
         const workMilestones = milestones[work.id] ?? [];
         const hasMilestones = workMilestones.length > 0;
         const inProgress = work.status === 'assigned' || work.status === 'submitted';
+        // Once a work is taken, the frozen escrow is what will actually be paid;
+        // with a counter-offer (or ticket premium) that differs from the planned
+        // amounts. We show BOTH: the planned figure and the real one. For paid
+        // milestones the real amount is stored; while still in progress it's the
+        // projected share of escrow (ratio stays constant as milestones are paid).
+        const hasAssignee = work.assigneeId != null && work.escrowAmount != null;
+        const milestoneSum = workMilestones.reduce((s, m) => s + parseFloat(m.amount), 0);
+        const unpaidSum = workMilestones
+          .filter((m) => m.status !== 'accepted')
+          .reduce((s, m) => s + parseFloat(m.amount), 0);
+        const payoutRatio = hasAssignee && unpaidSum > 0 ? work.escrowAmount! / unpaidSum : 1;
+        const effectiveMilestone = (m: WorkMilestone) =>
+          m.paidAmount != null ? parseFloat(m.paidAmount) : parseFloat(m.amount) * payoutRatio;
+        const plannedTotal = hasMilestones ? milestoneSum : work.price;
+        const effectiveTotal = hasMilestones
+          ? workMilestones.reduce((s, m) => s + effectiveMilestone(m), 0)
+          : hasAssignee
+            ? work.escrowAmount!
+            : work.price;
+        const totalDiffers = Math.abs(effectiveTotal - plannedTotal) > 0.005;
+        const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
         return (
           <View key={work.id} style={styles.card}>
             <View style={styles.cardHeader}>
@@ -357,8 +414,9 @@ export function ProjectWorksPanel({
             </View>
             <Text style={styles.cardBrief}>{work.brief}</Text>
             <Text style={styles.cardPrice}>
-              {work.price.toLocaleString()} {currency}
-              {work.allowCounterOffers ? ` · ${t('works.counterOffersOn')}` : ''}
+              {totalDiffers && <Text style={styles.plannedStrike}>{fmt(plannedTotal)} → </Text>}
+              {fmt(effectiveTotal)} {currency}
+              {work.allowCounterOffers && work.status === 'open' ? ` · ${t('works.counterOffersOn')}` : ''}
             </Text>
             <Text style={styles.cardMeta}>
               {t(`works.payment.${work.paymentType}`)}
@@ -392,12 +450,17 @@ export function ProjectWorksPanel({
             {/* Milestones */}
             {hasMilestones && (
               <View style={styles.milestones}>
-                {workMilestones.map((m) => (
+                {workMilestones.map((m) => {
+                  const planned = parseFloat(m.amount);
+                  const effective = effectiveMilestone(m);
+                  const differs = Math.abs(effective - planned) > 0.005;
+                  return (
                   <View key={m.id} style={styles.milestoneRow}>
                     <View style={styles.flex1}>
                       <Text style={styles.milestoneTitle}>{m.title}</Text>
                       <Text style={styles.milestoneMeta}>
-                        {parseFloat(m.amount).toLocaleString()} {currency} · {t(`works.milestoneStatus.${m.status}`)}
+                        {differs && <Text style={styles.plannedStrike}>{fmt(planned)} → </Text>}
+                        {fmt(effective)} {currency} · {t(`works.milestoneStatus.${m.status}`)}
                       </Text>
                     </View>
                     {isAssignee && m.status === 'pending' && (
@@ -411,7 +474,8 @@ export function ProjectWorksPanel({
                       </Pressable>
                     )}
                   </View>
-                ))}
+                  );
+                })}
               </View>
             )}
 
@@ -631,7 +695,7 @@ export function ProjectWorksPanel({
                     <Text style={styles.rejectedTag}>{t('works.appStatus.rejected')}</Text>
                   ) : (
                     <View style={styles.appActions}>
-                      <Pressable style={styles.selectBtn} onPress={() => handleSelect(app)} disabled={submitting}>
+                      <Pressable style={styles.selectBtn} onPress={() => openSelect(app)} disabled={submitting}>
                         <Text style={styles.selectBtnText}>{t('works.select')}</Text>
                       </Pressable>
                       <Pressable onPress={() => setRejectApp(app)} disabled={submitting}>
@@ -644,6 +708,40 @@ export function ProjectWorksPanel({
             </ScrollView>
             <Pressable style={styles.modalCancel} onPress={() => setAppsWork(null)}>
               <Text style={styles.modalCancelText}>{t('common.close')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Select applicant — confirm the amount to freeze */}
+      <Modal visible={!!selectApp} transparent animationType="fade" onRequestClose={() => setSelectApp(null)}>
+        <View style={styles.backdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>
+              {t('works.selectAmountTitle')} · {selectApp?.fullName || selectApp?.username || '—'}
+            </Text>
+            <TextField
+              label={t('works.selectAmountLabel')}
+              value={selectAmount}
+              onChangeText={setSelectAmount}
+              format="decimal"
+              keyboardType="decimal-pad"
+              hint={t('works.selectAmountHint')}
+            />
+            <Text style={styles.selectFrozen}>
+              {t('works.selectFrozen')}: {selectFrozen.toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency}
+              {selectPayment === 'tickets' && appsWork && appsWork.ticketPremiumPercent > 0
+                ? ` (+${appsWork.ticketPremiumPercent}%)`
+                : ''}
+            </Text>
+            {spendableBalance !== undefined && (
+              <Text style={styles.selectAvail}>
+                {t('works.treasuryAvailable')}: {spendableBalance.toLocaleString()} {currency}
+              </Text>
+            )}
+            <PrimaryButton title={t('works.select')} onPress={confirmSelect} loading={submitting} />
+            <Pressable style={styles.modalCancel} onPress={() => setSelectApp(null)}>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
             </Pressable>
           </View>
         </View>
@@ -781,11 +879,14 @@ const styles = StyleSheet.create({
   appName: { fontSize: 14, fontWeight: '600', color: colors.text },
   appCover: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
   appPrice: { fontSize: 12, fontWeight: '700', color: colors.primary, marginTop: 2 },
+  selectFrozen: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
+  selectAvail: { fontSize: 12, color: colors.textMuted, marginBottom: spacing.md },
   selectBtn: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: spacing.md, paddingVertical: 6 },
   selectBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   selectedTag: { fontSize: 11, fontWeight: '700', color: colors.warning },
   milestones: { marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.xs },
   milestoneRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs },
+  plannedStrike: { color: colors.textMuted, textDecorationLine: 'line-through', fontWeight: '400' },
   milestoneTitle: { fontSize: 13, fontWeight: '600', color: colors.text },
   milestoneMeta: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   miniBtn: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: 5 },

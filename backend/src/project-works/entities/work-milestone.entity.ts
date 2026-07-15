@@ -22,6 +22,12 @@ export class WorkMilestone {
   @Column('decimal', { precision: 14, scale: 2 })
   amount: string;
 
+  // What was actually paid out for this milestone (its share of the escrow).
+  // Can differ from `amount` when a counter-offer / ticket premium applied.
+  // Null until the milestone is accepted.
+  @Column('decimal', { name: 'paid_amount', precision: 14, scale: 2, nullable: true })
+  paidAmount: string | null;
+
   @Column('int')
   order: number;
 

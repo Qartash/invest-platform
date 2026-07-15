@@ -272,6 +272,7 @@ export interface WorkMilestone {
   workId: string;
   title: string;
   amount: string;
+  paidAmount: string | null;
   order: number;
   status: MilestoneStatus;
 }

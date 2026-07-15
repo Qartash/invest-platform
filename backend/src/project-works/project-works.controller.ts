@@ -3,6 +3,7 @@ import { ProjectWorksService } from './project-works.service';
 import { CreateWorkDto } from './dto/create-work.dto';
 import { ApplyWorkDto } from './dto/apply-work.dto';
 import { RejectApplicationDto } from './dto/reject-application.dto';
+import { SelectApplicantDto } from './dto/select-applicant.dto';
 import { ReviewWorkDto } from './dto/review-work.dto';
 import { AddMilestonesDto } from './dto/add-milestones.dto';
 import { ResolveDisputeDto } from './dto/resolve-dispute.dto';
@@ -86,8 +87,9 @@ export class ProjectWorksController {
     @Param('id') projectId: string,
     @Param('workId') workId: string,
     @Param('appId') appId: string,
+    @Body() dto: SelectApplicantDto,
   ) {
-    return this.worksService.selectApplicant(projectId, workId, appId, user.id);
+    return this.worksService.selectApplicant(projectId, workId, appId, user.id, dto.agreedAmount);
   }
 
   @Post(':workId/submit')

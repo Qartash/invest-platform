@@ -70,9 +70,9 @@ export function fetchWorkApplications(projectId: string, workId: string) {
     .then((r) => r.data);
 }
 
-export function selectWorkApplicant(projectId: string, workId: string, appId: string) {
+export function selectWorkApplicant(projectId: string, workId: string, appId: string, agreedAmount?: number) {
   return apiClient
-    .post<ProjectWork>(`/projects/${projectId}/works/${workId}/applications/${appId}/select`)
+    .post<ProjectWork>(`/projects/${projectId}/works/${workId}/applications/${appId}/select`, { agreedAmount })
     .then((r) => r.data);
 }
 

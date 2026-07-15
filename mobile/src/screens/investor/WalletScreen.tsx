@@ -133,12 +133,16 @@ export function WalletScreen() {
               <Text style={styles.txIcon}>{TX_ICON[item.type] ?? '•'}</Text>
               <View style={styles.txInfo}>
                 <Text style={styles.txType}>{t(`wallet.txType.${item.type}`, { defaultValue: item.type })}</Text>
+                {!!item.description && <Text style={styles.txDesc} numberOfLines={1}>{item.description}</Text>}
                 <Text style={styles.txDate}>{formatDateTime(item.createdAt, i18n.language)}</Text>
               </View>
-              <Text style={[styles.txAmount, { color: isCredit ? colors.success : colors.text }]}>
-                {isCredit ? '+' : '−'}
-                {parseFloat(item.amount).toLocaleString()} {t('common.currency')}
-              </Text>
+              <View style={styles.txRight}>
+                <Text style={[styles.txAmount, { color: isCredit ? colors.success : colors.text }]}>
+                  {isCredit ? '+' : '−'}
+                  {parseFloat(item.amount).toLocaleString()} {t('common.currency')}
+                </Text>
+                {!!item.account && <Text style={styles.txAccount}>{t(`wallet.account.${item.account}`)}</Text>}
+              </View>
             </View>
           );
         }}
@@ -215,14 +219,29 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
   },
+  txDesc: {
+    fontSize: 12,
+    color: colors.text,
+    marginTop: 1,
+  },
   txDate: {
     fontSize: 11,
     color: colors.textMuted,
     marginTop: 1,
   },
+  txRight: {
+    alignItems: 'flex-end',
+    marginLeft: spacing.sm,
+  },
   txAmount: {
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+  },
+  txAccount: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginTop: 2,
   },
   empty: {
     textAlign: 'center',

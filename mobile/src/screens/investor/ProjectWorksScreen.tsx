@@ -31,7 +31,17 @@ export function ProjectWorksScreen({ route }: Props) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {project && <Text style={styles.title}>{getLocalizedText(project.title, i18n.language)}</Text>}
       <View style={styles.panel}>
-        <ProjectWorksPanel projectId={projectId} canEdit={isFounder} currentUserId={currentUserId} />
+        <ProjectWorksPanel
+          projectId={projectId}
+          canEdit={isFounder}
+          currentUserId={currentUserId}
+          // Pass the treasury balances so the founder gets the same funds
+          // pre-check here as on the founder screen (checked against the
+          // applicant's offered price, not the work's original price).
+          treasuryBalance={isFounder && project ? parseFloat(project.treasuryBalance ?? '0') : undefined}
+          spendableBalance={isFounder && project ? parseFloat(project.spendableBalance ?? '0') : undefined}
+          onChanged={() => fetchProject(projectId).then(setProject)}
+        />
       </View>
     </ScrollView>
   );

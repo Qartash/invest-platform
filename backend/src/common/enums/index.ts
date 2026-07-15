@@ -47,6 +47,13 @@ export enum TransactionStatus {
   FAILED = 'failed',
 }
 
+// Which side of the wallet a transaction credited/debited: the withdrawable
+// cash balance, or the invest-credit (tickets) balance.
+export enum TransactionAccount {
+  BALANCE = 'balance',
+  INVEST = 'invest',
+}
+
 export enum ProjectPriority {
   LOW = 'low',
   MEDIUM = 'medium',

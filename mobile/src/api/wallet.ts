@@ -7,6 +7,8 @@ export interface Transaction {
   amount: string;
   quantity: number | null;
   status: string;
+  description: string | null;
+  account: 'balance' | 'invest' | null;
   createdAt: string;
 }
 

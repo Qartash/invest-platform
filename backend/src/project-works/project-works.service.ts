@@ -20,6 +20,7 @@ import { ApplyWorkDto } from './dto/apply-work.dto';
 import {
   ExpenseCategory,
   MilestoneStatus,
+  TransactionAccount,
   TransactionStatus,
   TransactionType,
   WorkApplicationStatus,
@@ -76,6 +77,11 @@ export class ProjectWorksService {
         type: TransactionType.WORK_PAYMENT,
         amount: amount.toFixed(2),
         status: TransactionStatus.COMPLETED,
+        description: work.title,
+        account:
+          work.assigneePayment === WorkPaymentType.TICKETS
+            ? TransactionAccount.INVEST
+            : TransactionAccount.BALANCE,
       }),
     );
   }
@@ -271,7 +277,13 @@ export class ProjectWorksService {
 
   // Founder picks an applicant: the agreed amount is frozen from the project's
   // spendable (already-released) balance into the work's escrow.
-  async selectApplicant(projectId: string, workId: string, applicationId: string, userId: string) {
+  async selectApplicant(
+    projectId: string,
+    workId: string,
+    applicationId: string,
+    userId: string,
+    agreedAmount?: number,
+  ) {
     return this.dataSource.transaction(async (manager) => {
       const project = await manager.findOne(Project, { where: { id: projectId } });
       if (!project) throw new NotFoundException('Project not found');
@@ -287,7 +299,11 @@ export class ProjectWorksService {
       // The work's payment type wins; only 'either' lets the applicant choose.
       const payment =
         work.paymentType === WorkPaymentType.EITHER ? application.preferredPayment : work.paymentType;
-      const base = this.priceOf(work, application);
+      // The founder can override the frozen amount with the actually-negotiated
+      // sum; otherwise use the applicant's offer (or the work's price). This lets
+      // a work created with a higher planned price than the treasury can cover
+      // still be assigned at an affordable, agreed amount.
+      const base = agreedAmount !== undefined && agreedAmount > 0 ? agreedAmount : this.priceOf(work, application);
       // Taking tickets earns the premium — the project pays a bit more but keeps
       // the money as a stake rather than cash walking out.
       const amount =
@@ -554,18 +570,33 @@ export class ProjectWorksService {
       if (!milestone) throw new NotFoundException('Milestone not found');
       if (milestone.status !== MilestoneStatus.SUBMITTED) throw new ConflictException('Milestone is not submitted');
 
-      const amount = parseFloat(milestone.amount);
-      await this.payToWorker(manager, work, amount);
-      work.escrowAmount = Math.max(0, parseFloat(work.escrowAmount) - amount).toFixed(2);
+      // Pay this milestone its share of the escrow, NOT its face value. With a
+      // counter-offer the escrow (the agreed price, +premium for tickets) can be
+      // far less than the sum of the milestone amounts; paying face value would
+      // mint money the project never froze. The share is taken over the still
+      // unpaid milestones, and the final one clears whatever escrow remains
+      // (absorbing rounding), so total payouts always equal the escrow exactly.
+      const escrow = parseFloat(work.escrowAmount);
+      const all = await manager.find(WorkMilestone, { where: { workId } });
+      const unpaid = all.filter((m) => m.status !== MilestoneStatus.ACCEPTED); // includes this one
+      const unpaidWeight = unpaid.reduce((sum, m) => sum + parseFloat(m.amount), 0);
+      const isLast = unpaid.length <= 1;
+      let payout =
+        isLast || unpaidWeight <= 0
+          ? escrow
+          : Math.round(((escrow * parseFloat(milestone.amount)) / unpaidWeight) * 100) / 100;
+      payout = Math.min(payout, escrow);
+
+      await this.payToWorker(manager, work, payout);
+      work.escrowAmount = Math.max(0, escrow - payout).toFixed(2);
 
       milestone.status = MilestoneStatus.ACCEPTED;
+      // Remember the real payout so a completed work still shows what was paid,
+      // not just the planned amount (escrow is consumed by the time it's done).
+      milestone.paidAmount = payout.toFixed(2);
       await manager.save(milestone);
 
-      const remaining = await manager.count(WorkMilestone, {
-        where: { workId, status: MilestoneStatus.ACCEPTED },
-      });
-      const total = await manager.count(WorkMilestone, { where: { workId } });
-      if (remaining >= total) {
+      if (isLast) {
         work.status = WorkStatus.ACCEPTED;
         work.acceptedAt = new Date();
       }

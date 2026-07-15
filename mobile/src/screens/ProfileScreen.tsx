@@ -127,6 +127,11 @@ export function ProfileScreen({ navigation }: Props) {
           icon="💰"
           label={t('wallet.title')}
           value={`${wallet ? parseFloat(wallet.balance).toLocaleString() : '—'} ${t('common.currency')}`}
+          note={
+            wallet && parseFloat(wallet.investCredit ?? '0') > 0
+              ? `${t('wallet.investCredit')}: ${parseFloat(wallet.investCredit ?? '0').toLocaleString()} ${t('common.currency')}`
+              : undefined
+          }
           onPress={() => navigation.navigate('Wallet')}
         />
         <StatBlock
@@ -137,14 +142,6 @@ export function ProfileScreen({ navigation }: Props) {
         />
         <StatBlock icon="📈" label={t('reports.title')} value=" " onPress={() => navigation.navigate('Reports')} />
       </View>
-
-      {wallet && parseFloat(wallet.investCredit ?? '0') > 0 && (
-        <Pressable style={styles.investCreditRow} onPress={() => navigation.navigate('Wallet')}>
-          <Text style={styles.investCreditText}>
-            {t('wallet.investCredit')}: {parseFloat(wallet.investCredit ?? '0').toLocaleString()} {t('common.currency')}
-          </Text>
-        </Pressable>
-      )}
 
       <Text style={styles.sectionLabel}>{t('profile.language')}</Text>
       <View style={styles.languageRow}>
@@ -260,15 +257,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.sm,
     lineHeight: 17,
-  },
-  investCreditRow: {
-    marginTop: -spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  investCreditText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
   },
   infoRow: {
     flexDirection: 'row',
