@@ -22,6 +22,13 @@ export class ProjectIncome {
   @Column({ type: 'date' })
   date: string;
 
+  // Soft delete: the entry stays in the books as history for everyone to see.
+  @Column({ type: 'timestamp', nullable: true, name: 'deleted_at' })
+  deletedAt: Date | null;
+
+  @Column({ type: 'text', nullable: true, name: 'deleted_reason' })
+  deletedReason: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

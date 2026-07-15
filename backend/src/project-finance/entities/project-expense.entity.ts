@@ -29,6 +29,13 @@ export class ProjectExpense {
   @Column({ type: 'varchar', nullable: true, name: 'attachment_url' })
   attachmentUrl: string | null;
 
+  // Soft delete: the entry stays in the books as history for everyone to see.
+  @Column({ type: 'timestamp', nullable: true, name: 'deleted_at' })
+  deletedAt: Date | null;
+
+  @Column({ type: 'text', nullable: true, name: 'deleted_reason' })
+  deletedReason: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

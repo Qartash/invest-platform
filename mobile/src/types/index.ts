@@ -121,6 +121,8 @@ export interface ProjectExpense {
   description: string;
   date: string;
   attachmentUrl: string | null;
+  deletedAt: string | null;
+  deletedReason: string | null;
   createdAt: string;
 }
 
@@ -130,6 +132,8 @@ export interface ProjectIncome {
   amount: string;
   description: string;
   date: string;
+  deletedAt: string | null;
+  deletedReason: string | null;
   createdAt: string;
 }
 

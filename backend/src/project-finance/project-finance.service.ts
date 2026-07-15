@@ -65,14 +65,20 @@ export class ProjectFinanceService {
     return this.expensesRepository.save(expense);
   }
 
-  async deleteExpense(projectId: string, expenseId: string, userId: string, userRole: UserRole) {
+  async deleteExpense(projectId: string, expenseId: string, userId: string, userRole: UserRole, reason: string) {
     await this.assertCanEdit(projectId, userId, userRole);
     const expense = await this.expensesRepository.findOne({ where: { id: expenseId, projectId } });
     if (!expense) {
       throw new NotFoundException('Expense not found');
     }
+    if (expense.deletedAt) {
+      throw new ConflictException('This entry is already deleted');
+    }
     await this.assertPeriodOpen(projectId, expense.date);
-    await this.expensesRepository.remove(expense);
+    // Soft delete: keep the entry in the books as visible history with a reason.
+    expense.deletedAt = new Date();
+    expense.deletedReason = reason;
+    return this.expensesRepository.save(expense);
   }
 
   listIncomes(projectId: string) {
@@ -86,14 +92,20 @@ export class ProjectFinanceService {
     return this.incomesRepository.save(income);
   }
 
-  async deleteIncome(projectId: string, incomeId: string, userId: string, userRole: UserRole) {
+  async deleteIncome(projectId: string, incomeId: string, userId: string, userRole: UserRole, reason: string) {
     await this.assertCanEdit(projectId, userId, userRole);
     const income = await this.incomesRepository.findOne({ where: { id: incomeId, projectId } });
     if (!income) {
       throw new NotFoundException('Income not found');
     }
+    if (income.deletedAt) {
+      throw new ConflictException('This entry is already deleted');
+    }
     await this.assertPeriodOpen(projectId, income.date);
-    await this.incomesRepository.remove(income);
+    // Soft delete: keep the entry in the books as visible history with a reason.
+    income.deletedAt = new Date();
+    income.deletedReason = reason;
+    return this.incomesRepository.save(income);
   }
 
   private periodBounds(period: string) {
@@ -116,6 +128,7 @@ export class ProjectFinanceService {
       .select(`COALESCE(SUM(${alias}.amount), 0)`, 'sum')
       .where(`${alias}.project_id = :projectId`, { projectId })
       .andWhere(`${alias}.date BETWEEN :start AND :end`, { start, end })
+      .andWhere(`${alias}.deleted_at IS NULL`)
       .getRawOne<{ sum: string }>();
     return parseFloat(result?.sum ?? '0');
   }

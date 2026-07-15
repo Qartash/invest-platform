@@ -12,8 +12,8 @@ export function addProjectExpense(
   return apiClient.post<ProjectExpense>(`/projects/${projectId}/expenses`, data).then((r) => r.data);
 }
 
-export function deleteProjectExpense(projectId: string, expenseId: string) {
-  return apiClient.delete(`/projects/${projectId}/expenses/${expenseId}`).then((r) => r.data);
+export function deleteProjectExpense(projectId: string, expenseId: string, reason: string) {
+  return apiClient.delete(`/projects/${projectId}/expenses/${expenseId}`, { data: { reason } }).then((r) => r.data);
 }
 
 export function fetchProjectIncomes(projectId: string) {
@@ -24,8 +24,8 @@ export function addProjectIncome(projectId: string, data: { amount: number; desc
   return apiClient.post<ProjectIncome>(`/projects/${projectId}/incomes`, data).then((r) => r.data);
 }
 
-export function deleteProjectIncome(projectId: string, incomeId: string) {
-  return apiClient.delete(`/projects/${projectId}/incomes/${incomeId}`).then((r) => r.data);
+export function deleteProjectIncome(projectId: string, incomeId: string, reason: string) {
+  return apiClient.delete(`/projects/${projectId}/incomes/${incomeId}`, { data: { reason } }).then((r) => r.data);
 }
 
 export function fetchProjectFinancialReports(projectId: string) {

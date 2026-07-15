@@ -3,6 +3,7 @@ import { ProjectFinanceService } from './project-finance.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateIncomeDto } from './dto/create-income.dto';
 import { CreateFinancialReportDto } from './dto/create-financial-report.dto';
+import { DeleteFinanceEntryDto } from './dto/delete-finance-entry.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
@@ -23,8 +24,13 @@ export class ProjectExpensesController {
   }
 
   @Delete(':expenseId')
-  async remove(@CurrentUser() user: User, @Param('id') projectId: string, @Param('expenseId') expenseId: string) {
-    await this.financeService.deleteExpense(projectId, expenseId, user.id, user.role);
+  async remove(
+    @CurrentUser() user: User,
+    @Param('id') projectId: string,
+    @Param('expenseId') expenseId: string,
+    @Body() dto: DeleteFinanceEntryDto,
+  ) {
+    await this.financeService.deleteExpense(projectId, expenseId, user.id, user.role, dto.reason);
     return { success: true };
   }
 }
@@ -45,8 +51,13 @@ export class ProjectIncomesController {
   }
 
   @Delete(':incomeId')
-  async remove(@CurrentUser() user: User, @Param('id') projectId: string, @Param('incomeId') incomeId: string) {
-    await this.financeService.deleteIncome(projectId, incomeId, user.id, user.role);
+  async remove(
+    @CurrentUser() user: User,
+    @Param('id') projectId: string,
+    @Param('incomeId') incomeId: string,
+    @Body() dto: DeleteFinanceEntryDto,
+  ) {
+    await this.financeService.deleteIncome(projectId, incomeId, user.id, user.role, dto.reason);
     return { success: true };
   }
 }

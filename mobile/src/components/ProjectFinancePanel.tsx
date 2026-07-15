@@ -29,6 +29,7 @@ import { showAlert } from '../utils/alert';
 import { colors, spacing } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 import { TextField } from './TextField';
+import { MonthFinanceChart, MonthFinancePoint } from './MonthFinanceChart';
 
 const EXPENSE_CATEGORIES: ExpenseCategory[] = ['investment_spend', 'daily', 'one_time', 'other'];
 const BUDGET_ITEM_STATUSES: BudgetItemStatus[] = ['not_started', 'awaiting_payment', 'completed'];
@@ -49,8 +50,27 @@ function shiftPeriod(period: string, delta: number): string {
 }
 
 type FeedEntry =
-  | { kind: 'expense'; id: string; amount: number; description: string; date: string; category: ExpenseCategory; raw: ProjectExpense }
-  | { kind: 'income'; id: string; amount: number; description: string; date: string; raw: ProjectIncome };
+  | {
+      kind: 'expense';
+      id: string;
+      amount: number;
+      description: string;
+      date: string;
+      category: ExpenseCategory;
+      deletedAt: string | null;
+      deletedReason: string | null;
+      raw: ProjectExpense;
+    }
+  | {
+      kind: 'income';
+      id: string;
+      amount: number;
+      description: string;
+      date: string;
+      deletedAt: string | null;
+      deletedReason: string | null;
+      raw: ProjectIncome;
+    };
 
 interface Props {
   projectId: string;
@@ -83,6 +103,11 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
 
   const [closeModalVisible, setCloseModalVisible] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  const [deleteTarget, setDeleteTarget] = useState<FeedEntry | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+
+  const [chartWidth, setChartWidth] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -119,6 +144,8 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
           description: e.description,
           date: e.date,
           category: e.category,
+          deletedAt: e.deletedAt ?? null,
+          deletedReason: e.deletedReason ?? null,
           raw: e,
         })),
       ...incomes
@@ -129,6 +156,8 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
           amount: parseFloat(e.amount),
           description: e.description,
           date: e.date,
+          deletedAt: e.deletedAt ?? null,
+          deletedReason: e.deletedReason ?? null,
           raw: e,
         })),
     ];
@@ -148,8 +177,9 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
     return groups;
   }, [monthEntries]);
 
-  const monthIncome = monthEntries.reduce((sum, e) => (e.kind === 'income' ? sum + e.amount : sum), 0);
-  const monthExpenses = monthEntries.reduce((sum, e) => (e.kind === 'expense' ? sum + e.amount : sum), 0);
+  // Deleted entries stay visible as history but no longer count toward the books.
+  const monthIncome = monthEntries.reduce((sum, e) => (e.kind === 'income' && !e.deletedAt ? sum + e.amount : sum), 0);
+  const monthExpenses = monthEntries.reduce((sum, e) => (e.kind === 'expense' && !e.deletedAt ? sum + e.amount : sum), 0);
   const monthNet = monthIncome - monthExpenses;
 
   const monthReport = reports.find((r) => r.period === selectedMonth) ?? null;
@@ -170,6 +200,71 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
     freshnessDays === null ? colors.textMuted : freshnessDays <= 3 ? colors.success : freshnessDays <= 7 ? colors.warning : colors.danger;
 
   const investorPoolEstimate = totalTickets > 0 && monthNet > 0 ? (monthNet * ticketsSold) / totalTickets : 0;
+
+  // The date of the very first entry — before the books existed, missing days
+  // shouldn't count as "skipped".
+  const firstActivityDate = useMemo(() => {
+    let min: string | null = null;
+    for (const e of [...expenses, ...incomes]) {
+      if (min === null || e.date < min) min = e.date;
+    }
+    return min;
+  }, [expenses, incomes]);
+
+  // Per-day bookkeeping coverage for the selected month: which days have a live
+  // entry, and which past days were skipped.
+  const dailyActivity = useMemo(() => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const lastDay = new Date(year, month, 0).getDate();
+    const today = todayIso();
+    const activeDays = new Set<number>();
+    for (const e of monthEntries) {
+      if (!e.deletedAt) activeDays.add(Number(e.date.slice(8, 10)));
+    }
+    const days: { day: number; status: 'active' | 'missed' | 'future' }[] = [];
+    let missed = 0;
+    let active = 0;
+    for (let d = 1; d <= lastDay; d++) {
+      const iso = `${selectedMonth}-${String(d).padStart(2, '0')}`;
+      let status: 'active' | 'missed' | 'future';
+      if (activeDays.has(d)) {
+        status = 'active';
+        active += 1;
+      } else if (iso < today && (firstActivityDate === null || iso >= firstActivityDate)) {
+        status = 'missed';
+        missed += 1;
+      } else {
+        status = 'future';
+      }
+      days.push({ day: d, status });
+    }
+    return { days, missed, active };
+  }, [selectedMonth, monthEntries, firstActivityDate]);
+
+  // Cumulative income and expense per day, for the monthly finance line chart.
+  const financeChartPoints = useMemo<MonthFinancePoint[]>(() => {
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const lastDay = new Date(year, month, 0).getDate();
+    const incByDay = new Array<number>(lastDay + 1).fill(0);
+    const expByDay = new Array<number>(lastDay + 1).fill(0);
+    for (const e of monthEntries) {
+      if (e.deletedAt) continue;
+      const d = Number(e.date.slice(8, 10));
+      if (e.kind === 'income') incByDay[d] += e.amount;
+      else expByDay[d] += e.amount;
+    }
+    const points: MonthFinancePoint[] = [];
+    let cumIncome = 0;
+    let cumExpense = 0;
+    for (let d = 1; d <= lastDay; d++) {
+      cumIncome += incByDay[d];
+      cumExpense += expByDay[d];
+      points.push({ day: d, income: cumIncome, expense: cumExpense });
+    }
+    return points;
+  }, [selectedMonth, monthEntries]);
+
+  const hasMonthData = monthIncome > 0 || monthExpenses > 0;
 
   // ---- actions ----
 
@@ -210,26 +305,33 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
     }
   };
 
-  const handleDeleteEntry = (entry: FeedEntry) => {
-    showAlert(t('common.confirm'), undefined, [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            if (entry.kind === 'expense') {
-              await deleteProjectExpense(projectId, entry.id);
-            } else {
-              await deleteProjectIncome(projectId, entry.id);
-            }
-            load();
-          } catch (err: any) {
-            showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
-          }
-        },
-      },
-    ]);
+  const openDeleteEntryModal = (entry: FeedEntry) => {
+    setDeleteTarget(entry);
+    setDeleteReason('');
+  };
+
+  const handleConfirmDeleteEntry = async () => {
+    if (!deleteTarget) return;
+    const reason = deleteReason.trim();
+    if (reason.length < 3) {
+      showAlert(t('common.error'), t('project.finance.deleteReasonRequired'));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (deleteTarget.kind === 'expense') {
+        await deleteProjectExpense(projectId, deleteTarget.id, reason);
+      } else {
+        await deleteProjectIncome(projectId, deleteTarget.id, reason);
+      }
+      setDeleteTarget(null);
+      setDeleteReason('');
+      await load();
+    } catch (err: any) {
+      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const openCloseMonthModal = async () => {
@@ -409,6 +511,70 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
             </View>
           </View>
 
+          <View style={styles.activityCard}>
+            {/* Daily bookkeeping coverage — one square per day of the month */}
+            <View style={styles.activityHeader}>
+              <Text style={styles.activityTitle}>{t('project.finance.dailyActivityTitle')}</Text>
+              <Text style={[styles.activityMissed, { color: dailyActivity.missed > 0 ? colors.danger : colors.success }]}>
+                {dailyActivity.missed > 0
+                  ? t('project.finance.missedDays', { count: dailyActivity.missed })
+                  : t('project.finance.noMissedDays')}
+              </Text>
+            </View>
+            <View style={styles.stripRow}>
+              {dailyActivity.days.map((d) => (
+                <View
+                  key={d.day}
+                  style={[
+                    styles.stripCell,
+                    d.status === 'active'
+                      ? styles.stripCellActive
+                      : d.status === 'missed'
+                        ? styles.stripCellMissed
+                        : styles.stripCellFuture,
+                  ]}
+                />
+              ))}
+            </View>
+            <View style={styles.stripAxis}>
+              <Text style={styles.stripAxisText}>1</Text>
+              <Text style={styles.stripAxisText}>{dailyActivity.days.length}</Text>
+            </View>
+            <View style={styles.legendRow}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+                <Text style={styles.legendText}>{t('project.finance.legendLogged')}</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, styles.legendDotMissed]} />
+                <Text style={styles.legendText}>{t('project.finance.legendMissed')}</Text>
+              </View>
+            </View>
+
+            {/* Monthly finance line chart — cumulative income vs expenses */}
+            <View style={styles.chartDivider} />
+            <View style={styles.chartHeader}>
+              <Text style={styles.activityTitle}>{t('project.finance.financeChartTitle')}</Text>
+              <View style={styles.legendRow}>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+                  <Text style={styles.legendText}>{t('project.finance.incomesTab')}</Text>
+                </View>
+                <View style={styles.legendItem}>
+                  <View style={[styles.legendDot, { backgroundColor: colors.danger }]} />
+                  <Text style={styles.legendText}>{t('project.finance.expensesTab')}</Text>
+                </View>
+              </View>
+            </View>
+            <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
+              {hasMonthData && chartWidth > 0 ? (
+                <MonthFinanceChart points={financeChartPoints} width={chartWidth} />
+              ) : (
+                <Text style={styles.chartEmpty}>{t('project.finance.noEntriesMonth')}</Text>
+              )}
+            </View>
+          </View>
+
           {!monthIsOpen && <Text style={styles.lockedNote}>{t('project.finance.monthClosedNote')}</Text>}
 
           {canEdit && monthIsOpen && (
@@ -428,25 +594,48 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
           {entriesByDay.map((group) => (
             <View key={group.date}>
               <Text style={styles.dayHeader}>{formatDate(group.date, i18n.language)}</Text>
-              {group.entries.map((entry) => (
-                <View key={`${entry.kind}-${entry.id}`} style={styles.row}>
-                  <View style={styles.rowMain}>
-                    <Text style={[styles.rowAmount, { color: entry.kind === 'income' ? colors.success : colors.danger }]}>
-                      {entry.kind === 'income' ? '+' : '−'}
-                      {entry.amount.toLocaleString()} {t('common.currency')}
-                    </Text>
-                    <Text style={styles.rowDescription}>{entry.description}</Text>
-                    {entry.kind === 'expense' && (
-                      <Text style={styles.rowMeta}>{t(`project.finance.category.${entry.category}`)}</Text>
+              {group.entries.map((entry) => {
+                const isDeleted = !!entry.deletedAt;
+                return (
+                  <View key={`${entry.kind}-${entry.id}`} style={styles.row}>
+                    <View style={styles.rowMain}>
+                      <View style={styles.rowAmountLine}>
+                        <Text
+                          style={[
+                            styles.rowAmount,
+                            { color: entry.kind === 'income' ? colors.success : colors.danger },
+                            isDeleted && styles.deletedText,
+                          ]}
+                        >
+                          {entry.kind === 'income' ? '+' : '−'}
+                          {entry.amount.toLocaleString()} {t('common.currency')}
+                        </Text>
+                        {isDeleted && (
+                          <View style={styles.deletedBadge}>
+                            <Text style={styles.deletedBadgeText}>{t('project.finance.deletedBadge')}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={[styles.rowDescription, isDeleted && styles.deletedText]}>{entry.description}</Text>
+                      {entry.kind === 'expense' && (
+                        <Text style={[styles.rowMeta, isDeleted && styles.deletedText]}>
+                          {t(`project.finance.category.${entry.category}`)}
+                        </Text>
+                      )}
+                      {isDeleted && entry.deletedReason && (
+                        <Text style={styles.deletedReason}>
+                          {t('project.finance.deletedReasonLabel')}: {entry.deletedReason}
+                        </Text>
+                      )}
+                    </View>
+                    {canEdit && monthIsOpen && !isDeleted && (
+                      <Pressable onPress={() => openDeleteEntryModal(entry)} hitSlop={10}>
+                        <Text style={styles.deleteLink}>{t('common.delete')}</Text>
+                      </Pressable>
                     )}
                   </View>
-                  {canEdit && monthIsOpen && (
-                    <Pressable onPress={() => handleDeleteEntry(entry)} hitSlop={10}>
-                      <Text style={styles.deleteLink}>{t('common.delete')}</Text>
-                    </Pressable>
-                  )}
-                </View>
-              ))}
+                );
+              })}
             </View>
           ))}
         </View>
@@ -700,6 +889,44 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
           </View>
         </View>
       </Modal>
+
+      {/* Delete entry (with reason) modal */}
+      <Modal
+        visible={deleteTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteTarget(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>{t('project.finance.deleteEntryTitle')}</Text>
+            {deleteTarget && (
+              <View style={styles.deleteSummary}>
+                <Text
+                  style={[
+                    styles.rowAmount,
+                    { color: deleteTarget.kind === 'income' ? colors.success : colors.danger },
+                  ]}
+                >
+                  {deleteTarget.kind === 'income' ? '+' : '−'}
+                  {deleteTarget.amount.toLocaleString()} {t('common.currency')}
+                </Text>
+                <Text style={styles.rowDescription}>{deleteTarget.description}</Text>
+              </View>
+            )}
+            <Text style={styles.deleteNote}>{t('project.finance.deleteEntryNote')}</Text>
+            <TextField
+              label={t('project.finance.deletedReasonLabel')}
+              value={deleteReason}
+              onChangeText={setDeleteReason}
+            />
+            <PrimaryButton title={t('common.delete')} onPress={handleConfirmDeleteEntry} loading={submitting} />
+            <Pressable style={styles.modalCancel} onPress={() => setDeleteTarget(null)}>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -822,6 +1049,97 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
+  activityCard: {
+    backgroundColor: colors.background,
+    borderRadius: 12,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  activityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  activityTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  activityMissed: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  stripRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  stripCell: {
+    flex: 1,
+    height: 18,
+    borderRadius: 3,
+    borderWidth: 1,
+    marginHorizontal: 1,
+  },
+  stripCellActive: {
+    backgroundColor: colors.success,
+    borderColor: colors.success,
+  },
+  stripCellMissed: {
+    backgroundColor: '#FBE9E7',
+    borderColor: '#F3C0B8',
+  },
+  stripCellFuture: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+  },
+  stripAxis: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 3,
+  },
+  stripAxisText: {
+    fontSize: 10,
+    color: colors.textMuted,
+  },
+  chartDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
+  chartHeader: {
+    marginBottom: spacing.xs,
+  },
+  chartEmpty: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontSize: 13,
+    paddingVertical: spacing.lg,
+  },
+  legendRow: {
+    flexDirection: 'row',
+    marginTop: spacing.sm,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 3,
+    marginRight: 4,
+  },
+  legendDotMissed: {
+    backgroundColor: '#FBE9E7',
+    borderWidth: 1,
+    borderColor: '#F3C0B8',
+  },
+  legendText: {
+    fontSize: 11,
+    color: colors.textMuted,
+  },
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -897,6 +1215,45 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.danger,
     marginLeft: spacing.sm,
+  },
+  rowAmountLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  deletedText: {
+    textDecorationLine: 'line-through',
+    color: colors.textMuted,
+  },
+  deletedBadge: {
+    backgroundColor: '#FBE9E7',
+    borderRadius: 6,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 1,
+    marginLeft: spacing.sm,
+  },
+  deletedBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.danger,
+    textTransform: 'uppercase',
+  },
+  deletedReason: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    marginTop: 3,
+  },
+  deleteSummary: {
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  deleteNote: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
   },
   reportCard: {
     borderWidth: 1,
