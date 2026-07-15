@@ -23,9 +23,11 @@ import {
   updateProjectWork,
 } from '../api/projectWorks';
 import { fetchProjectBudgetItems } from '../api/projects';
+import { useAuthStore } from '../store/authStore';
 import { showAlert } from '../utils/alert';
 import { colors, spacing } from '../theme';
 import { Avatar } from './Avatar';
+import { InvestorProfileModal } from './InvestorProfileModal';
 import { PrimaryButton } from './PrimaryButton';
 import { TextField } from './TextField';
 
@@ -56,6 +58,7 @@ export function ProjectWorksPanel({
   onChanged,
 }: Props) {
   const { t } = useTranslation();
+  const user = useAuthStore((s) => s.user);
   const [works, setWorks] = useState<ProjectWork[]>([]);
   const [budgetItems, setBudgetItems] = useState<ProjectBudgetItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +88,7 @@ export function ProjectWorksPanel({
   const [rejectReason, setRejectReason] = useState('');
   const [selectApp, setSelectApp] = useState<WorkApplication | null>(null);
   const [selectAmount, setSelectAmount] = useState('');
+  const [profileUserId, setProfileUserId] = useState<string | null>(null);
 
   // rating modal
   const [rateWork, setRateWork] = useState<ProjectWork | null>(null);
@@ -215,7 +219,10 @@ export function ProjectWorksPanel({
         offeredPrice: applyWork.allowCounterOffers && offeredPrice ? parseFloat(offeredPrice) : undefined,
         preferredPayment: applyWork.paymentType === 'either' ? preferredPayment : undefined,
       };
-      if (applyWork.myApplication) {
+      // Editing a still-pending application updates it in place; a first-time
+      // or post-rejection apply goes through applyToWork (which revives a
+      // previously rejected row on the backend).
+      if (applyWork.myApplication?.status === 'pending') {
         await updateApplication(projectId, applyWork.id, payload);
       } else {
         await applyToWork(projectId, applyWork.id, payload);
@@ -345,6 +352,31 @@ export function ProjectWorksPanel({
   };
 
   const currency = t('common.currency');
+  const fmtNum = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+
+  // Live hint under the counter-offer field: how the entered price compares to
+  // the work's original price.
+  const applyBase = applyWork?.price ?? 0;
+  const offeredNum = parseFloat(offeredPrice);
+  const offeredPriceHint = !applyWork
+    ? undefined
+    : !offeredPrice || Number.isNaN(offeredNum)
+      ? t('works.priceVsOriginalEmpty', { price: fmtNum(applyBase), currency })
+      : offeredNum > applyBase
+        ? t('works.priceHigher', { amount: fmtNum(offeredNum - applyBase), price: fmtNum(applyBase), currency })
+        : offeredNum < applyBase
+          ? t('works.priceLower', { amount: fmtNum(applyBase - offeredNum), price: fmtNum(applyBase), currency })
+          : t('works.priceSame', { price: fmtNum(applyBase), currency });
+
+  // Whether the employer will actually be able to see this applicant's contacts
+  // on their profile. Mirrors the backend rule in investor-profile.ts:
+  // contacts are exposed only when the name isn't masked, sharing is on, and a
+  // contact is actually filled in. Otherwise we nudge them to add a contact to
+  // the cover letter instead.
+  const contactsVisibleToEmployer =
+    user?.showFullName !== false &&
+    !!user?.shareContactsPublicly &&
+    !!(user?.telegram || user?.linkedin);
 
   return (
     <View>
@@ -531,6 +563,11 @@ export function ProjectWorksPanel({
                       <Text style={styles.editLink}>{t('works.editApplication')}</Text>
                     </Pressable>
                   )}
+                  {work.myApplication.status === 'rejected' && (
+                    <Pressable onPress={() => openApply(work)}>
+                      <Text style={styles.editLink}>{t('works.reapply')}</Text>
+                    </Pressable>
+                  )}
                 </View>
               ) : (
                 <View style={styles.createButton}>
@@ -631,14 +668,41 @@ export function ProjectWorksPanel({
       <Modal visible={!!applyWork} transparent animationType="fade" onRequestClose={() => setApplyWork(null)}>
         <View style={styles.backdrop}>
           <View style={styles.modalCard}>
+            <ScrollView keyboardShouldPersistTaps="handled">
             <Text style={styles.modalTitle}>{applyWork?.title}</Text>
-            <TextField label={t('works.coverLetter')} value={coverLetter} onChangeText={setCoverLetter} multiline />
+            <Text style={styles.applyPrice}>
+              {t('works.basePriceLine', { price: fmtNum(applyBase), currency })}
+              {applyWork?.allowCounterOffers ? ` · ${t('works.counterOffersOn')}` : ''}
+            </Text>
+            {contactsVisibleToEmployer ? (
+              <Text style={styles.contactsOkNote}>{t('works.contactsVisibleNote')}</Text>
+            ) : (
+              <View style={styles.contactsWarnBox}>
+                <Text style={styles.contactsWarnText}>{t('works.contactsHiddenNote')}</Text>
+              </View>
+            )}
+            <TextField
+              label={t('works.coverLetter')}
+              value={coverLetter}
+              onChangeText={setCoverLetter}
+              multiline
+              placeholder={t('works.coverLetterPlaceholder')}
+              hint={t('works.coverLetterHint')}
+            />
             {applyWork?.allowCounterOffers && (
-              <TextField label={t('works.yourPrice')} value={offeredPrice} onChangeText={setOfferedPrice} format="decimal" keyboardType="decimal-pad" />
+              <TextField
+                label={t('works.yourPrice')}
+                value={offeredPrice}
+                onChangeText={setOfferedPrice}
+                format="decimal"
+                keyboardType="decimal-pad"
+                hint={offeredPriceHint}
+              />
             )}
             {applyWork?.paymentType === 'either' && (
               <>
                 <Text style={styles.pickerLabel}>{t('works.howPaid')}</Text>
+                <Text style={styles.paymentHint}>{t('works.paymentExplainHint')}</Text>
                 <View style={styles.chipRow}>
                   {(['cash', 'tickets'] as WorkPaymentType[]).map((pt) => (
                     <Pressable
@@ -666,6 +730,7 @@ export function ProjectWorksPanel({
             <Pressable style={styles.modalCancel} onPress={() => setApplyWork(null)}>
               <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
             </Pressable>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -677,18 +742,31 @@ export function ProjectWorksPanel({
             <Text style={styles.modalTitle}>{t('works.applicationsTitle')}</Text>
             <ScrollView>
               {applications.length === 0 && <Text style={styles.empty}>{t('works.noApplications')}</Text>}
-              {applications.map((app) => (
+              {applications.map((app) => {
+                const base = appsWork?.price ?? 0;
+                const offered = app.offeredPrice ?? base;
+                const diff = offered - base;
+                return (
                 <View key={app.id} style={styles.appRow}>
-                  <Avatar avatarUrl={app.avatarUrl} avatarEmoji={app.avatarEmoji} size={36} />
-                  <View style={styles.appText}>
-                    <Text style={styles.appName}>{app.fullName || app.username || '—'}</Text>
+                  <Pressable style={styles.appText} onPress={() => setProfileUserId(app.applicantId)}>
+                    <View style={styles.appNameRow}>
+                      <Avatar avatarUrl={app.avatarUrl} avatarEmoji={app.avatarEmoji} size={36} />
+                      <View style={styles.appNameText}>
+                        <Text style={styles.appName}>{app.fullName || app.username || '—'}</Text>
+                        <Text style={styles.viewProfileLink}>{t('works.viewProfile')} ›</Text>
+                      </View>
+                    </View>
                     {!!app.coverLetter && <Text style={styles.appCover}>{app.coverLetter}</Text>}
-                    {app.offeredPrice !== null && (
-                      <Text style={styles.appPrice}>
-                        {app.offeredPrice.toLocaleString()} {currency}
-                      </Text>
-                    )}
-                  </View>
+                    <Text style={styles.appPrice}>
+                      {fmtNum(offered)} {currency}
+                      {diff !== 0 && (
+                        <Text style={diff > 0 ? styles.priceUp : styles.priceDown}>
+                          {'  '}
+                          {diff > 0 ? '▲' : '▼'} {fmtNum(Math.abs(diff))} · {t('works.wasPrice', { price: fmtNum(base) })}
+                        </Text>
+                      )}
+                    </Text>
+                  </Pressable>
                   {app.status === 'selected' ? (
                     <Text style={styles.selectedTag}>{t('works.status.assigned')}</Text>
                   ) : app.status === 'rejected' ? (
@@ -704,7 +782,8 @@ export function ProjectWorksPanel({
                     </View>
                   )}
                 </View>
-              ))}
+                );
+              })}
             </ScrollView>
             <Pressable style={styles.modalCancel} onPress={() => setAppsWork(null)}>
               <Text style={styles.modalCancelText}>{t('common.close')}</Text>
@@ -786,6 +865,14 @@ export function ProjectWorksPanel({
           </View>
         </View>
       </Modal>
+
+      {/* Applicant profile */}
+      <InvestorProfileModal
+        visible={!!profileUserId}
+        investorId={profileUserId}
+        excludeProjectId={projectId}
+        onClose={() => setProfileUserId(null)}
+      />
     </View>
   );
 }
@@ -875,10 +962,25 @@ const styles = StyleSheet.create({
   modalCancel: { alignItems: 'center', paddingVertical: spacing.md },
   modalCancelText: { color: colors.textMuted, fontWeight: '600', fontSize: 14 },
   appRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  appText: { flex: 1, marginLeft: spacing.sm },
+  appText: { flex: 1, marginRight: spacing.sm },
+  appNameRow: { flexDirection: 'row', alignItems: 'center' },
+  appNameText: { marginLeft: spacing.sm, flex: 1 },
   appName: { fontSize: 14, fontWeight: '600', color: colors.text },
-  appCover: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  appPrice: { fontSize: 12, fontWeight: '700', color: colors.primary, marginTop: 2 },
+  viewProfileLink: { fontSize: 11, fontWeight: '600', color: colors.primary, marginTop: 1 },
+  appCover: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
+  appPrice: { fontSize: 12, fontWeight: '700', color: colors.primary, marginTop: 4 },
+  applyPrice: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: spacing.md },
+  contactsWarnBox: {
+    backgroundColor: `${colors.warning}22`,
+    borderRadius: 8,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  contactsWarnText: { fontSize: 12, color: colors.text, lineHeight: 17 },
+  contactsOkNote: { fontSize: 12, color: colors.success, fontWeight: '600', marginBottom: spacing.md },
+  paymentHint: { fontSize: 12, color: colors.textMuted, marginBottom: spacing.sm, lineHeight: 16 },
+  priceUp: { color: colors.danger, fontWeight: '700' },
+  priceDown: { color: colors.success, fontWeight: '700' },
   selectFrozen: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
   selectAvail: { fontSize: 12, color: colors.textMuted, marginBottom: spacing.md },
   selectBtn: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: spacing.md, paddingVertical: 6 },

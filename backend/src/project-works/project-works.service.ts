@@ -209,7 +209,19 @@ export class ProjectWorksService {
       throw new BadRequestException('This work does not accept counter-offers');
     }
     const existing = await this.applicationsRepository.findOne({ where: { workId, applicantId: userId } });
-    if (existing) throw new ConflictException('You have already applied to this work');
+    if (existing) {
+      // A rejected applicant may try again: revive their existing row with the
+      // new details instead of blocking or creating a duplicate.
+      if (existing.status !== WorkApplicationStatus.REJECTED) {
+        throw new ConflictException('You have already applied to this work');
+      }
+      existing.coverLetter = dto.coverLetter ?? null;
+      existing.offeredPrice = dto.offeredPrice !== undefined ? dto.offeredPrice.toFixed(2) : null;
+      existing.preferredPayment = dto.preferredPayment ?? WorkPaymentType.CASH;
+      existing.status = WorkApplicationStatus.PENDING;
+      existing.decisionReason = null;
+      return this.applicationsRepository.save(existing);
+    }
 
     const application = this.applicationsRepository.create({
       workId,

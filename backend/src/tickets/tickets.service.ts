@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource, In } from 'typeorm';
+import { DataSource, EntityManager, In } from 'typeorm';
 import { Ticket } from './entities/ticket.entity';
+import { EarningsSnapshot } from '../earnings/entities/earnings-snapshot.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { Project } from '../projects/entities/project.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
@@ -11,6 +12,16 @@ import { computeTicketPricing, computeTicketPurchaseCost } from '../projects/pri
 @Injectable()
 export class TicketsService {
   constructor(private readonly dataSource: DataSource) {}
+
+  // The valuation feed is a flat placeholder: a ticket's snapshot value always
+  // equals its purchase price (zero return until a real feed exists). So whenever
+  // a ticket's purchase price is rebased on the same row — a resale portion split
+  // off, or the row transferred to a buyer at the asking price — its existing
+  // snapshots must be reset to the new price, or the portfolio reads a stale value
+  // against the new price and reports a phantom gain/loss.
+  private resyncSnapshots(manager: EntityManager, ticketId: string, value: string): Promise<unknown> {
+    return manager.update(EarningsSnapshot, { ticketId }, { value });
+  }
 
   async buyTicket(userId: string, dto: BuyTicketDto): Promise<Ticket> {
     return this.dataSource.transaction(async (manager) => {
@@ -188,6 +199,9 @@ export class TicketsService {
           ticket.quantity -= ticketsToList;
           ticket.purchasePrice = (parseFloat(ticket.purchasePrice) - listedCost).toFixed(2);
           await manager.save(ticket);
+          // Kept remainder's cost basis shrank; realign its snapshots so the
+          // portfolio doesn't read the pre-split (larger) value as a gain.
+          await this.resyncSnapshots(manager, ticket.id, ticket.purchasePrice);
 
           const listing = manager.create(Ticket, {
             projectId: ticket.projectId,
@@ -292,10 +306,20 @@ export class TicketsService {
         ticket.purchasePrice = ticket.askingPrice;
         ticket.askingPrice = null;
         purchasedTicket = await manager.save(ticket);
+        // Row is reused for the buyer at a new cost basis (the price paid); drop
+        // the seller-era snapshots so the buyer doesn't inherit a phantom return.
+        await this.resyncSnapshots(manager, ticket.id, ticket.purchasePrice);
       } else {
-        ticket.quantity -= purchaseQuantity;
+        // Seller's remaining listed portion keeps a proportional slice of the
+        // original cost basis, so its snapshots stay aligned if it's later relisted
+        // or the listing is cancelled back to an active holding.
+        const remainingQuantity = ticket.quantity - purchaseQuantity;
+        const remainingCost = (parseFloat(ticket.purchasePrice) * remainingQuantity) / ticket.quantity;
+        ticket.quantity = remainingQuantity;
+        ticket.purchasePrice = remainingCost.toFixed(2);
         ticket.askingPrice = (totalAskingPrice - price).toFixed(2);
         await manager.save(ticket);
+        await this.resyncSnapshots(manager, ticket.id, ticket.purchasePrice);
 
         purchasedTicket = await manager.save(
           manager.create(Ticket, {
