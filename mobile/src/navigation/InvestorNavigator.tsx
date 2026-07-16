@@ -20,7 +20,9 @@ export function HomeStackNavigator() {
   return (
     <HomeStack.Navigator screenOptions={{ headerShown: false }}>
       <HomeStack.Screen name="Home" component={HomeScreen} />
-      <HomeStack.Screen name="ProjectDetail" component={ProjectDetailScreen} options={{ headerShown: true, title: '' }} />
+      {/* Draws its own back button over the cover hero, so the native header would only
+          add an empty bar above the image. */}
+      <HomeStack.Screen name="ProjectDetail" component={ProjectDetailScreen} />
       <HomeStack.Screen
         name="ProjectFinance"
         component={ProjectFinanceScreen}

@@ -6,7 +6,7 @@ import { ProjectsStackNavigator } from './FounderNavigator';
 import { ProfileStackNavigator } from './ProfileNavigator';
 import { ModerationStackNavigator } from './ModerationNavigator';
 import { useAuthStore } from '../store/authStore';
-import { colors } from '../theme';
+import { typography, useTheme } from '../theme';
 import { logEvent } from '../utils/logger';
 import { TabBarIcon, TabIconName } from '../components/TabBarIcon';
 
@@ -24,6 +24,7 @@ function tabOptions(title: string, icon: TabIconName) {
 export function MainNavigator() {
   const { t } = useTranslation();
   const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
+  const { colors } = useTheme();
 
   return (
     <Tab.Navigator
@@ -31,7 +32,8 @@ export function MainNavigator() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: typography.eyebrow.fontSize, fontWeight: '600' },
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
       }}
       screenListeners={{
         focus: (e) => logEvent('navigation', 'Tab focus', { tab: e.target?.split('-')[0] }),

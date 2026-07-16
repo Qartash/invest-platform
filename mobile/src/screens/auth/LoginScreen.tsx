@@ -3,11 +3,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useThemeStyles } from '../../theme';
 import { login } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
 
 export function LoginScreen() {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const setSession = useAuthStore((s) => s.setSession);
   const [username, setUsername] = useState('');
@@ -56,15 +57,16 @@ export function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
-  },
-  error: {
-    color: colors.danger,
-    marginBottom: spacing.md,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+      padding: spacing.lg,
+      paddingTop: spacing.xl,
+    },
+    error: {
+      color: c.danger,
+      marginBottom: spacing.md,
+    },
+  });

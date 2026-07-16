@@ -8,10 +8,10 @@ import { fetchAllUsers } from '../../api/users';
 import { resolveMediaUrl } from '../../api/client';
 import { AuthUser, Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
-import { PRIORITY_COLORS } from '../../utils/priority';
+import { priorityColors } from '../../utils/priority';
 import { Avatar } from '../../components/Avatar';
 import { formatDate } from '../../utils/date';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useThemeStyles, useTheme } from '../../theme';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
 import { LogsScreen } from './LogsScreen';
 import { ModerationReleasesScreen } from './ModerationReleasesScreen';
@@ -27,21 +27,26 @@ type StatusFilter = 'all' | 'pending_review' | 'active' | 'funded' | 'draft' | '
 
 const STATUS_FILTERS: StatusFilter[] = ['all', 'pending_review', 'active', 'funded', 'draft', 'closed', 'rejected', 'deleted'];
 
-const STATUS_COLORS: Record<string, string> = {
-  draft: colors.textMuted,
-  pending_review: colors.warning,
-  active: colors.success,
-  funded: colors.chartAccent,
-  closed: colors.textMuted,
-  rejected: colors.danger,
-  deleted: colors.danger,
-};
+// Project status -> colour, built per palette so the badges follow the theme.
+const statusColors = (c: ThemeColors): Record<string, string> => ({
+  draft: c.textMuted,
+  pending_review: c.warning,
+  active: c.success,
+  funded: c.chartAccent,
+  closed: c.textMuted,
+  rejected: c.danger,
+  deleted: c.danger,
+});
 
 function displayStatus(project: Project): string {
   return project.deletedAt ? 'deleted' : project.status;
 }
 
 export function ModerationScreen({ navigation }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
+  const PRIORITY_COLORS = useMemo(() => priorityColors(colors), [colors]);
+  const STATUS_COLORS = useMemo(() => statusColors(colors), [colors]);
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<Tab>('pending');
   const [projects, setProjects] = useState<Project[]>([]);
@@ -289,191 +294,192 @@ export function ModerationScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    padding: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  tabRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.border,
-    alignItems: 'center',
-  },
-  tabActive: {
-    borderBottomColor: colors.primary,
-  },
-  tabText: {
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  tabTextActive: {
-    color: colors.primary,
-  },
-  filterRow: {
-    flexGrow: 0,
-    // Without flexShrink 0 the overflowing FlatList below makes flexbox
-    // shrink this row to a sliver, clipping the chips.
-    flexShrink: 0,
-    height: 44,
-    marginBottom: spacing.xs,
-  },
-  filterRowContent: {
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-  },
-  filterChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    marginRight: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  filterChipActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  filterChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  filterChipTextActive: {
-    color: colors.surface,
-  },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    marginRight: spacing.xs,
-  },
-  statusBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  list: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  cover: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    marginRight: spacing.md,
-    backgroundColor: colors.border,
-  },
-  coverPlaceholder: {
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardText: {
-    flex: 1,
-  },
-  userCardText: {
-    marginLeft: spacing.md,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  priorityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    marginRight: spacing.xs,
-  },
-  priorityDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 4,
-  },
-  priorityBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  editBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    marginRight: spacing.xs,
-  },
-  editBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  deletionBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.danger,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    marginRight: spacing.xs,
-  },
-  deletionBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.danger,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  founder: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 2,
-  },
-  meta: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  empty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    marginTop: spacing.xl,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    header: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: c.text,
+      padding: spacing.lg,
+      paddingBottom: spacing.sm,
+    },
+    tabRow: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 2,
+      borderBottomColor: c.border,
+      alignItems: 'center',
+    },
+    tabActive: {
+      borderBottomColor: c.primary,
+    },
+    tabText: {
+      color: c.textMuted,
+      fontWeight: '600',
+    },
+    tabTextActive: {
+      color: c.primary,
+    },
+    filterRow: {
+      flexGrow: 0,
+      // Without flexShrink 0 the overflowing FlatList below makes flexbox
+      // shrink this row to a sliver, clipping the chips.
+      flexShrink: 0,
+      height: 44,
+      marginBottom: spacing.xs,
+    },
+    filterRowContent: {
+      paddingHorizontal: spacing.lg,
+      alignItems: 'center',
+    },
+    filterChip: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 999,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
+      marginRight: spacing.sm,
+      backgroundColor: c.surface,
+    },
+    filterChipActive: {
+      borderColor: c.primary,
+      backgroundColor: c.primary,
+    },
+    filterChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textMuted,
+    },
+    filterChipTextActive: {
+      color: c.surface,
+    },
+    statusBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.background,
+      borderWidth: 1,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      marginRight: spacing.xs,
+    },
+    statusBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    list: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    cover: {
+      width: 56,
+      height: 56,
+      borderRadius: 8,
+      marginRight: spacing.md,
+      backgroundColor: c.border,
+    },
+    coverPlaceholder: {
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    cardText: {
+      flex: 1,
+    },
+    userCardText: {
+      marginLeft: spacing.md,
+    },
+    badgeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      marginBottom: spacing.xs,
+    },
+    priorityBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.background,
+      borderWidth: 1,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      marginRight: spacing.xs,
+    },
+    priorityDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      marginRight: 4,
+    },
+    priorityBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    editBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.background,
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      marginRight: spacing.xs,
+    },
+    editBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: c.primary,
+    },
+    deletionBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.background,
+      borderWidth: 1,
+      borderColor: c.danger,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      marginRight: spacing.xs,
+    },
+    deletionBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: c.danger,
+    },
+    title: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: c.text,
+      marginBottom: 2,
+    },
+    founder: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginBottom: 2,
+    },
+    meta: {
+      fontSize: 12,
+      color: c.textMuted,
+    },
+    empty: {
+      textAlign: 'center',
+      color: c.textMuted,
+      marginTop: spacing.xl,
+    },
+  });

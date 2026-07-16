@@ -6,9 +6,10 @@ import { fetchDisputedWorks, resolveDispute } from '../../api/projectWorks';
 import { DisputedWork } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useThemeStyles } from '../../theme';
 
 export function ModerationDisputesScreen() {
+  const styles = useThemeStyles(createStyles);
   const { t, i18n } = useTranslation();
   const [works, setWorks] = useState<DisputedWork[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,38 +81,39 @@ export function ModerationDisputesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  project: { fontSize: 13, color: colors.textMuted },
-  title: { fontSize: 15, fontWeight: '700', color: colors.text, marginTop: 2 },
-  brief: { fontSize: 13, color: colors.text, marginTop: 2 },
-  meta: { fontSize: 13, fontWeight: '600', color: colors.primary, marginTop: spacing.xs },
-  actions: { flexDirection: 'row', marginTop: spacing.md },
-  pay: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    marginRight: spacing.sm,
-  },
-  payText: { color: '#fff', fontWeight: '700' },
-  refund: {
-    borderWidth: 1,
-    borderColor: colors.danger,
-    borderRadius: 10,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-  },
-  refundText: { color: colors.danger, fontWeight: '700' },
-  empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xl },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+    card: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    project: { fontSize: 13, color: c.textMuted },
+    title: { fontSize: 15, fontWeight: '700', color: c.text, marginTop: 2 },
+    brief: { fontSize: 13, color: c.text, marginTop: 2 },
+    meta: { fontSize: 13, fontWeight: '600', color: c.primary, marginTop: spacing.xs },
+    actions: { flexDirection: 'row', marginTop: spacing.md },
+    pay: {
+      flex: 1,
+      backgroundColor: c.primary,
+      borderRadius: 10,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      marginRight: spacing.sm,
+    },
+    payText: { color: c.textOnAccent, fontWeight: '700' },
+    refund: {
+      borderWidth: 1,
+      borderColor: c.danger,
+      borderRadius: 10,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      alignItems: 'center',
+    },
+    refundText: { color: c.danger, fontWeight: '700' },
+    empty: { textAlign: 'center', color: c.textMuted, marginTop: spacing.xl },
+  });

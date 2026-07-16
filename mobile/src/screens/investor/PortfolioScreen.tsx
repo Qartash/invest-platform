@@ -6,11 +6,12 @@ import { fetchPortfolio } from '../../api/portfolio';
 import { listTicketForSale, cancelTicketListing } from '../../api/tickets';
 import { Holding, Portfolio } from '../../types';
 import { showAlert } from '../../utils/alert';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
 import { HoldingCard } from '../../components/HoldingCard';
 import { SellTicketModal } from '../../components/SellTicketModal';
 
 function ReturnText({ value }: { value: number }) {
+  const { colors } = useTheme();
   const { t } = useTranslation();
   const color = value >= 0 ? colors.success : colors.danger;
   const sign = value >= 0 ? '+' : '';
@@ -23,6 +24,7 @@ function ReturnText({ value }: { value: number }) {
 }
 
 export function PortfolioScreen() {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(true);
@@ -138,38 +140,39 @@ export function PortfolioScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  list: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-  },
-  summaryCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
-  },
-  summaryLabel: {
-    color: colors.textMuted,
-  },
-  summaryValue: {
-    fontWeight: '600',
-    color: colors.text,
-  },
-  empty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    marginTop: spacing.xl,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    list: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.lg,
+    },
+    summaryCard: {
+      backgroundColor: c.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    summaryRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.xs,
+    },
+    summaryLabel: {
+      color: c.textMuted,
+    },
+    summaryValue: {
+      fontWeight: '600',
+      color: c.text,
+    },
+    empty: {
+      textAlign: 'center',
+      color: c.textMuted,
+      marginTop: spacing.xl,
+    },
+  });

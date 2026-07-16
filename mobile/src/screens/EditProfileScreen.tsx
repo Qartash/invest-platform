@@ -10,7 +10,7 @@ import { DatePickerModal } from '../components/DatePickerModal';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { isRichTextEmpty } from '../utils/richText';
 import { formatDate } from '../utils/date';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useThemeStyles } from '../theme';
 import { updateMe } from '../api/users';
 import { fetchMyProjects } from '../api/projects';
 import { useAuthStore } from '../store/authStore';
@@ -22,6 +22,7 @@ type Props = NativeStackScreenProps<ProfileStackParamList, 'EditProfile'>;
 const GENDERS: Gender[] = ['male', 'female', 'other'];
 
 export function EditProfileScreen({ navigation }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
@@ -175,105 +176,106 @@ export function EditProfileScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  avatarRow: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  avatarWrap: {
-    marginBottom: spacing.sm,
-  },
-  photoButtonText: {
-    color: colors.primary,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  photoHint: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
-  label: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  hint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-    marginTop: -spacing.xs,
-  },
-  dateField: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    marginBottom: spacing.md,
-    backgroundColor: colors.surface,
-  },
-  dateValue: {
-    fontSize: 15,
-    color: colors.text,
-  },
-  datePlaceholder: {
-    fontSize: 15,
-    color: colors.textMuted,
-  },
-  dateIcon: {
-    fontSize: 16,
-  },
-  genderRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  genderChip: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingVertical: spacing.sm,
-    marginRight: spacing.xs,
-    alignItems: 'center',
-  },
-  genderChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  genderChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  genderChipTextActive: {
-    color: '#fff',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  switchLabel: {
-    flex: 1,
-    fontSize: 14,
-    color: colors.text,
-    marginRight: spacing.sm,
-  },
-  error: {
-    color: colors.danger,
-    marginBottom: spacing.md,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    content: {
+      padding: spacing.lg,
+    },
+    avatarRow: {
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    avatarWrap: {
+      marginBottom: spacing.sm,
+    },
+    photoButtonText: {
+      color: c.primary,
+      fontWeight: '600',
+      fontSize: 13,
+    },
+    photoHint: {
+      fontSize: 11,
+      color: c.textMuted,
+      marginTop: spacing.xs,
+      textAlign: 'center',
+    },
+    label: {
+      fontSize: 14,
+      color: c.textMuted,
+      marginBottom: spacing.xs,
+    },
+    hint: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginBottom: spacing.md,
+      marginTop: -spacing.xs,
+    },
+    dateField: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      marginBottom: spacing.md,
+      backgroundColor: c.surface,
+    },
+    dateValue: {
+      fontSize: 15,
+      color: c.text,
+    },
+    datePlaceholder: {
+      fontSize: 15,
+      color: c.textMuted,
+    },
+    dateIcon: {
+      fontSize: 16,
+    },
+    genderRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.md,
+    },
+    genderChip: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingVertical: spacing.sm,
+      marginRight: spacing.xs,
+      alignItems: 'center',
+    },
+    genderChipActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    genderChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.text,
+    },
+    genderChipTextActive: {
+      color: c.textOnAccent,
+    },
+    switchRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    switchLabel: {
+      flex: 1,
+      fontSize: 14,
+      color: c.text,
+      marginRight: spacing.sm,
+    },
+    error: {
+      color: c.danger,
+      marginBottom: spacing.md,
+    },
+  });

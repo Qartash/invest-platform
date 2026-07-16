@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { updateMe, uploadAvatar } from '../api/users';
 import { showAlert } from '../utils/alert';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useThemeStyles } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 import { Avatar } from './Avatar';
 import { AuthUser } from '../types';
@@ -18,6 +18,7 @@ interface Props {
 }
 
 export function AvatarPickerModal({ visible, onClose, onUpdated }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
 
@@ -83,37 +84,38 @@ export function AvatarPickerModal({ visible, onClose, onUpdated }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: spacing.lg,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  orLabel: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  emojiCell: {
-    margin: spacing.xs,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: 14,
+      padding: spacing.lg,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: spacing.md,
+    },
+    orLabel: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+      textAlign: 'center',
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+    },
+    emojiCell: {
+      margin: spacing.xs,
+    },
+  });

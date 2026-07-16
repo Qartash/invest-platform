@@ -6,9 +6,11 @@ import { decideRelease, fetchPendingReleases } from '../../api/projectFunding';
 import { PendingReleaseRequest } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
 
 export function ModerationReleasesScreen() {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const [requests, setRequests] = useState<PendingReleaseRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,41 +85,42 @@ export function ModerationReleasesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  project: { fontSize: 15, fontWeight: '700', color: colors.text },
-  stage: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: spacing.sm },
-  amount: { fontSize: 16, fontWeight: '700', color: colors.primary },
-  treasury: { fontSize: 12 },
-  note: { fontSize: 12, color: colors.text, marginTop: spacing.xs, fontStyle: 'italic' },
-  actions: { flexDirection: 'row', marginTop: spacing.md },
-  approve: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    marginRight: spacing.sm,
-  },
-  disabled: { opacity: 0.4 },
-  approveText: { color: '#fff', fontWeight: '700' },
-  reject: {
-    borderWidth: 1,
-    borderColor: colors.danger,
-    borderRadius: 10,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-  },
-  rejectText: { color: colors.danger, fontWeight: '700' },
-  empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xl },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+    card: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    project: { fontSize: 15, fontWeight: '700', color: c.text },
+    stage: { fontSize: 13, color: c.textMuted, marginTop: 2 },
+    amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: spacing.sm },
+    amount: { fontSize: 16, fontWeight: '700', color: c.primary },
+    treasury: { fontSize: 12 },
+    note: { fontSize: 12, color: c.text, marginTop: spacing.xs, fontStyle: 'italic' },
+    actions: { flexDirection: 'row', marginTop: spacing.md },
+    approve: {
+      flex: 1,
+      backgroundColor: c.primary,
+      borderRadius: 10,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      marginRight: spacing.sm,
+    },
+    disabled: { opacity: 0.4 },
+    approveText: { color: c.textOnAccent, fontWeight: '700' },
+    reject: {
+      borderWidth: 1,
+      borderColor: c.danger,
+      borderRadius: 10,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      alignItems: 'center',
+    },
+    rejectText: { color: c.danger, fontWeight: '700' },
+    empty: { textAlign: 'center', color: c.textMuted, marginTop: spacing.xl },
+  });

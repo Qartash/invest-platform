@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Holding } from '../types';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useThemeStyles } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 import { TextField } from './TextField';
 
@@ -14,6 +14,7 @@ interface Props {
 }
 
 export function SellTicketModal({ holding, submitting, onClose, onConfirm }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const [quantity, setQuantity] = useState('');
   const [askingPrice, setAskingPrice] = useState('');
@@ -68,22 +69,23 @@ export function SellTicketModal({ holding, submitting, onClose, onConfirm }: Pro
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: spacing.lg,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    modalCard: {
+      backgroundColor: c.surface,
+      borderRadius: 14,
+      padding: spacing.lg,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: spacing.md,
+    },
+  });

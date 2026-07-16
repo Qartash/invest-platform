@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -28,9 +28,9 @@ import {
 import { RichTextView } from '../../components/RichTextView';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { isRichTextEmpty } from '../../utils/richText';
-import { PRIORITY_LEVELS, PRIORITY_COLORS } from '../../utils/priority';
+import { PRIORITY_LEVELS, priorityColors } from '../../utils/priority';
 import { LANGUAGE_LABELS } from '../../i18n';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { TicketPriceChart } from '../../components/TicketPriceChart';
 import { showAlert } from '../../utils/alert';
@@ -49,6 +49,9 @@ function formatFileSize(bytes: number): string {
 }
 
 export function ModerationDetailScreen({ route, navigation }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
+  const PRIORITY_COLORS = useMemo(() => priorityColors(colors), [colors]);
   const { projectId } = route.params;
   const { t, i18n } = useTranslation();
   const [project, setProject] = useState<Project | null>(null);
@@ -473,291 +476,292 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  diffBox: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  diffTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: spacing.sm,
-  },
-  founderNoteBox: {
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  founderNoteLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginBottom: 2,
-  },
-  founderNoteText: {
-    fontSize: 13,
-    color: colors.text,
-    fontStyle: 'italic',
-  },
-  diffRow: {
-    marginBottom: spacing.sm,
-  },
-  diffLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 2,
-  },
-  diffLangSummary: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  diffValues: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  diffValuesText: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  diffValuesTextColumn: {
-    flex: 1,
-  },
-  diffArrowVertical: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginVertical: spacing.xs,
-  },
-  diffLangTag: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    marginRight: spacing.xs,
-  },
-  diffOld: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.danger,
-    textDecorationLine: 'line-through',
-  },
-  diffArrow: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginHorizontal: spacing.xs,
-  },
-  diffNew: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.success,
-  },
-  deletionBox: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.danger,
-    borderRadius: 12,
-    padding: spacing.md,
-  },
-  deletionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.danger,
-    marginBottom: spacing.sm,
-  },
-  cover: {
-    width: '100%',
-    height: 180,
-    borderRadius: 12,
-    marginBottom: spacing.md,
-    backgroundColor: colors.border,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  founder: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-  founderLink: {
-    color: colors.primary,
-    textDecorationLine: 'underline',
-  },
-  historyLink: {
-    alignSelf: 'flex-start',
-    marginBottom: spacing.md,
-  },
-  historyLinkText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-    textDecorationLine: 'underline',
-  },
-  section: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  sectionSpacing: {
-    marginTop: spacing.lg,
-  },
-  description: {
-    fontSize: 15,
-    color: colors.text,
-    marginBottom: spacing.lg,
-  },
-  attachmentsBox: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  attachmentsTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  attachmentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  attachmentName: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: '600',
-    marginRight: spacing.sm,
-  },
-  attachmentMeta: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.border,
-    overflow: 'hidden',
-    marginBottom: spacing.xs,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  stat: {
-    flex: 1,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  meta: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  resaleNote: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginVertical: spacing.md,
-  },
-  tierList: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  tierRow: {
-    paddingVertical: spacing.xs,
-  },
-  tierText: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  levelRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.sm,
-  },
-  levelChip: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingVertical: spacing.sm,
-    marginRight: spacing.xs,
-    alignItems: 'center',
-  },
-  levelChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  levelChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  levelChipTextActive: {
-    color: '#fff',
-  },
-  priorityChip: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderRadius: 8,
-    paddingVertical: spacing.sm,
-    marginRight: spacing.xs,
-    alignItems: 'center',
-  },
-  priorityChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  priorityChipTextActive: {
-    color: '#fff',
-  },
-  actions: {
-    flexDirection: 'row',
-    marginTop: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  actionButton: {
-    flex: 1,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    content: {
+      padding: spacing.lg,
+    },
+    diffBox: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    diffTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: c.primary,
+      marginBottom: spacing.sm,
+    },
+    founderNoteBox: {
+      backgroundColor: c.background,
+      borderRadius: 8,
+      padding: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    founderNoteLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.textMuted,
+      marginBottom: 2,
+    },
+    founderNoteText: {
+      fontSize: 13,
+      color: c.text,
+      fontStyle: 'italic',
+    },
+    diffRow: {
+      marginBottom: spacing.sm,
+    },
+    diffLabel: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginBottom: 2,
+    },
+    diffLangSummary: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: c.primary,
+    },
+    diffValues: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    diffValuesText: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    diffValuesTextColumn: {
+      flex: 1,
+    },
+    diffArrowVertical: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginVertical: spacing.xs,
+    },
+    diffLangTag: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: c.textMuted,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 4,
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      marginRight: spacing.xs,
+    },
+    diffOld: {
+      flex: 1,
+      fontSize: 13,
+      color: c.danger,
+      textDecorationLine: 'line-through',
+    },
+    diffArrow: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginHorizontal: spacing.xs,
+    },
+    diffNew: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.success,
+    },
+    deletionBox: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.danger,
+      borderRadius: 12,
+      padding: spacing.md,
+    },
+    deletionTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: c.danger,
+      marginBottom: spacing.sm,
+    },
+    cover: {
+      width: '100%',
+      height: 180,
+      borderRadius: 12,
+      marginBottom: spacing.md,
+      backgroundColor: c.border,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: 2,
+    },
+    founder: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginBottom: spacing.md,
+    },
+    founderLink: {
+      color: c.primary,
+      textDecorationLine: 'underline',
+    },
+    historyLink: {
+      alignSelf: 'flex-start',
+      marginBottom: spacing.md,
+    },
+    historyLinkText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.primary,
+      textDecorationLine: 'underline',
+    },
+    section: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: c.textMuted,
+      marginBottom: spacing.xs,
+    },
+    sectionSpacing: {
+      marginTop: spacing.lg,
+    },
+    description: {
+      fontSize: 15,
+      color: c.text,
+      marginBottom: spacing.lg,
+    },
+    attachmentsBox: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      padding: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    attachmentsTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: c.textMuted,
+      marginBottom: spacing.xs,
+    },
+    attachmentRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.xs,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    attachmentName: {
+      flex: 1,
+      fontSize: 13,
+      color: c.primary,
+      fontWeight: '600',
+      marginRight: spacing.sm,
+    },
+    attachmentMeta: {
+      fontSize: 11,
+      color: c.textMuted,
+    },
+    progressTrack: {
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: c.border,
+      overflow: 'hidden',
+      marginBottom: spacing.xs,
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: c.primary,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    stat: {
+      flex: 1,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: c.textMuted,
+    },
+    statValue: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: c.text,
+    },
+    meta: {
+      fontSize: 13,
+      color: c.textMuted,
+    },
+    resaleNote: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginVertical: spacing.md,
+    },
+    tierList: {
+      marginTop: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    tierRow: {
+      paddingVertical: spacing.xs,
+    },
+    tierText: {
+      fontSize: 13,
+      color: c.textMuted,
+    },
+    levelRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.sm,
+    },
+    levelChip: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingVertical: spacing.sm,
+      marginRight: spacing.xs,
+      alignItems: 'center',
+    },
+    levelChipActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    levelChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.text,
+    },
+    levelChipTextActive: {
+      color: c.textOnAccent,
+    },
+    priorityChip: {
+      flex: 1,
+      borderWidth: 1.5,
+      borderRadius: 8,
+      paddingVertical: spacing.sm,
+      marginRight: spacing.xs,
+      alignItems: 'center',
+    },
+    priorityChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.text,
+    },
+    priorityChipTextActive: {
+      color: c.textOnAccent,
+    },
+    actions: {
+      flexDirection: 'row',
+      marginTop: spacing.lg,
+      marginBottom: spacing.xl,
+    },
+    actionButton: {
+      flex: 1,
+    },
+  });

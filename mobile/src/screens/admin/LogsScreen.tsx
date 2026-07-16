@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -6,7 +6,7 @@ import { clearLogs, fetchLogs, fetchLogSettings, updateLogSettings } from '../..
 import { LogSettings, LogSource, SystemLog } from '../../types';
 import { formatDateTime } from '../../utils/date';
 import { showAlert } from '../../utils/alert';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useThemeStyles, useTheme } from '../../theme';
 import { PrimaryButton } from '../../components/PrimaryButton';
 
 // 'console' isn't a source of its own (console output is filed under the frontend/backend
@@ -15,14 +15,18 @@ import { PrimaryButton } from '../../components/PrimaryButton';
 type FilterKey = LogSource | 'all' | 'console';
 const SOURCE_FILTERS: FilterKey[] = ['all', 'frontend', 'backend', 'error', 'database', 'console'];
 
-const SOURCE_COLORS: Record<LogSource, string> = {
-  frontend: colors.chartAccent,
-  backend: colors.primary,
-  error: colors.danger,
-  database: colors.warning,
-};
+// Log source -> colour, built per palette so the badges follow the theme.
+const sourceColors = (c: ThemeColors): Record<LogSource, string> => ({
+  frontend: c.chartAccent,
+  backend: c.primary,
+  error: c.danger,
+  database: c.warning,
+});
 
 export function LogsScreen() {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
+  const SOURCE_COLORS = useMemo(() => sourceColors(colors), [colors]);
   const { t, i18n } = useTranslation();
   const [settings, setSettings] = useState<LogSettings | null>(null);
   const [logs, setLogs] = useState<SystemLog[]>([]);
@@ -184,6 +188,7 @@ export function LogsScreen() {
 }
 
 function ToggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.toggleRow}>
       <Text style={styles.toggleLabel}>{label}</Text>
@@ -192,111 +197,112 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  settingsCard: {
-    marginHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  toggleLabel: {
-    color: colors.text,
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  filterChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    marginRight: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  filterChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterChipText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  filterChipTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  list: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  logRow: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  logHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  sourceBadge: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 1,
-  },
-  sourceBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  logTime: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  logMessage: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  logCategory: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  logMetadata: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-    fontFamily: 'monospace',
-  },
-  empty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    marginTop: spacing.xl,
-  },
-  footer: {
-    paddingVertical: spacing.md,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    settingsCard: {
+      marginHorizontal: spacing.lg,
+      backgroundColor: c.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.xs,
+    },
+    toggleLabel: {
+      color: c.text,
+      flex: 1,
+      marginRight: spacing.sm,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    filterChip: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      marginRight: spacing.xs,
+      marginBottom: spacing.xs,
+    },
+    filterChipActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    filterChipText: {
+      fontSize: 12,
+      color: c.textMuted,
+    },
+    filterChipTextActive: {
+      color: c.textOnAccent,
+      fontWeight: '600',
+    },
+    list: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    logRow: {
+      backgroundColor: c.surface,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: spacing.sm,
+      marginBottom: spacing.xs,
+    },
+    logHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 2,
+    },
+    sourceBadge: {
+      borderWidth: 1,
+      borderRadius: 999,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 1,
+    },
+    sourceBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    logTime: {
+      fontSize: 11,
+      color: c.textMuted,
+    },
+    logMessage: {
+      fontSize: 13,
+      color: c.text,
+      fontWeight: '600',
+    },
+    logCategory: {
+      fontSize: 11,
+      color: c.textMuted,
+    },
+    logMetadata: {
+      fontSize: 10,
+      color: c.textMuted,
+      marginTop: spacing.xs,
+      fontFamily: 'monospace',
+    },
+    empty: {
+      textAlign: 'center',
+      color: c.textMuted,
+      marginTop: spacing.xl,
+    },
+    footer: {
+      paddingVertical: spacing.md,
+    },
+  });

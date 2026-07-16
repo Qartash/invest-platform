@@ -1,12 +1,12 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { fetchProjectHistory } from '../api/projects';
 import { ProjectReviewLogEntry } from '../types';
 import { formatDateTime } from '../utils/date';
 import { DIFF_FIELD_LABEL_KEYS } from '../utils/projectDiff';
-import { PRIORITY_COLORS, ProjectPriority } from '../utils/priority';
-import { colors, spacing } from '../theme';
+import { priorityColors, ProjectPriority } from '../utils/priority';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { RichTextView } from './RichTextView';
 
 interface Props {
@@ -15,21 +15,26 @@ interface Props {
   onClose: () => void;
 }
 
-const ACTION_STYLES: Record<string, { icon: string; labelKey: string; color: string }> = {
-  submitted: { icon: '📝', labelKey: 'founder.historySubmitted', color: colors.primary },
-  approved: { icon: '✅', labelKey: 'founder.historyApproved', color: colors.success },
-  rejected: { icon: '❌', labelKey: 'founder.historyRejected', color: colors.danger },
-  cancelled: { icon: '↩️', labelKey: 'founder.historyCancelled', color: colors.textMuted },
-  deletion_requested: { icon: '🗑', labelKey: 'founder.historyDeletionRequested', color: colors.danger },
-  deletion_approved: { icon: '🗑', labelKey: 'founder.historyDeletionApproved', color: colors.danger },
-  deletion_rejected: { icon: '🛡', labelKey: 'founder.historyDeletionRejected', color: colors.success },
-  deleted: { icon: '🗑', labelKey: 'founder.historyDeleted', color: colors.danger },
-  restored: { icon: '♻️', labelKey: 'founder.historyRestored', color: colors.success },
-  priority_changed: { icon: '🚩', labelKey: 'founder.historyPriorityChanged', color: colors.textMuted },
-  admin_edited: { icon: '🛠', labelKey: 'founder.historyAdminEdited', color: colors.warning },
-};
+// Built per palette rather than at module load, so the action colours follow the theme.
+const actionStyles = (c: ThemeColors): Record<string, { icon: string; labelKey: string; color: string }> => ({
+  submitted: { icon: '📝', labelKey: 'founder.historySubmitted', color: c.primary },
+  approved: { icon: '✅', labelKey: 'founder.historyApproved', color: c.success },
+  rejected: { icon: '❌', labelKey: 'founder.historyRejected', color: c.danger },
+  cancelled: { icon: '↩️', labelKey: 'founder.historyCancelled', color: c.textMuted },
+  deletion_requested: { icon: '🗑', labelKey: 'founder.historyDeletionRequested', color: c.danger },
+  deletion_approved: { icon: '🗑', labelKey: 'founder.historyDeletionApproved', color: c.danger },
+  deletion_rejected: { icon: '🛡', labelKey: 'founder.historyDeletionRejected', color: c.success },
+  deleted: { icon: '🗑', labelKey: 'founder.historyDeleted', color: c.danger },
+  restored: { icon: '♻️', labelKey: 'founder.historyRestored', color: c.success },
+  priority_changed: { icon: '🚩', labelKey: 'founder.historyPriorityChanged', color: c.textMuted },
+  admin_edited: { icon: '🛠', labelKey: 'founder.historyAdminEdited', color: c.warning },
+});
 
 export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
+  const PRIORITY_COLORS = useMemo(() => priorityColors(colors), [colors]);
+  const ACTION_STYLES = useMemo(() => actionStyles(colors), [colors]);
   const { t, i18n } = useTranslation();
   const [entries, setEntries] = useState<ProjectReviewLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
@@ -138,98 +143,99 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: spacing.lg,
-    maxHeight: '80%',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  closeIcon: {
-    fontSize: 18,
-    color: colors.textMuted,
-  },
-  loader: {
-    marginVertical: spacing.xl,
-  },
-  empty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    marginVertical: spacing.xl,
-  },
-  errorText: {
-    textAlign: 'center',
-    color: colors.danger,
-    marginVertical: spacing.xl,
-  },
-  entry: {
-    borderLeftWidth: 2,
-    borderLeftColor: colors.border,
-    paddingLeft: spacing.md,
-    paddingBottom: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  entryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  entryIcon: {
-    fontSize: 14,
-    marginRight: spacing.xs,
-  },
-  entryAction: {
-    fontSize: 14,
-    fontWeight: '700',
-    flex: 1,
-  },
-  entryDate: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  entryModerator: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  entryNote: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-  priorityChangeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.xs,
-  },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  entryCommentBox: {
-    marginTop: spacing.xs,
-  },
-  entryComment: {
-    fontSize: 13,
-    color: colors.text,
-    fontStyle: 'italic',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'flex-end',
+    },
+    card: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      padding: spacing.lg,
+      maxHeight: '80%',
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.text,
+    },
+    closeIcon: {
+      fontSize: 18,
+      color: c.textMuted,
+    },
+    loader: {
+      marginVertical: spacing.xl,
+    },
+    empty: {
+      textAlign: 'center',
+      color: c.textMuted,
+      marginVertical: spacing.xl,
+    },
+    errorText: {
+      textAlign: 'center',
+      color: c.danger,
+      marginVertical: spacing.xl,
+    },
+    entry: {
+      borderLeftWidth: 2,
+      borderLeftColor: c.border,
+      paddingLeft: spacing.md,
+      paddingBottom: spacing.md,
+      marginBottom: spacing.xs,
+    },
+    entryHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    entryIcon: {
+      fontSize: 14,
+      marginRight: spacing.xs,
+    },
+    entryAction: {
+      fontSize: 14,
+      fontWeight: '700',
+      flex: 1,
+    },
+    entryDate: {
+      fontSize: 11,
+      color: c.textMuted,
+    },
+    entryModerator: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: 2,
+    },
+    entryNote: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: spacing.xs,
+    },
+    priorityChangeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: spacing.xs,
+    },
+    priorityDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: 4,
+    },
+    entryCommentBox: {
+      marginTop: spacing.xs,
+    },
+    entryComment: {
+      fontSize: 13,
+      color: c.text,
+      fontStyle: 'italic',
+    },
+  });

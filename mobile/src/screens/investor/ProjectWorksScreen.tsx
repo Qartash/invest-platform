@@ -7,13 +7,14 @@ import { fetchProject } from '../../api/projects';
 import { Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { useAuthStore } from '../../store/authStore';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useThemeStyles } from '../../theme';
 import { ProjectWorksPanel } from '../../components/ProjectWorksPanel';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
 
 type Props = NativeStackScreenProps<InvestorHomeStackParamList, 'ProjectWorks'>;
 
 export function ProjectWorksScreen({ route }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { projectId } = route.params;
   const { i18n } = useTranslation();
   const currentUserId = useAuthStore((s) => s.user?.id);
@@ -47,15 +48,16 @@ export function ProjectWorksScreen({ route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg },
-  title: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
-  panel: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.background },
+    content: { padding: spacing.lg },
+    title: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: spacing.md },
+    panel: {
+      backgroundColor: c.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: spacing.md,
+    },
+  });

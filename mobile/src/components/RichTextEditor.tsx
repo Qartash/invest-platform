@@ -8,7 +8,7 @@ import {
   useEditorBridge,
   useEditorContent,
 } from '@10play/tentap-editor';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 
 interface Props {
   value: string;
@@ -17,15 +17,26 @@ interface Props {
 }
 
 export function RichTextEditor({ value, onChangeText, placeholder }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   // The placeholder bridge also exposes an imperative `setPlaceholder`, but
   // calling it post-mount doesn't reliably redraw Tiptap's decoration on web.
   // Configuring it into the extension up front avoids that timing issue.
+  //
+  // The editor's text lives inside a webview and is painted by the library's own CSS, so
+  // `theme.webview` alone would leave black text on the dark surface. `configureCSS`
+  // *replaces* an extension's CSS rather than appending to it — CoreBridge is the safe
+  // place to inject, since it ships no CSS of its own.
   const bridgeExtensions = useMemo(
     () => [
-      ...TenTapStartKit.filter((ext) => ext.name !== 'placeholder'),
+      ...TenTapStartKit.filter((ext) => ext.name !== 'placeholder').map((ext) =>
+        ext.name === 'coreBridge'
+          ? ext.configureCSS(`.ProseMirror { color: ${colors.text}; caret-color: ${colors.primary}; }`)
+          : ext,
+      ),
       PlaceholderBridge.configureExtension({ placeholder: placeholder ?? '' }),
     ],
-    [placeholder],
+    [placeholder, colors.text, colors.primary],
   );
 
   // Fixed height with its own internal scroll (rather than `dynamicHeight`,
@@ -60,12 +71,13 @@ export function RichTextEditor({ value, onChangeText, placeholder }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  wrapper: {
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    overflow: 'hidden',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    wrapper: {
+      marginBottom: spacing.md,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      overflow: 'hidden',
+    },
+  });

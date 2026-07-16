@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { logEvent } from '../utils/logger';
 
 interface Props {
@@ -16,6 +16,8 @@ interface Props {
 }
 
 export function PrimaryButton({ title, onPress, loading, disabled, variant = 'primary', size = 'default' }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const isOutline = variant === 'outline';
   const isSmall = size === 'small';
   const handlePress = () => {
@@ -35,7 +37,7 @@ export function PrimaryButton({ title, onPress, loading, disabled, variant = 'pr
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={isOutline ? colors.primary : '#fff'} />
+        <ActivityIndicator color={isOutline ? colors.primary : colors.textOnAccent} />
       ) : (
         <Text style={[styles.text, isSmall && styles.textSmall, isOutline && styles.outlineText]}>{title}</Text>
       )}
@@ -43,42 +45,43 @@ export function PrimaryButton({ title, onPress, loading, disabled, variant = 'pr
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    borderRadius: 12,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  small: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: 10,
-  },
-  filled: {
-    backgroundColor: colors.primary,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  pressed: {
-    opacity: 0.85,
-  },
-  text: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  textSmall: {
-    fontSize: 14,
-  },
-  outlineText: {
-    color: colors.primary,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    base: {
+      borderRadius: 12,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.lg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    small: {
+      paddingVertical: spacing.xs,
+      paddingHorizontal: spacing.md,
+      borderRadius: 10,
+    },
+    filled: {
+      backgroundColor: c.primary,
+    },
+    outline: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: c.primary,
+    },
+    disabled: {
+      opacity: 0.5,
+    },
+    pressed: {
+      opacity: 0.85,
+    },
+    text: {
+      color: c.textOnAccent,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    textSmall: {
+      fontSize: 14,
+    },
+    outlineText: {
+      color: c.primary,
+    },
+  });

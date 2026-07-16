@@ -44,7 +44,14 @@
     "started": "Started",
     "deadline": "Ends",
     "ofGoal": "of {{amount}} {{currency}}",
-    "percentFunded": "{{percent}}% funded"
+    "percentFunded": "{{percent}}% funded",
+    "statTickets": "Tickets",
+    "statInvestors": "Investors",
+    "statDeadline": "Left",
+    "statStarted": "Started",
+    "daysShort": "{{days}} d",
+    "emptyRaising": "No projects are raising right now",
+    "emptyStarted": "No project has started yet"
   },
   "project": {
     "about": "About the project",
@@ -210,7 +217,23 @@
         "awaiting_payment": "Awaiting payment",
         "completed": "Completed"
       }
-    }
+    },
+    "tabAbout": "Overview",
+    "tabMarket": "Market",
+    "tabActivity": "Activity",
+    "metricsSection": "Metrics",
+    "moreSection": "More",
+    "roundsSection": "Rounds",
+    "resaleSection": "Resale",
+    "toPay": "Total",
+    "forecastSummary": "Forecast: ≈ {{amount}} {{currency}} per month",
+    "annualReturn": "Annual return",
+    "statusRaising": "Raising",
+    "resaleExtra": "+{{count}} on resale",
+    "financeSubtitle": "Income, expenses, payouts",
+    "worksSubtitle": "One-off paid project tasks",
+    "roundSold": "Round {{round}} · {{sold}} of {{total}} sold",
+    "roundPending": "Round {{round}} · {{total}} tickets"
   },
   "portfolio": {
     "title": "My portfolio",
@@ -297,7 +320,21 @@
       "pending": "Pending review",
       "approved": "Verified",
       "rejected": "Rejected"
-    }
+    },
+    "theme": "Theme",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeHint": "System follows your phone’s setting.",
+    "appearance": "Appearance",
+    "accountSection": "Account",
+    "contactsSection": "Contacts",
+    "financeSection": "Finance",
+    "walletSubtitle": "Balance and top-up",
+    "portfolioSubtitle": "Your tickets and returns",
+    "reportsSubtitle": "Charts and statistics",
+    "logoutConfirmTitle": "Log out?",
+    "logoutConfirmMessage": "You will need to sign in again."
   },
   "founder": {
     "myProjects": "My projects",

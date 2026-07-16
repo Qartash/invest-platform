@@ -5,7 +5,7 @@ import { fetchInvestorProfile } from '../api/users';
 import { getLocalizedText } from '../utils/localized';
 import { formatDate } from '../utils/date';
 import { InvestorProfile } from '../types';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 import { Avatar } from './Avatar';
 import { RichTextView } from './RichTextView';
@@ -27,6 +27,8 @@ export function InvestorProfileModal({
   investedAmount,
   onClose,
 }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const [profile, setProfile] = useState<InvestorProfile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -124,94 +126,95 @@ function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: spacing.lg,
-    maxHeight: '80%',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  headerText: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  adminBadge: {
-    marginLeft: spacing.sm,
-    backgroundColor: 'rgba(46, 111, 69, 0.12)',
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-  },
-  adminBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  verified: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.success,
-    marginTop: 2,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.xs,
-  },
-  meta: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginRight: spacing.md,
-  },
-  contactsRow: {
-    marginTop: spacing.xs,
-  },
-  bioBox: {
-    marginTop: spacing.md,
-  },
-  bio: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  investedLine: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: spacing.md,
-  },
-  label: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  sectionSpacing: {
-    marginTop: spacing.md,
-  },
-  projectRow: {
-    fontSize: 14,
-    color: colors.text,
-    paddingVertical: spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: 14,
+      padding: spacing.lg,
+      maxHeight: '80%',
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    headerText: {
+      flex: 1,
+      marginLeft: spacing.md,
+    },
+    nameRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+    },
+    name: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.text,
+    },
+    adminBadge: {
+      marginLeft: spacing.sm,
+      backgroundColor: c.primarySoft,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+    },
+    adminBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.primary,
+    },
+    verified: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.success,
+      marginTop: 2,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.xs,
+    },
+    meta: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginRight: spacing.md,
+    },
+    contactsRow: {
+      marginTop: spacing.xs,
+    },
+    bioBox: {
+      marginTop: spacing.md,
+    },
+    bio: {
+      fontSize: 14,
+      color: c.text,
+    },
+    investedLine: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: c.text,
+      marginTop: spacing.md,
+    },
+    label: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginBottom: spacing.xs,
+    },
+    sectionSpacing: {
+      marginTop: spacing.md,
+    },
+    projectRow: {
+      fontSize: 14,
+      color: c.text,
+      paddingVertical: spacing.xs,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+  });

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Holding } from '../types';
 import { getLocalizedText } from '../utils/localized';
 import { formatDate } from '../utils/date';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
@@ -18,6 +18,8 @@ interface Props {
 }
 
 export function HoldingCard({ holding, onPressTitle, onSellPress, onCancelListing, cancellingId }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const heldDays = Math.max(0, Math.floor((Date.now() - new Date(holding.purchaseDate).getTime()) / MS_PER_DAY));
@@ -25,7 +27,7 @@ export function HoldingCard({ holding, onPressTitle, onSellPress, onCancelListin
 
   const isPositive = holding.returnAmount >= 0;
   const returnColor = isPositive ? colors.success : colors.danger;
-  const returnBg = isPositive ? 'rgba(34, 165, 89, 0.12)' : 'rgba(220, 38, 38, 0.1)';
+  const returnBg = isPositive ? colors.successSoft : colors.dangerSoft;
 
   const body = (
     <>
@@ -146,128 +148,129 @@ export function HoldingCard({ holding, onPressTitle, onSellPress, onCancelListin
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  title: {
-    flex: 1,
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-    marginRight: spacing.sm,
-  },
-  returnBadge: {
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
-  returnBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  heroRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  heroValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    fontVariant: ['tabular-nums'],
-  },
-  heroDelta: {
-    fontSize: 13,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
-  },
-  statRow: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  stat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  statIcon: {
-    fontSize: 12,
-    marginRight: spacing.xs,
-  },
-  statText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: colors.textMuted,
-  },
-  investedNote: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  dividendNote: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.success,
-    marginTop: 1,
-  },
-  expandRow: {
-    marginTop: spacing.xs,
-  },
-  expandText: {
-    fontSize: 12,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  lotsList: {
-    marginTop: spacing.xs,
-    paddingTop: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  lotRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 2,
-  },
-  lotMeta: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  sellRow: {
-    marginTop: spacing.sm,
-  },
-  actionRow: {
-    marginTop: spacing.sm,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  listedBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.warning,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
-  listedBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.warning,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: spacing.sm,
+    },
+    title: {
+      flex: 1,
+      fontSize: 15,
+      fontWeight: '600',
+      color: c.text,
+      marginRight: spacing.sm,
+    },
+    returnBadge: {
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+    },
+    returnBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    heroRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    heroValue: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: c.text,
+      fontVariant: ['tabular-nums'],
+    },
+    heroDelta: {
+      fontSize: 13,
+      fontWeight: '600',
+      fontVariant: ['tabular-nums'],
+    },
+    statRow: {
+      flexDirection: 'row',
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+      paddingTop: spacing.sm,
+      marginBottom: spacing.xs,
+    },
+    stat: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginRight: spacing.md,
+    },
+    statIcon: {
+      fontSize: 12,
+      marginRight: spacing.xs,
+    },
+    statText: {
+      fontSize: 12,
+      fontWeight: '500',
+      color: c.textMuted,
+    },
+    investedNote: {
+      fontSize: 11,
+      color: c.textMuted,
+    },
+    dividendNote: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: c.success,
+      marginTop: 1,
+    },
+    expandRow: {
+      marginTop: spacing.xs,
+    },
+    expandText: {
+      fontSize: 12,
+      color: c.primary,
+      fontWeight: '600',
+    },
+    lotsList: {
+      marginTop: spacing.xs,
+      paddingTop: spacing.xs,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    lotRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 2,
+    },
+    lotMeta: {
+      fontSize: 12,
+      color: c.textMuted,
+    },
+    sellRow: {
+      marginTop: spacing.sm,
+    },
+    actionRow: {
+      marginTop: spacing.sm,
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+    },
+    listedBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.background,
+      borderWidth: 1,
+      borderColor: c.warning,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+    },
+    listedBadgeText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.warning,
+    },
+  });

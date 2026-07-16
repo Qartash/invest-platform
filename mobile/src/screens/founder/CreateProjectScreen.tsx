@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -7,7 +7,8 @@ import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { HintModal } from '../../components/HintModal';
 import { RichTextEditor } from '../../components/RichTextEditor';
-import { colors, spacing } from '../../theme';
+import { SegmentedTabs } from '../../components/ui';
+import { spacing, ThemeColors, useThemeStyles, useTheme } from '../../theme';
 import {
   addProjectBudgetItems,
   createProject,
@@ -22,12 +23,12 @@ import {
   uploadProjectAttachment,
 } from '../../api/projects';
 import { resolveMediaUrl } from '../../api/client';
-import { SUPPORTED_LANGUAGES, SupportedLanguage } from '../../i18n';
+import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, SupportedLanguage } from '../../i18n';
 import { FounderStackParamList } from '../../navigation/FounderNavigator';
 import { showAlert } from '../../utils/alert';
 import { computeTicketPricingPreview, deriveBaseTicketPrice } from '../../utils/pricing';
 import { isRichTextEmpty } from '../../utils/richText';
-import { PRIORITY_LEVELS, ProjectPriority, PRIORITY_COLORS } from '../../utils/priority';
+import { PRIORITY_LEVELS, ProjectPriority, priorityColors } from '../../utils/priority';
 import { ProjectAttachment, ProjectBudgetItem } from '../../types';
 
 // Raw DOM tags (not RN components) so we can render real HTML elements on web:
@@ -79,18 +80,19 @@ function formatFileSize(bytes: number): string {
 }
 
 // Plain DOM style object (not StyleSheet.create) since this styles a raw <input>
-// element, not a React Native component.
-const webDateInputStyle: any = {
-  border: `1px solid ${colors.border}`,
+// element, not a React Native component. A function of the palette so the web date
+// input follows the theme like everything else.
+const webDateInput = (c: ThemeColors): any => ({
+  border: `1px solid ${c.border}`,
   borderRadius: 10,
   padding: '10px 12px',
   fontSize: 16,
-  backgroundColor: colors.surface,
-  color: colors.text,
+  backgroundColor: c.surface,
+  color: c.text,
   fontFamily: 'inherit',
   width: '100%',
   boxSizing: 'border-box',
-};
+});
 
 const youtubeIframeStyle: any = {
   width: '100%',
@@ -102,6 +104,10 @@ const youtubeIframeStyle: any = {
 type Props = NativeStackScreenProps<FounderStackParamList, 'CreateProject'>;
 
 export function CreateProjectScreen({ route, navigation }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
+  const webDateInputStyle = useMemo(() => webDateInput(colors), [colors]);
+  const PRIORITY_COLORS = useMemo(() => priorityColors(colors), [colors]);
   const { t } = useTranslation();
   const projectId = route.params?.projectId;
   const isEditing = !!projectId;
@@ -384,25 +390,26 @@ export function CreateProjectScreen({ route, navigation }: Props) {
       </Pressable>
 
       <View style={styles.langRow}>
-        {SUPPORTED_LANGUAGES.map((lang) => {
-          const filled = !isRichTextEmpty(title[lang] ?? '') && !isRichTextEmpty(description[lang] ?? '');
-          return (
-            <Pressable
-              key={lang}
-              style={[styles.langChip, activeLang === lang && styles.langChipActive]}
-              onPress={() => setActiveLang(lang)}
-            >
-              <Text style={[styles.langChipText, activeLang === lang && styles.langChipTextActive]}>
-                {lang.toUpperCase()}
-              </Text>
-              <View style={[styles.langChipDot, filled ? styles.langChipDotFilled : styles.langChipDotEmpty]} />
-            </Pressable>
-          );
-        })}
+        <SegmentedTabs
+          active={activeLang}
+          onChange={setActiveLang}
+          tabs={SUPPORTED_LANGUAGES.map((lang) => ({
+            key: lang,
+            label: LANGUAGE_LABELS[lang],
+            // Red only once they've tried to submit — every other error on this screen waits
+            // for `attemptedSubmit`, and a blank form greeting the founder with three red
+            // dots reads as three mistakes they haven't had the chance to make yet.
+            dot: !isRichTextEmpty(title[lang] ?? '') && !isRichTextEmpty(description[lang] ?? '')
+              ? 'done'
+              : attemptedSubmit
+                ? 'missing'
+                : 'todo',
+          }))}
+        />
       </View>
 
       <TextField
-        label={`${t('founder.titleField')} (${activeLang})`}
+        label={`${t('founder.titleField')} · ${LANGUAGE_LABELS[activeLang]}`}
         placeholder={t('founder.titlePlaceholder')}
         value={title[activeLang]}
         onChangeText={(v) => setTitle((prev) => ({ ...prev, [activeLang]: v }))}
@@ -410,7 +417,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
       />
       <View>
         <View style={styles.hintRow}>
-          <Text style={styles.hintRowLabel}>{`${t('founder.descriptionField')} (${activeLang})`}</Text>
+          <Text style={styles.hintRowLabel}>{`${t('founder.descriptionField')} · ${LANGUAGE_LABELS[activeLang]}`}</Text>
           <Pressable
             hitSlop={10}
             onPress={() => showHint(t('founder.descriptionField'), t('founder.descriptionFieldHint'))}
@@ -824,270 +831,237 @@ export function CreateProjectScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  coverPicker: {
-    marginBottom: spacing.lg,
-  },
-  coverImage: {
-    width: '100%',
-    height: 160,
-    borderRadius: 12,
-    backgroundColor: colors.border,
-  },
-  coverPlaceholder: {
-    width: '100%',
-    height: 160,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  coverPlaceholderText: {
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  coverButton: {
-    alignSelf: 'center',
-    marginTop: spacing.sm,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  coverButtonText: {
-    color: colors.primary,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  langRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  langChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 20,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    marginRight: spacing.sm,
-  },
-  langChipDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginLeft: spacing.xs,
-  },
-  langChipDotFilled: {
-    backgroundColor: colors.success,
-  },
-  langChipDotEmpty: {
-    backgroundColor: colors.danger,
-  },
-  langChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  langChipText: {
-    color: colors.text,
-    fontWeight: '600',
-  },
-  langChipTextActive: {
-    color: '#fff',
-  },
-  priorityRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  priorityChip: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderRadius: 8,
-    paddingVertical: spacing.sm,
-    marginRight: spacing.xs,
-    alignItems: 'center',
-  },
-  priorityChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  priorityChipTextActive: {
-    color: '#fff',
-  },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  switchLabelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  switchLabel: {
-    fontSize: 15,
-    color: colors.text,
-  },
-  switchHintButton: {
-    marginLeft: spacing.xs,
-    padding: 2,
-  },
-  switchHintIcon: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '700',
-  },
-  tierPreview: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  tierPreviewTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-    flex: 1,
-  },
-  tierPreviewList: {
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  tierPreviewSubtitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  tierPreviewRow: {
-    paddingVertical: 2,
-  },
-  tierPreviewText: {
-    fontSize: 13,
-    color: colors.text,
-  },
-  computedPriceValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  formErrorSummary: {
-    fontSize: 13,
-    color: colors.danger,
-    marginBottom: spacing.md,
-    textAlign: 'center',
-  },
-  hintRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  hintRowLabel: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  hintIconButton: {
-    marginLeft: spacing.xs,
-    padding: 2,
-  },
-  hintIconText: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontWeight: '700',
-  },
-  dateFieldWrapper: {
-    marginBottom: spacing.md,
-  },
-  dateFieldError: {
-    fontSize: 12,
-    color: colors.danger,
-    marginTop: spacing.xs,
-  },
-  youtubePreview: {
-    marginTop: spacing.sm,
-  },
-  budgetItemRow: {
-    marginBottom: spacing.sm,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  existingBudgetItems: {
-    marginBottom: spacing.sm,
-  },
-  existingBudgetItemRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  existingBudgetItemTitle: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.text,
-    marginRight: spacing.sm,
-  },
-  existingBudgetItemAmount: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  attachmentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  attachmentInfo: {
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  attachmentName: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  attachmentMeta: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  attachmentRemove: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.danger,
-  },
-  attachmentRules: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  projectSubmittedNotice: {
-    fontSize: 13,
-    color: colors.success,
-    fontWeight: '600',
-    marginBottom: spacing.md,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    content: {
+      padding: spacing.lg,
+    },
+    coverPicker: {
+      marginBottom: spacing.lg,
+    },
+    coverImage: {
+      width: '100%',
+      height: 160,
+      borderRadius: 12,
+      backgroundColor: c.border,
+    },
+    coverPlaceholder: {
+      width: '100%',
+      height: 160,
+      borderRadius: 12,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderStyle: 'dashed',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    coverPlaceholderText: {
+      color: c.textMuted,
+      fontWeight: '600',
+    },
+    coverButton: {
+      alignSelf: 'center',
+      marginTop: spacing.sm,
+      backgroundColor: c.background,
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: 999,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    coverButtonText: {
+      color: c.primary,
+      fontWeight: '600',
+      fontSize: 13,
+    },
+    langRow: {
+      marginBottom: spacing.md,
+    },
+    priorityRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.md,
+    },
+    priorityChip: {
+      flex: 1,
+      borderWidth: 1.5,
+      borderRadius: 8,
+      paddingVertical: spacing.sm,
+      marginRight: spacing.xs,
+      alignItems: 'center',
+    },
+    priorityChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.text,
+    },
+    priorityChipTextActive: {
+      color: c.textOnAccent,
+    },
+    switchRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    switchLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flex: 1,
+      marginRight: spacing.sm,
+    },
+    switchLabel: {
+      fontSize: 15,
+      color: c.text,
+    },
+    switchHintButton: {
+      marginLeft: spacing.xs,
+      padding: 2,
+    },
+    switchHintIcon: {
+      fontSize: 13,
+      color: c.textMuted,
+      fontWeight: '700',
+    },
+    tierPreview: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    tierPreviewTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: c.textMuted,
+      flex: 1,
+    },
+    tierPreviewList: {
+      marginTop: spacing.sm,
+      paddingTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    tierPreviewSubtitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.textMuted,
+      marginBottom: spacing.xs,
+    },
+    tierPreviewRow: {
+      paddingVertical: 2,
+    },
+    tierPreviewText: {
+      fontSize: 13,
+      color: c.text,
+    },
+    computedPriceValue: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: c.primary,
+    },
+    formErrorSummary: {
+      fontSize: 13,
+      color: c.danger,
+      marginBottom: spacing.md,
+      textAlign: 'center',
+    },
+    hintRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.xs,
+    },
+    hintRowLabel: {
+      fontSize: 14,
+      color: c.textMuted,
+    },
+    hintIconButton: {
+      marginLeft: spacing.xs,
+      padding: 2,
+    },
+    hintIconText: {
+      fontSize: 13,
+      color: c.textMuted,
+      fontWeight: '700',
+    },
+    dateFieldWrapper: {
+      marginBottom: spacing.md,
+    },
+    dateFieldError: {
+      fontSize: 12,
+      color: c.danger,
+      marginTop: spacing.xs,
+    },
+    youtubePreview: {
+      marginTop: spacing.sm,
+    },
+    budgetItemRow: {
+      marginBottom: spacing.sm,
+      paddingBottom: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    existingBudgetItems: {
+      marginBottom: spacing.sm,
+    },
+    existingBudgetItemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.xs,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    existingBudgetItemTitle: {
+      flex: 1,
+      fontSize: 13,
+      color: c.text,
+      marginRight: spacing.sm,
+    },
+    existingBudgetItemAmount: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textMuted,
+    },
+    attachmentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.xs,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    attachmentInfo: {
+      flex: 1,
+      marginRight: spacing.sm,
+    },
+    attachmentName: {
+      fontSize: 13,
+      color: c.text,
+      fontWeight: '600',
+    },
+    attachmentMeta: {
+      fontSize: 11,
+      color: c.textMuted,
+    },
+    attachmentRemove: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.danger,
+    },
+    attachmentRules: {
+      fontSize: 11,
+      color: c.textMuted,
+      marginBottom: spacing.xs,
+    },
+    projectSubmittedNotice: {
+      fontSize: 13,
+      color: c.success,
+      fontWeight: '600',
+      marginBottom: spacing.md,
+    },
+  });

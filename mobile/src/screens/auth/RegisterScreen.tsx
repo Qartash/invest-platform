@@ -3,12 +3,13 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useThemeStyles } from '../../theme';
 import { register } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
 import i18n from '../../i18n';
 
 export function RegisterScreen() {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const setSession = useAuthStore((s) => s.setSession);
   const [fullName, setFullName] = useState('');
@@ -64,15 +65,16 @@ export function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
-  },
-  error: {
-    color: colors.danger,
-    marginBottom: spacing.md,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+      padding: spacing.lg,
+      paddingTop: spacing.xl,
+    },
+    error: {
+      color: c.danger,
+      marginBottom: spacing.md,
+    },
+  });

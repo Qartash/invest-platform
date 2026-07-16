@@ -3,7 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Project } from '../types';
 import { formatDateTime } from '../utils/date';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 import { InvestorProfileModal } from './InvestorProfileModal';
 import { RichTextView } from './RichTextView';
@@ -15,6 +15,8 @@ interface Props {
 }
 
 export function RiskLevelModal({ visible, project, onClose }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const [showModeratorProfile, setShowModeratorProfile] = useState(false);
 
@@ -54,54 +56,55 @@ export function RiskLevelModal({ visible, project, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: spacing.lg,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  label: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  reasonText: {
-    fontSize: 15,
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  meta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-  metaLink: {
-    color: colors.primary,
-    textDecorationLine: 'underline',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: 14,
+      padding: spacing.lg,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: spacing.md,
+    },
+    label: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginBottom: spacing.xs,
+    },
+    badge: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.background,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      fontSize: 14,
+      fontWeight: '600',
+      color: c.text,
+      marginBottom: spacing.md,
+    },
+    reasonText: {
+      fontSize: 15,
+      color: c.text,
+      marginBottom: spacing.sm,
+    },
+    meta: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: spacing.xs,
+    },
+    metaLink: {
+      color: c.primary,
+      textDecorationLine: 'underline',
+    },
+  });

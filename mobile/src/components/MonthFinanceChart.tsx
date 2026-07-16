@@ -1,6 +1,6 @@
 import React from 'react';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
-import { colors } from '../theme';
+import { useTheme } from '../theme';
 
 export interface MonthFinancePoint {
   day: number;
@@ -24,6 +24,7 @@ function formatCompact(value: number): string {
 // Two cumulative lines over the days of a month: running income (green) and
 // running expenses (red). The gap between them is the running net result.
 export function MonthFinanceChart({ points, width, height = 160 }: Props) {
+  const { colors } = useTheme();
   if (points.length === 0) {
     return null;
   }

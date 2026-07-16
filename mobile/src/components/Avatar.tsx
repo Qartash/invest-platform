@@ -1,7 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
 import { resolveMediaUrl } from '../api/client';
-import { colors } from '../theme';
+import { ThemeColors, useThemeStyles } from '../theme';
 
 interface Props {
   avatarUrl?: string | null;
@@ -10,6 +10,7 @@ interface Props {
 }
 
 export function Avatar({ avatarUrl, avatarEmoji, size = 56 }: Props) {
+  const styles = useThemeStyles(createStyles);
   const dimension = { width: size, height: size, borderRadius: size / 2 };
 
   if (avatarUrl) {
@@ -25,17 +26,18 @@ export function Avatar({ avatarUrl, avatarEmoji, size = 56 }: Props) {
   return <View style={[styles.base, styles.placeholder, dimension]} />;
 }
 
-const styles = StyleSheet.create({
-  base: {
-    backgroundColor: colors.border,
-  },
-  emojiWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  placeholder: {
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    base: {
+      backgroundColor: c.border,
+    },
+    emojiWrap: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.background,
+    },
+    placeholder: {
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+  });

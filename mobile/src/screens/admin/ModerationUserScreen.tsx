@@ -10,7 +10,7 @@ import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { showAlert } from '../../utils/alert';
 import { formatDate } from '../../utils/date';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useThemeStyles } from '../../theme';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
 
 type Props = NativeStackScreenProps<ModerationStackParamList, 'ModerationUser'>;
@@ -19,6 +19,7 @@ const ROLES: UserRole[] = ['investor', 'founder', 'admin'];
 const KYC_STATUSES: KycStatus[] = ['none', 'pending', 'approved', 'rejected'];
 
 export function ModerationUserScreen({ route, navigation }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { userId } = route.params;
   const { t, i18n } = useTranslation();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -208,114 +209,115 @@ export function ModerationUserScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  headerText: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  meta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  badge: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    marginRight: spacing.xs,
-  },
-  badgeDanger: {
-    borderColor: colors.danger,
-    backgroundColor: colors.background,
-  },
-  badgeDangerText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.danger,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  roleRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  kycRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    rowGap: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  kycHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-  roleChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    marginRight: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  roleChipActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  roleChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  roleChipTextActive: {
-    color: colors.surface,
-  },
-  actionButton: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  banButton: {
-    borderColor: colors.warning,
-  },
-  banButtonText: {
-    color: colors.warning,
-    fontWeight: '700',
-  },
-  deleteButton: {
-    borderColor: colors.danger,
-  },
-  deleteButtonText: {
-    color: colors.danger,
-    fontWeight: '700',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    content: {
+      padding: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    headerText: {
+      flex: 1,
+      marginLeft: spacing.md,
+    },
+    name: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.text,
+    },
+    meta: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: 2,
+    },
+    badgeRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.md,
+    },
+    badge: {
+      borderWidth: 1,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      marginRight: spacing.xs,
+    },
+    badgeDanger: {
+      borderColor: c.danger,
+      backgroundColor: c.background,
+    },
+    badgeDangerText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.danger,
+    },
+    sectionLabel: {
+      fontSize: 14,
+      color: c.textMuted,
+      marginBottom: spacing.xs,
+    },
+    roleRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.md,
+    },
+    kycRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      rowGap: spacing.xs,
+      marginBottom: spacing.xs,
+    },
+    kycHint: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginBottom: spacing.md,
+    },
+    roleChip: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 999,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
+      marginRight: spacing.sm,
+      backgroundColor: c.surface,
+    },
+    roleChipActive: {
+      borderColor: c.primary,
+      backgroundColor: c.primary,
+    },
+    roleChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textMuted,
+    },
+    roleChipTextActive: {
+      color: c.surface,
+    },
+    actionButton: {
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    banButton: {
+      borderColor: c.warning,
+    },
+    banButtonText: {
+      color: c.warning,
+      fontWeight: '700',
+    },
+    deleteButton: {
+      borderColor: c.danger,
+    },
+    deleteButtonText: {
+      color: c.danger,
+      fontWeight: '700',
+    },
+  });

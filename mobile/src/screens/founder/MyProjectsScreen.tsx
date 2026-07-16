@@ -25,7 +25,7 @@ import {
 import { LANGUAGE_LABELS } from '../../i18n';
 import { showAlert } from '../../utils/alert';
 import { useAuthStore } from '../../store/authStore';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { RichTextView } from '../../components/RichTextView';
 import { ProjectHistoryModal } from '../../components/ProjectHistoryModal';
@@ -40,6 +40,8 @@ type Tab = 'owned' | 'invested';
 type Props = NativeStackScreenProps<FounderStackParamList, 'MyProjects'>;
 
 export function MyProjectsScreen({ navigation }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const [tab, setTab] = useState<Tab>('owned');
@@ -418,261 +420,262 @@ export function MyProjectsScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.text,
-    padding: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  tabRow: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.border,
-    alignItems: 'center',
-  },
-  tabActive: {
-    borderBottomColor: colors.primary,
-  },
-  tabText: {
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  tabTextActive: {
-    color: colors.primary,
-  },
-  list: {
-    paddingHorizontal: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  cover: {
-    width: '100%',
-    height: 140,
-    borderRadius: 12,
-    marginBottom: spacing.sm,
-    backgroundColor: colors.border,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  title: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginRight: spacing.sm,
-  },
-  heroRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: spacing.xs,
-  },
-  heroValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginRight: spacing.xs,
-    fontVariant: ['tabular-nums'],
-  },
-  heroMeta: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  progressTrack: {
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-    marginBottom: spacing.sm,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: colors.success,
-  },
-  statusBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(46, 111, 69, 0.12)',
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
-  },
-  statusBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  statusBadgeRejected: {
-    backgroundColor: 'rgba(220, 38, 38, 0.1)',
-  },
-  statusBadgeTextRejected: {
-    color: colors.danger,
-  },
-  reviewCommentBox: {
-    marginTop: spacing.xs,
-  },
-  reviewCommentLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  reviewComment: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-  },
-  linksRow: {
-    flexDirection: 'row',
-  },
-  historyLink: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.xs,
-    marginRight: spacing.lg,
-  },
-  historyLinkText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-    textDecorationLine: 'underline',
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    marginTop: spacing.sm,
-  },
-  actionButton: {
-    marginRight: spacing.lg,
-  },
-  actionButtonText: {
-    color: colors.primary,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  deleteButtonText: {
-    color: colors.danger,
-    fontWeight: '600',
-    fontSize: 13,
-  },
-  pendingNotice: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    marginTop: spacing.sm,
-  },
-  deletedNotice: {
-    fontSize: 12,
-    color: colors.danger,
-    fontStyle: 'italic',
-    marginTop: spacing.sm,
-  },
-  diffBox: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: spacing.sm,
-    marginTop: spacing.sm,
-  },
-  founderNoteBox: {
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  founderNoteLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginBottom: 2,
-  },
-  founderNoteText: {
-    fontSize: 12,
-    color: colors.text,
-    fontStyle: 'italic',
-  },
-  diffRow: {
-    marginBottom: spacing.xs,
-  },
-  diffLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginBottom: 1,
-  },
-  diffLangSummary: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  diffValues: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  diffValuesText: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  diffLangTag: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: colors.textMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    marginRight: spacing.xs,
-  },
-  diffOld: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.danger,
-    textDecorationLine: 'line-through',
-  },
-  diffArrow: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginHorizontal: spacing.xs,
-  },
-  diffNew: {
-    flex: 1,
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.success,
-  },
-  empty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    marginTop: spacing.xl,
-  },
-  footer: {
-    padding: spacing.lg,
-  },
-  verificationNote: {
-    fontSize: 12,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    header: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: c.text,
+      padding: spacing.lg,
+      paddingBottom: spacing.sm,
+    },
+    tabRow: {
+      flexDirection: 'row',
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 2,
+      borderBottomColor: c.border,
+      alignItems: 'center',
+    },
+    tabActive: {
+      borderBottomColor: c.primary,
+    },
+    tabText: {
+      color: c.textMuted,
+      fontWeight: '600',
+    },
+    tabTextActive: {
+      color: c.primary,
+    },
+    list: {
+      paddingHorizontal: spacing.lg,
+    },
+    card: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 16,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    cover: {
+      width: '100%',
+      height: 140,
+      borderRadius: 12,
+      marginBottom: spacing.sm,
+      backgroundColor: c.border,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: spacing.sm,
+    },
+    title: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '600',
+      color: c.text,
+      marginRight: spacing.sm,
+    },
+    heroRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      marginBottom: spacing.xs,
+    },
+    heroValue: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.text,
+      marginRight: spacing.xs,
+      fontVariant: ['tabular-nums'],
+    },
+    heroMeta: {
+      fontSize: 12,
+      color: c.textMuted,
+    },
+    progressTrack: {
+      height: 6,
+      borderRadius: 999,
+      backgroundColor: c.background,
+      overflow: 'hidden',
+      marginBottom: spacing.sm,
+    },
+    progressFill: {
+      height: '100%',
+      borderRadius: 999,
+      backgroundColor: c.success,
+    },
+    statusBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: c.primarySoft,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 3,
+    },
+    statusBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.primary,
+    },
+    statusBadgeRejected: {
+      backgroundColor: c.dangerSoft,
+    },
+    statusBadgeTextRejected: {
+      color: c.danger,
+    },
+    reviewCommentBox: {
+      marginTop: spacing.xs,
+    },
+    reviewCommentLabel: {
+      fontSize: 12,
+      color: c.textMuted,
+      fontWeight: '600',
+    },
+    reviewComment: {
+      fontSize: 12,
+      color: c.textMuted,
+      fontStyle: 'italic',
+    },
+    linksRow: {
+      flexDirection: 'row',
+    },
+    historyLink: {
+      alignSelf: 'flex-start',
+      marginTop: spacing.xs,
+      marginRight: spacing.lg,
+    },
+    historyLinkText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.primary,
+      textDecorationLine: 'underline',
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      marginTop: spacing.sm,
+    },
+    actionButton: {
+      marginRight: spacing.lg,
+    },
+    actionButtonText: {
+      color: c.primary,
+      fontWeight: '600',
+      fontSize: 13,
+    },
+    deleteButtonText: {
+      color: c.danger,
+      fontWeight: '600',
+      fontSize: 13,
+    },
+    pendingNotice: {
+      fontSize: 12,
+      color: c.textMuted,
+      fontStyle: 'italic',
+      marginTop: spacing.sm,
+    },
+    deletedNotice: {
+      fontSize: 12,
+      color: c.danger,
+      fontStyle: 'italic',
+      marginTop: spacing.sm,
+    },
+    diffBox: {
+      backgroundColor: c.background,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      padding: spacing.sm,
+      marginTop: spacing.sm,
+    },
+    founderNoteBox: {
+      backgroundColor: c.surface,
+      borderRadius: 8,
+      padding: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    founderNoteLabel: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: c.textMuted,
+      marginBottom: 2,
+    },
+    founderNoteText: {
+      fontSize: 12,
+      color: c.text,
+      fontStyle: 'italic',
+    },
+    diffRow: {
+      marginBottom: spacing.xs,
+    },
+    diffLabel: {
+      fontSize: 11,
+      color: c.textMuted,
+      marginBottom: 1,
+    },
+    diffLangSummary: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: c.primary,
+    },
+    diffValues: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    diffValuesText: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    diffLangTag: {
+      fontSize: 9,
+      fontWeight: '700',
+      color: c.textMuted,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 4,
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      marginRight: spacing.xs,
+    },
+    diffOld: {
+      flex: 1,
+      fontSize: 12,
+      color: c.danger,
+      textDecorationLine: 'line-through',
+    },
+    diffArrow: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginHorizontal: spacing.xs,
+    },
+    diffNew: {
+      flex: 1,
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.success,
+    },
+    empty: {
+      textAlign: 'center',
+      color: c.textMuted,
+      marginTop: spacing.xl,
+    },
+    footer: {
+      padding: spacing.lg,
+    },
+    verificationNote: {
+      fontSize: 12,
+      color: c.textMuted,
+      textAlign: 'center',
+      marginTop: spacing.sm,
+    },
+  });

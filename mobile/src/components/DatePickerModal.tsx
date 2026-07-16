@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useThemeStyles } from '../theme';
 
 interface Props {
   visible: boolean;
@@ -19,6 +19,7 @@ function toIso(year: number, month: number, day: number): string {
 // A pure-JS calendar so date-of-birth selection ships over-the-air without a
 // native date-picker dependency (which would need a new build).
 export function DatePickerModal({ visible, value, onClose, onSelect }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { i18n } = useTranslation();
   const locale = LOCALE_MAP[i18n.language] ?? 'en-US';
   const today = new Date();
@@ -131,106 +132,107 @@ export function DatePickerModal({ visible, value, onClose, onSelect }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.md,
-    width: '100%',
-    maxWidth: 360,
-    alignSelf: 'center',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  navButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  navText: {
-    fontSize: 22,
-    color: colors.text,
-    lineHeight: 24,
-  },
-  monthTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-    textTransform: 'capitalize',
-  },
-  yearRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  yearArrow: {
-    fontSize: 16,
-    color: colors.primary,
-    fontWeight: '700',
-    paddingHorizontal: spacing.md,
-  },
-  yearLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textMuted,
-    minWidth: 56,
-    textAlign: 'center',
-  },
-  weekRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.xs,
-  },
-  weekday: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textMuted,
-    textTransform: 'capitalize',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  cell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayInner: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayInnerSelected: {
-    backgroundColor: colors.primary,
-  },
-  dayText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  dayTextSelected: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  dayTextDisabled: {
-    color: colors.border,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    backdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: 16,
+      padding: spacing.md,
+      width: '100%',
+      maxWidth: 360,
+      alignSelf: 'center',
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.xs,
+    },
+    navButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.background,
+    },
+    navText: {
+      fontSize: 22,
+      color: c.text,
+      lineHeight: 24,
+    },
+    monthTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: c.text,
+      textTransform: 'capitalize',
+    },
+    yearRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.sm,
+    },
+    yearArrow: {
+      fontSize: 16,
+      color: c.primary,
+      fontWeight: '700',
+      paddingHorizontal: spacing.md,
+    },
+    yearLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: c.textMuted,
+      minWidth: 56,
+      textAlign: 'center',
+    },
+    weekRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.xs,
+    },
+    weekday: {
+      flex: 1,
+      textAlign: 'center',
+      fontSize: 11,
+      fontWeight: '600',
+      color: c.textMuted,
+      textTransform: 'capitalize',
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    cell: {
+      width: `${100 / 7}%`,
+      aspectRatio: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayInner: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayInnerSelected: {
+      backgroundColor: c.primary,
+    },
+    dayText: {
+      fontSize: 14,
+      color: c.text,
+    },
+    dayTextSelected: {
+      color: c.textOnAccent,
+      fontWeight: '700',
+    },
+    dayTextDisabled: {
+      color: c.border,
+    },
+  });

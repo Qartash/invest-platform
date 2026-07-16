@@ -44,7 +44,14 @@
     "started": "Старт",
     "deadline": "Окончание",
     "ofGoal": "из {{amount}} {{currency}}",
-    "percentFunded": "{{percent}}% собрано"
+    "percentFunded": "{{percent}}% собрано",
+    "statTickets": "Тикеты",
+    "statInvestors": "Инвесторы",
+    "statDeadline": "Осталось",
+    "statStarted": "Старт",
+    "daysShort": "{{days}} дн.",
+    "emptyRaising": "Сейчас нет проектов, которые собирают средства",
+    "emptyStarted": "Пока ни один проект не начал работу"
   },
   "project": {
     "about": "О проекте",
@@ -210,7 +217,23 @@
         "awaiting_payment": "Ждёт оплаты",
         "completed": "Освоено"
       }
-    }
+    },
+    "tabAbout": "Обзор",
+    "tabMarket": "Рынок",
+    "tabActivity": "Активность",
+    "metricsSection": "Метрики",
+    "moreSection": "Подробнее",
+    "roundsSection": "Этапы",
+    "resaleSection": "Перепродажа",
+    "toPay": "К оплате",
+    "forecastSummary": "Прогноз: ≈ {{amount}} {{currency}} в месяц",
+    "annualReturn": "Доходность в год",
+    "statusRaising": "Идёт сбор",
+    "resaleExtra": "+{{count}} на перепродаже",
+    "financeSubtitle": "Доходы, расходы, выплаты",
+    "worksSubtitle": "Разовые оплачиваемые задачи",
+    "roundSold": "Этап {{round}} · продано {{sold}} из {{total}}",
+    "roundPending": "Этап {{round}} · {{total}} тикетов"
   },
   "portfolio": {
     "title": "Мой портфель",
@@ -297,7 +320,21 @@
       "pending": "На проверке",
       "approved": "Подтверждена",
       "rejected": "Отклонена"
-    }
+    },
+    "theme": "Тема",
+    "themeSystem": "Системная",
+    "themeLight": "Светлая",
+    "themeDark": "Тёмная",
+    "themeHint": "Системная — следовать настройке телефона.",
+    "appearance": "Оформление",
+    "accountSection": "Аккаунт",
+    "contactsSection": "Контакты",
+    "financeSection": "Финансы",
+    "walletSubtitle": "Баланс и пополнение",
+    "portfolioSubtitle": "Ваши тикеты и доход",
+    "reportsSubtitle": "Графики и статистика",
+    "logoutConfirmTitle": "Выйти из аккаунта?",
+    "logoutConfirmMessage": "Придётся войти заново."
   },
   "founder": {
     "myProjects": "Мои проекты",

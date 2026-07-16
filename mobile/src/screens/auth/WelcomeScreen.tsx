@@ -4,12 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { LanguageSwitcher } from '../../components/LanguageSwitcher';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useThemeStyles } from '../../theme';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
 export function WelcomeScreen({ navigation }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
 
   return (
@@ -23,39 +24,40 @@ export function WelcomeScreen({ navigation }: Props) {
         <View style={{ height: spacing.md }} />
         <PrimaryButton title={t('auth.login')} variant="outline" onPress={() => navigation.navigate('Login')} />
         <View style={styles.languageSwitcher}>
-          <LanguageSwitcher compact />
+          <LanguageSwitcher />
         </View>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-    justifyContent: 'space-between',
-  },
-  hero: {
-    marginTop: spacing.xl * 2,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: colors.textMuted,
-    textAlign: 'center',
-  },
-  actions: {
-    marginBottom: spacing.xl,
-  },
-  languageSwitcher: {
-    marginTop: spacing.lg,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+      padding: spacing.lg,
+      justifyContent: 'space-between',
+    },
+    hero: {
+      marginTop: spacing.xl * 2,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: spacing.sm,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontSize: 16,
+      color: c.textMuted,
+      textAlign: 'center',
+    },
+    actions: {
+      marginBottom: spacing.xl,
+    },
+    languageSwitcher: {
+      marginTop: spacing.lg,
+    },
+  });

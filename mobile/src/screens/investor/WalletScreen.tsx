@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { deposit, fetchTransactions, fetchWallet, Transaction, withdraw } from '../../api/wallet';
 import { Wallet } from '../../types';
-import { colors, spacing } from '../../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
 import { formatDateTime } from '../../utils/date';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
@@ -27,6 +27,8 @@ const TX_IS_CREDIT: Record<string, boolean> = {
 };
 
 export function WalletScreen() {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -152,100 +154,101 @@ export function WalletScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  list: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-  },
-  balanceCard: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  balanceLabel: {
-    color: '#DDEBE0',
-    fontSize: 13,
-    marginBottom: spacing.xs,
-  },
-  investCredit: {
-    color: '#DDEBE0',
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: spacing.xs,
-  },
-  balanceValue: {
-    color: '#fff',
-    fontSize: 32,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.lg,
-  },
-  actionButton: {
-    flex: 1,
-  },
-  historyHeader: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  txRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  txIcon: {
-    fontSize: 18,
-    marginRight: spacing.sm,
-  },
-  txInfo: {
-    flex: 1,
-  },
-  txType: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  txDesc: {
-    fontSize: 12,
-    color: colors.text,
-    marginTop: 1,
-  },
-  txDate: {
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 1,
-  },
-  txRight: {
-    alignItems: 'flex-end',
-    marginLeft: spacing.sm,
-  },
-  txAmount: {
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-  },
-  txAccount: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  empty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    marginTop: spacing.xl,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    list: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.lg,
+    },
+    balanceCard: {
+      backgroundColor: c.primary,
+      borderRadius: 16,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    balanceLabel: {
+      color: c.textOnAccentMuted,
+      fontSize: 13,
+      marginBottom: spacing.xs,
+    },
+    investCredit: {
+      color: c.textOnAccentMuted,
+      fontSize: 13,
+      fontWeight: '600',
+      marginTop: spacing.xs,
+    },
+    balanceValue: {
+      color: c.textOnAccent,
+      fontSize: 32,
+      fontWeight: '700',
+      fontVariant: ['tabular-nums'],
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.lg,
+    },
+    actionButton: {
+      flex: 1,
+    },
+    historyHeader: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: c.textMuted,
+      marginBottom: spacing.sm,
+    },
+    txRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    txIcon: {
+      fontSize: 18,
+      marginRight: spacing.sm,
+    },
+    txInfo: {
+      flex: 1,
+    },
+    txType: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: c.text,
+    },
+    txDesc: {
+      fontSize: 12,
+      color: c.text,
+      marginTop: 1,
+    },
+    txDate: {
+      fontSize: 11,
+      color: c.textMuted,
+      marginTop: 1,
+    },
+    txRight: {
+      alignItems: 'flex-end',
+      marginLeft: spacing.sm,
+    },
+    txAmount: {
+      fontWeight: '700',
+      fontVariant: ['tabular-nums'],
+    },
+    txAccount: {
+      fontSize: 10,
+      fontWeight: '600',
+      color: c.textMuted,
+      marginTop: 2,
+    },
+    empty: {
+      textAlign: 'center',
+      color: c.textMuted,
+      marginTop: spacing.xl,
+    },
+  });

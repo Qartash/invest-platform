@@ -23,7 +23,7 @@ import { Avatar } from '../components/Avatar';
 import { InvestorProfileModal } from '../components/InvestorProfileModal';
 import { TrendChart } from '../components/TrendChart';
 import { formatDate, formatDateTime } from '../utils/date';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 
 type Tab = 'users' | 'money';
 
@@ -31,6 +31,7 @@ const PERIOD_KEYS: Array<keyof PeriodBreakdown> = ['total', 'day', 'week', 'mont
 const RANGES: SeriesRange[] = ['day', '5day', 'month', 'year', '5year', 'max'];
 
 function RangeSelector({ value, onChange }: { value: SeriesRange; onChange: (r: SeriesRange) => void }) {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   return (
     <View style={styles.rangeRow}>
@@ -64,6 +65,7 @@ function PeriodCard({
   suffix?: string;
   chart?: CardChart;
 }) {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const [chartOpen, setChartOpen] = useState(false);
   return (
@@ -110,6 +112,7 @@ function Pagination({
   total: number;
   onChange: (page: number) => void;
 }) {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const pageCount = Math.max(1, Math.ceil(total / STATS_PAGE_SIZE));
   if (pageCount <= 1) return null;
@@ -143,6 +146,7 @@ function MoneyUserRow({
   currency: string;
   onPress: () => void;
 }) {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   return (
     <Pressable style={styles.userRow} onPress={onPress}>
@@ -170,6 +174,7 @@ function HistoryRow({
   currency: string;
   onPress: () => void;
 }) {
+  const styles = useThemeStyles(createStyles);
   const { t, i18n } = useTranslation();
   const isDeposit = entry.type === 'deposit';
   return (
@@ -190,6 +195,8 @@ function HistoryRow({
 }
 
 export function ReportsScreen() {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<Tab>('users');
   const [users, setUsers] = useState<UsersStats | null>(null);
@@ -360,223 +367,224 @@ export function ReportsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  tabRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.border,
-    alignItems: 'center',
-  },
-  tabActive: {
-    borderBottomColor: colors.primary,
-  },
-  tabText: {
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  tabTextActive: {
-    color: colors.primary,
-  },
-  error: {
-    color: colors.danger,
-    marginBottom: spacing.md,
-    textAlign: 'center',
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  chartToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  chartToggleText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  chartToggleIcon: {
-    fontSize: 11,
-    color: colors.primary,
-  },
-  rangeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  rangeChip: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
-    borderRadius: 8,
-    marginRight: spacing.xs,
-    marginBottom: spacing.xs,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  rangeChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  rangeChipText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  rangeChipTextActive: {
-    color: '#fff',
-  },
-  periodRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 5,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  periodRowTotal: {
-    borderTopWidth: 0,
-  },
-  periodLabel: {
-    color: colors.textMuted,
-    fontSize: 13,
-  },
-  periodLabelTotal: {
-    fontWeight: '700',
-    color: colors.text,
-  },
-  periodValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  periodValueTotal: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sectionCount: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  pagination: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  pageButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pageButtonDisabled: {
-    opacity: 0.35,
-  },
-  pageButtonText: {
-    fontSize: 20,
-    color: colors.text,
-    lineHeight: 22,
-  },
-  pageInfo: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginHorizontal: spacing.md,
-  },
-  sectionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    marginBottom: spacing.sm,
-    marginTop: spacing.xs,
-  },
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  userText: {
-    flex: 1,
-    marginLeft: spacing.sm,
-  },
-  userName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  userMeta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 1,
-  },
-  chevron: {
-    fontSize: 20,
-    color: colors.textMuted,
-    marginRight: spacing.xs,
-  },
-  userAmount: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-    marginLeft: spacing.sm,
-  },
-  amountIn: {
-    color: colors.success,
-  },
-  amountOut: {
-    color: colors.danger,
-  },
-  emptyText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginBottom: spacing.md,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    content: {
+      padding: spacing.lg,
+    },
+    tabRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.md,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 2,
+      borderBottomColor: c.border,
+      alignItems: 'center',
+    },
+    tabActive: {
+      borderBottomColor: c.primary,
+    },
+    tabText: {
+      color: c.textMuted,
+      fontWeight: '600',
+    },
+    tabTextActive: {
+      color: c.primary,
+    },
+    error: {
+      color: c.danger,
+      marginBottom: spacing.md,
+      textAlign: 'center',
+    },
+    card: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    cardTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: spacing.sm,
+    },
+    chartToggle: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: spacing.sm,
+      paddingTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    chartToggleText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.primary,
+    },
+    chartToggleIcon: {
+      fontSize: 11,
+      color: c.primary,
+    },
+    rangeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    rangeChip: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 5,
+      borderRadius: 8,
+      marginRight: spacing.xs,
+      marginBottom: spacing.xs,
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    rangeChipActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    rangeChipText: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.textMuted,
+    },
+    rangeChipTextActive: {
+      color: c.textOnAccent,
+    },
+    periodRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 5,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    periodRowTotal: {
+      borderTopWidth: 0,
+    },
+    periodLabel: {
+      color: c.textMuted,
+      fontSize: 13,
+    },
+    periodLabelTotal: {
+      fontWeight: '700',
+      color: c.text,
+    },
+    periodValue: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.text,
+    },
+    periodValueTotal: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: c.primary,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    sectionCount: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.textMuted,
+      marginBottom: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    pagination: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    pageButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pageButtonDisabled: {
+      opacity: 0.35,
+    },
+    pageButtonText: {
+      fontSize: 20,
+      color: c.text,
+      lineHeight: 22,
+    },
+    pageInfo: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textMuted,
+      marginHorizontal: spacing.md,
+    },
+    sectionLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: c.textMuted,
+      textTransform: 'uppercase',
+      marginBottom: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    userRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: spacing.sm,
+      marginBottom: spacing.xs,
+    },
+    userText: {
+      flex: 1,
+      marginLeft: spacing.sm,
+    },
+    userName: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: c.text,
+    },
+    userMeta: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: 1,
+    },
+    chevron: {
+      fontSize: 20,
+      color: c.textMuted,
+      marginRight: spacing.xs,
+    },
+    userAmount: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: c.text,
+      marginLeft: spacing.sm,
+    },
+    amountIn: {
+      color: c.success,
+    },
+    amountOut: {
+      color: c.danger,
+    },
+    emptyText: {
+      color: c.textMuted,
+      fontSize: 13,
+      marginBottom: spacing.md,
+    },
+  });

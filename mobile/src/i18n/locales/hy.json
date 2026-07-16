@@ -44,7 +44,14 @@
     "started": "Մեկնարկը",
     "deadline": "Ավարտը",
     "ofGoal": "{{amount}} {{currency}}-ից",
-    "percentFunded": "{{percent}}% հավաքված"
+    "percentFunded": "{{percent}}% հավաքված",
+    "statTickets": "Բաժնետոմսեր",
+    "statInvestors": "Ներդրողներ",
+    "statDeadline": "Մնացել է",
+    "statStarted": "Մեկնարկ",
+    "daysShort": "{{days}} օր",
+    "emptyRaising": "Այս պահին ոչ մի նախագիծ միջոցներ չի հավաքում",
+    "emptyStarted": "Դեռ ոչ մի նախագիծ չի մեկնարկել"
   },
   "project": {
     "about": "Նախագծի մասին",
@@ -210,7 +217,23 @@
         "awaiting_payment": "Սպասում է վճարման",
         "completed": "Իրականացված"
       }
-    }
+    },
+    "tabAbout": "Ընդհանուր",
+    "tabMarket": "Շուկա",
+    "tabActivity": "Ակտիվություն",
+    "metricsSection": "Ցուցանիշներ",
+    "moreSection": "Մանրամասն",
+    "roundsSection": "Փուլեր",
+    "resaleSection": "Վերավաճառք",
+    "toPay": "Վճարման ենթակա",
+    "forecastSummary": "Կանխատեսում՝ ≈ {{amount}} {{currency}} ամսական",
+    "annualReturn": "Տարեկան եկամտաբերություն",
+    "statusRaising": "Ընթանում է հավաքագրումը",
+    "resaleExtra": "+{{count}} վերավաճառքում",
+    "financeSubtitle": "Եկամուտներ, ծախսեր, վճարումներ",
+    "worksSubtitle": "Նախագծի միանվագ վճարովի առաջադրանքներ",
+    "roundSold": "Փուլ {{round}} · վաճառված է {{sold}} / {{total}}",
+    "roundPending": "Փուլ {{round}} · {{total}} բաժնետոմս"
   },
   "portfolio": {
     "title": "Իմ պորտֆելը",
@@ -297,7 +320,21 @@
       "pending": "Ստուգման փուլում",
       "approved": "Հաստատված է",
       "rejected": "Մերժված է"
-    }
+    },
+    "theme": "Թեմա",
+    "themeSystem": "Համակարգային",
+    "themeLight": "Լուսավոր",
+    "themeDark": "Մուգ",
+    "themeHint": "Համակարգայինը հետևում է հեռախոսի կարգավորմանը։",
+    "appearance": "Տեսք",
+    "accountSection": "Հաշիվ",
+    "contactsSection": "Կոնտակտներ",
+    "financeSection": "Ֆինանսներ",
+    "walletSubtitle": "Հաշվեկշիռ և համալրում",
+    "portfolioSubtitle": "Ձեր բաժնետոմսերը և եկամուտը",
+    "reportsSubtitle": "Գրաֆիկներ և վիճակագրություն",
+    "logoutConfirmTitle": "Դուրս գա՞լ հաշվից",
+    "logoutConfirmMessage": "Պետք է նորից մուտք գործեք։"
   },
   "founder": {
     "myProjects": "Իմ նախագծերը",
