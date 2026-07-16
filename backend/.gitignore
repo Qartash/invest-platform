@@ -1,1 +1,2 @@
-uploads/
+# uploads/ is tracked: it holds the demo images the seed data points at.
+# Real deployments serve uploads from storage outside the repo.

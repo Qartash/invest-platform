@@ -5,15 +5,11 @@ build/
 web-build/
 *.tsbuildinfo
 
-# uploaded user content / local data dumps
-backend/uploads/
+# local backup archives, superseded by git history
 *.zip
-*.dump
 
-# env files
-.env
-.env.*
-!.env.example
+# demo data travels with the repo: uploads, the seed dump and the dev env files
+# hold placeholder credentials only. Production values live outside this repo.
 
 # OS / editor
 .DS_Store
