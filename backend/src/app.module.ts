@@ -24,6 +24,7 @@ import { Project } from './projects/entities/project.entity';
 import { ProjectReviewLog } from './projects/entities/project-review-log.entity';
 import { ProjectAttachment } from './projects/entities/project-attachment.entity';
 import { ProjectBudgetItem } from './projects/entities/project-budget-item.entity';
+import { ProjectTeamMember } from './projects/entities/project-team-member.entity';
 import { Ticket } from './tickets/entities/ticket.entity';
 import { Transaction } from './transactions/entities/transaction.entity';
 import { EarningsSnapshot } from './earnings/entities/earnings-snapshot.entity';
@@ -59,6 +60,7 @@ import { ProjectWorksModule } from './project-works/project-works.module';
           ProjectReviewLog,
           ProjectAttachment,
           ProjectBudgetItem,
+          ProjectTeamMember,
           Ticket,
           Transaction,
           EarningsSnapshot,

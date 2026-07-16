@@ -6,4 +6,5 @@ export type { PillTone } from './Pill';
 export { SectionHeader } from './SectionHeader';
 export { SegmentedTabs } from './SegmentedTabs';
 export type { TabItem } from './SegmentedTabs';
-export { StickyBar } from './StickyBar';
+export { StepRail } from './StepRail';
+export type { StepState } from './StepRail';

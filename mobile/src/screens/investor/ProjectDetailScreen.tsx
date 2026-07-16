@@ -14,10 +14,16 @@ import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { fetchProject, fetchProjectPurchases, fetchProjectListings, fetchProjectAttachments } from '../../api/projects';
+import {
+  fetchProject,
+  fetchProjectPurchases,
+  fetchProjectListings,
+  fetchProjectAttachments,
+  fetchProjectTeam,
+} from '../../api/projects';
 import { buyTicket, buyListing } from '../../api/tickets';
 import { resolveMediaUrl } from '../../api/client';
-import { Project, ProjectAttachment, ProjectPurchase, TicketListing } from '../../types';
+import { Project, ProjectAttachment, ProjectPurchase, ProjectTeamMember, TicketListing } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { computeTicketPurchaseCost } from '../../utils/pricing';
 import { formatDate, formatDateTime } from '../../utils/date';
@@ -33,7 +39,8 @@ import { HintModal } from '../../components/HintModal';
 import { RichTextView } from '../../components/RichTextView';
 import { BuyListingModal } from '../../components/BuyListingModal';
 import { RoundLadder } from '../../components/RoundLadder';
-import { Card, HeroScrim, ListGroup, ListRow, Pill, SectionHeader, SegmentedTabs, StickyBar } from '../../components/ui';
+import { TeamMemberCard } from '../../components/TeamMemberCard';
+import { Card, HeroScrim, ListGroup, ListRow, Pill, SectionHeader, SegmentedTabs } from '../../components/ui';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
 
 // Raw DOM tag — real YouTube embed on web; native shows an "open in YouTube" link instead.
@@ -43,7 +50,11 @@ const HtmlIframe: any = 'iframe';
 // can switch sections from anywhere in a long panel.
 const STICKY_TABS_INDEX = 2;
 
-type TabKey = 'about' | 'market' | 'activity';
+// How far the funding card rides up over the cover. The hero's own bottom padding has to
+// clear it, or the card lands on top of the founder line.
+const FUNDING_CARD_OVERLAP = 20;
+
+type TabKey = 'about' | 'team' | 'market' | 'activity';
 
 function extractYoutubeVideoId(url: string): string | null {
   const match = url.trim().match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -84,6 +95,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   const [purchases, setPurchases] = useState<ProjectPurchase[]>([]);
   const [listings, setListings] = useState<TicketListing[]>([]);
   const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
+  const [team, setTeam] = useState<ProjectTeamMember[]>([]);
   const [tab, setTab] = useState<TabKey>('about');
   const [quantity, setQuantity] = useState('1');
   const [forecastOpen, setForecastOpen] = useState(false);
@@ -105,6 +117,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
     fetchProjectPurchases(projectId).then(setPurchases);
     fetchProjectListings(projectId).then(setListings);
     fetchProjectAttachments(projectId).then(setAttachments);
+    fetchProjectTeam(projectId).then(setTeam);
   }, [projectId]);
 
   useEffect(() => {
@@ -336,6 +349,27 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
     </View>
   );
 
+  const teamPanel = (
+    <View style={styles.panel}>
+      {team.length === 0 ? (
+        <Text style={styles.emptyNote}>{t('project.teamEmpty')}</Text>
+      ) : (
+        <>
+          <Text style={styles.teamCaption}>{t('project.teamCaption')}</Text>
+          {team.map((member) => (
+            <TeamMemberCard
+              key={member.id}
+              name={member.name}
+              role={member.role}
+              bio={member.bio}
+              photoUrl={member.photoUrl}
+            />
+          ))}
+        </>
+      )}
+    </View>
+  );
+
   const marketPanel = (
     <View style={styles.panel}>
       <SectionHeader title={t('project.priceChart')} />
@@ -466,7 +500,9 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
     <View style={styles.root}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.content}
+        // The buy block is the last thing on the page now, so the content itself has to clear
+        // the home indicator — there is no pinned bar below it doing that any more.
+        contentContainerStyle={[styles.content, { paddingBottom: spacing.lg + insets.bottom }]}
         stickyHeaderIndices={[STICKY_TABS_INDEX]}
       >
         <View style={styles.hero}>
@@ -557,97 +593,113 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
             onChange={setTab}
             tabs={[
               { key: 'about', label: t('project.tabAbout') },
+              { key: 'team', label: t('project.tabTeam') },
               { key: 'market', label: t('project.tabMarket') },
               { key: 'activity', label: t('project.tabActivity') },
             ]}
           />
         </View>
 
-        {tab === 'about' ? aboutPanel : tab === 'market' ? marketPanel : activityPanel}
-      </ScrollView>
+        {tab === 'about'
+          ? aboutPanel
+          : tab === 'team'
+            ? teamPanel
+            : tab === 'market'
+              ? marketPanel
+              : activityPanel}
 
-      <StickyBar>
-        <View style={styles.buySummary}>
-          <View style={styles.stepper}>
-            <Pressable
-              style={styles.stepButton}
-              hitSlop={4}
-              disabled={parsedQuantity <= 1}
-              onPress={() => setQuantityBy(-1)}
-            >
-              <Text style={[styles.stepIcon, parsedQuantity <= 1 && styles.stepIconDisabled]}>−</Text>
-            </Pressable>
-            <TextInput
-              style={styles.stepValue}
-              value={quantity}
-              onChangeText={(text) => setQuantity(text.replace(/[^0-9]/g, ''))}
-              keyboardType="number-pad"
-              selectTextOnFocus
-              maxLength={5}
-            />
-            <Pressable
-              style={styles.stepButton}
-              hitSlop={4}
-              disabled={parsedQuantity >= ticketsLeft}
-              onPress={() => setQuantityBy(1)}
-            >
-              <Text style={[styles.stepIcon, parsedQuantity >= ticketsLeft && styles.stepIconDisabled]}>+</Text>
-            </Pressable>
-          </View>
-          <View style={styles.costBlock}>
-            <Text style={styles.costLabel}>{t('project.toPay')}</Text>
-            <Text style={styles.costValue}>{money(totalCost)}</Text>
-          </View>
+        <View style={styles.buyFooter}>
+          <SectionHeader title={t('project.buySection')} />
+          <Card>
+      <View style={styles.buySummary}>
+        <View style={styles.stepper}>
+          <Pressable
+            style={styles.stepButton}
+            hitSlop={4}
+            disabled={parsedQuantity <= 1}
+            onPress={() => setQuantityBy(-1)}
+          >
+            <Text style={[styles.stepIcon, parsedQuantity <= 1 && styles.stepIconDisabled]}>−</Text>
+          </Pressable>
+          <TextInput
+            style={styles.stepValue}
+            value={quantity}
+            onChangeText={(text) => setQuantity(text.replace(/[^0-9]/g, ''))}
+            keyboardType="number-pad"
+            selectTextOnFocus
+            maxLength={5}
+          />
+          <Pressable
+            style={styles.stepButton}
+            hitSlop={4}
+            disabled={parsedQuantity >= ticketsLeft}
+            onPress={() => setQuantityBy(1)}
+          >
+            <Text style={[styles.stepIcon, parsedQuantity >= ticketsLeft && styles.stepIconDisabled]}>+</Text>
+          </Pressable>
         </View>
+        <View style={styles.costBlock}>
+          <Text style={styles.costLabel} numberOfLines={1}>
+            {t('project.toPay')}
+          </Text>
+          {/* Shrinks to fit rather than clipping — the total is the number the whole screen
+              is about, and a six-figure sum in drams is genuinely long. */}
+          <Text style={styles.costValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+            {money(totalCost)}
+          </Text>
+        </View>
+      </View>
 
-        <PrimaryButton title={t('project.confirmPurchase')} onPress={handleBuy} loading={buying} disabled={!canBuy} />
+      <PrimaryButton title={t('project.confirmPurchase')} onPress={handleBuy} loading={buying} disabled={!canBuy} />
 
-        {parsedQuantity > 0 && (
-          <>
-            <Pressable style={styles.forecastToggle} onPress={() => setForecastOpen((open) => !open)}>
-              <Text style={styles.forecastSummary}>
-                {t('project.forecastSummary', {
-                  amount: expectedMonthlyProfit.toLocaleString(undefined, { maximumFractionDigits: 0 }),
-                  currency: t('common.currency'),
-                })}
-              </Text>
-              <Text style={styles.forecastCaret}>{forecastOpen ? '⌃' : '⌄'}</Text>
-            </Pressable>
+      {parsedQuantity > 0 && (
+        <>
+          <Pressable style={styles.forecastToggle} onPress={() => setForecastOpen((open) => !open)}>
+            <Text style={styles.forecastSummary}>
+              {t('project.forecastSummary', {
+                amount: expectedMonthlyProfit.toLocaleString(undefined, { maximumFractionDigits: 0 }),
+                currency: t('common.currency'),
+              })}
+            </Text>
+            <Text style={styles.forecastCaret}>{forecastOpen ? '⌃' : '⌄'}</Text>
+          </Pressable>
 
-            {forecastOpen && (
-              <View style={styles.forecastDetail}>
-                <Pressable
-                  style={styles.forecastHintRow}
-                  onPress={() => showHint(t('project.calculatorTitle'), t('project.calculatorHint'))}
-                >
-                  <Text style={styles.forecastHintLabel}>{t('project.calculatorTitle')}</Text>
-                  <Text style={styles.hintIconInline}>ⓘ</Text>
-                </Pressable>
-                <View style={styles.forecastRow}>
-                  <Text style={styles.forecastKey}>{t('project.ticketsToReceive')}</Text>
-                  <Text style={styles.forecastVal}>{parsedQuantity}</Text>
-                </View>
-                <View style={styles.forecastRow}>
-                  <Text style={styles.forecastKey}>{t('project.payoutStarts')}</Text>
-                  <Text style={styles.forecastVal}>{t('project.inDays', { days: project.payoutStartDays })}</Text>
-                </View>
-                <View style={styles.forecastRow}>
-                  <Text style={styles.forecastKey}>{t('project.expectedDailyProfit')}</Text>
-                  <Text style={styles.forecastVal}>{roundedMoney(expectedDailyProfit)}</Text>
-                </View>
-                <View style={styles.forecastRow}>
-                  <Text style={styles.forecastKey}>{t('project.expectedMonthlyProfit')}</Text>
-                  <Text style={[styles.forecastVal, styles.forecastValGood]}>{roundedMoney(expectedMonthlyProfit)}</Text>
-                </View>
-                <View style={styles.forecastRow}>
-                  <Text style={styles.forecastKey}>{t('project.paybackPeriod')}</Text>
-                  <Text style={styles.forecastVal}>{t('project.paybackPeriodValue', { days: paybackDays })}</Text>
-                </View>
+          {forecastOpen && (
+            <View style={styles.forecastDetail}>
+              <Pressable
+                style={styles.forecastHintRow}
+                onPress={() => showHint(t('project.calculatorTitle'), t('project.calculatorHint'))}
+              >
+                <Text style={styles.forecastHintLabel}>{t('project.calculatorTitle')}</Text>
+                <Text style={styles.hintIconInline}>ⓘ</Text>
+              </Pressable>
+              <View style={styles.forecastRow}>
+                <Text style={styles.forecastKey}>{t('project.ticketsToReceive')}</Text>
+                <Text style={styles.forecastVal}>{parsedQuantity}</Text>
               </View>
-            )}
-          </>
-        )}
-      </StickyBar>
+              <View style={styles.forecastRow}>
+                <Text style={styles.forecastKey}>{t('project.payoutStarts')}</Text>
+                <Text style={styles.forecastVal}>{t('project.inDays', { days: project.payoutStartDays })}</Text>
+              </View>
+              <View style={styles.forecastRow}>
+                <Text style={styles.forecastKey}>{t('project.expectedDailyProfit')}</Text>
+                <Text style={styles.forecastVal}>{roundedMoney(expectedDailyProfit)}</Text>
+              </View>
+              <View style={styles.forecastRow}>
+                <Text style={styles.forecastKey}>{t('project.expectedMonthlyProfit')}</Text>
+                <Text style={[styles.forecastVal, styles.forecastValGood]}>{roundedMoney(expectedMonthlyProfit)}</Text>
+              </View>
+              <View style={styles.forecastRow}>
+                <Text style={styles.forecastKey}>{t('project.paybackPeriod')}</Text>
+                <Text style={styles.forecastVal}>{t('project.paybackPeriodValue', { days: paybackDays })}</Text>
+              </View>
+            </View>
+          )}
+        </>
+      )}
+          </Card>
+        </View>
+      </ScrollView>
 
       <RiskLevelModal visible={riskModalVisible} project={project} onClose={() => setRiskModalVisible(false)} />
       <InvestorsListModal
@@ -685,7 +737,7 @@ const createStyles = (c: ThemeColors) =>
       flex: 1,
     },
     content: {
-      paddingBottom: spacing.lg,
+      flexGrow: 1,
     },
 
     // hero
@@ -715,6 +767,9 @@ const createStyles = (c: ThemeColors) =>
     },
     heroBody: {
       padding: spacing.md,
+      // Clears the funding card, plus the normal gap — otherwise the founder line sits
+      // underneath it.
+      paddingBottom: spacing.md + FUNDING_CARD_OVERLAP,
     },
     heroStatus: {
       flexDirection: 'row',
@@ -755,7 +810,7 @@ const createStyles = (c: ThemeColors) =>
     // funding
     fundingWrap: {
       paddingHorizontal: spacing.sm + 4,
-      marginTop: -20,
+      marginTop: -FUNDING_CARD_OVERLAP,
     },
     fundingCard: {
       borderRadius: radius.xl,
@@ -850,6 +905,10 @@ const createStyles = (c: ThemeColors) =>
       paddingHorizontal: spacing.sm + 4,
       paddingTop: spacing.md,
     },
+    buyFooter: {
+      paddingHorizontal: spacing.sm + 4,
+      paddingTop: spacing.lg,
+    },
 
     description: {
       ...typography.body,
@@ -860,6 +919,11 @@ const createStyles = (c: ThemeColors) =>
       ...typography.caption,
       color: c.textMuted,
       marginBottom: spacing.md,
+    },
+    teamCaption: {
+      ...typography.caption,
+      color: c.textMuted,
+      marginBottom: spacing.md - 4,
     },
     hintIconInline: {
       ...typography.microStrong,
@@ -1025,7 +1089,7 @@ const createStyles = (c: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: spacing.sm + 2,
-      marginBottom: spacing.sm + 2,
+      marginBottom: spacing.md - 4,
     },
     stepper: {
       flexDirection: 'row',
@@ -1034,6 +1098,7 @@ const createStyles = (c: ThemeColors) =>
       borderColor: c.border,
       borderRadius: radius.md,
       overflow: 'hidden',
+      flexShrink: 0,
     },
     stepButton: {
       width: 36,
@@ -1059,6 +1124,7 @@ const createStyles = (c: ThemeColors) =>
       paddingVertical: 0,
     },
     costBlock: {
+      flex: 1,
       alignItems: 'flex-end',
     },
     costLabel: {

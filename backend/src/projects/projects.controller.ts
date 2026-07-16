@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Put, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -11,6 +11,7 @@ import { SetPriorityDto } from './dto/set-priority.dto';
 import { ReviewProjectDto } from './dto/review-project.dto';
 import { UpdateBudgetItemStatusDto } from './dto/update-budget-item-status.dto';
 import { AddBudgetItemsDto } from './dto/add-budget-items.dto';
+import { SetTeamMembersDto } from './dto/set-team-members.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -320,6 +321,52 @@ export class ProjectsController {
   ) {
     await this.projectsService.deleteAttachment(id, attachmentId, user.id, user.role);
     return { success: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/team')
+  findTeamMembers(@Param('id') id: string) {
+    return this.projectsService.listTeamMembers(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put(':id/team')
+  setTeamMembers(@CurrentUser() user: User, @Param('id') id: string, @Body() dto: SetTeamMembersDto) {
+    return this.projectsService.setTeamMembers(id, user.id, user.role, dto.members);
+  }
+
+  // Uploads a photo and hands back its URL, without touching any team row. Keeping the two
+  // apart is what lets a founder attach photos while composing the roster — the members do
+  // not exist yet at that point, and on a brand-new project neither does anything to key on.
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/team-photo')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/team',
+        filename: (req, file, cb) => {
+          cb(null, `${req.params.id}-${Date.now()}${extname(file.originalname)}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.startsWith('image/')) {
+          return cb(new BadRequestException('Only image files are allowed'), false);
+        }
+        cb(null, true);
+      },
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
+  async uploadTeamPhoto(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    await this.projectsService.assertCanEditTeam(id, user.id, user.role);
+    return { url: `/uploads/team/${file.filename}` };
   }
 
   @UseGuards(JwtAuthGuard)

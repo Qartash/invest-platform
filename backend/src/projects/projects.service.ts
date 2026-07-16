@@ -5,8 +5,10 @@ import { Project } from './entities/project.entity';
 import { ProjectReviewLog } from './entities/project-review-log.entity';
 import { ProjectAttachment } from './entities/project-attachment.entity';
 import { ProjectBudgetItem } from './entities/project-budget-item.entity';
+import { ProjectTeamMember } from './entities/project-team-member.entity';
 import { BudgetItemInputDto, CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { TeamMemberInputDto } from './dto/set-team-members.dto';
 import { SetRiskDto } from './dto/set-risk.dto';
 import { SetPriorityDto } from './dto/set-priority.dto';
 import { BudgetItemStatus, ProjectPriority, ProjectReviewAction, ProjectStatus, UserRole } from '../common/enums';
@@ -24,6 +26,8 @@ export class ProjectsService {
     private readonly attachmentsRepository: Repository<ProjectAttachment>,
     @InjectRepository(ProjectBudgetItem)
     private readonly budgetItemsRepository: Repository<ProjectBudgetItem>,
+    @InjectRepository(ProjectTeamMember)
+    private readonly teamMembersRepository: Repository<ProjectTeamMember>,
   ) {}
 
   private logReview(
@@ -140,6 +144,51 @@ export class ProjectsService {
 
   listBudgetItems(projectId: string): Promise<ProjectBudgetItem[]> {
     return this.budgetItemsRepository.find({ where: { projectId }, order: { order: 'ASC' } });
+  }
+
+  listTeamMembers(projectId: string): Promise<ProjectTeamMember[]> {
+    return this.teamMembersRepository.find({ where: { projectId }, order: { order: 'ASC' } });
+  }
+
+  /**
+   * Replaces the whole roster. The founder edits the team as a list — adding, removing and
+   * reordering — so a diff-based API would only make both sides reconstruct the same thing.
+   * Rows are keyed by position, which is also what `order` means to the reader.
+   */
+  async setTeamMembers(
+    projectId: string,
+    founderId: string,
+    userRole: UserRole,
+    members: TeamMemberInputDto[],
+  ): Promise<ProjectTeamMember[]> {
+    const project = await this.findOne(projectId);
+    if (project.founderId !== founderId && userRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Not your project');
+    }
+    const valid = members.filter((member) => member.name?.trim() && member.role?.trim());
+
+    await this.teamMembersRepository.delete({ projectId });
+    if (valid.length === 0) return [];
+
+    const created = valid.map((member, index) =>
+      this.teamMembersRepository.create({
+        projectId,
+        name: member.name.trim(),
+        role: member.role.trim(),
+        bio: member.bio?.trim() || null,
+        photoUrl: member.photoUrl ?? null,
+        order: index,
+      }),
+    );
+    return this.teamMembersRepository.save(created);
+  }
+
+  /** Ownership gate for the standalone team-photo upload, which writes no rows itself. */
+  async assertCanEditTeam(projectId: string, userId: string, userRole: UserRole): Promise<void> {
+    const project = await this.findOne(projectId);
+    if (project.founderId !== userId && userRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Not your project');
+    }
   }
 
   async addBudgetItems(

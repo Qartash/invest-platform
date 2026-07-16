@@ -302,6 +302,25 @@ export interface ProjectAttachment {
   createdAt: string;
 }
 
+export interface ProjectTeamMember {
+  id: string;
+  projectId: string;
+  name: string;
+  role: string;
+  bio: string | null;
+  photoUrl: string | null;
+  order: number;
+  createdAt: string;
+}
+
+/** What the founder is composing. No `id`: the roster is saved whole, not patched. */
+export interface TeamMemberInput {
+  name: string;
+  role: string;
+  bio?: string;
+  photoUrl?: string;
+}
+
 export interface ProjectPurchase {
   id: string;
   buyerId: string;
