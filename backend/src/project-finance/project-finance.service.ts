@@ -251,9 +251,10 @@ export class ProjectFinanceService {
   }
 
   // Pays the investors' share of a published report's net profit out of the
-  // founder's wallet, proportionally to tickets held right now. The share base
-  // is totalTickets, so the unsold portion of the project stays with the
-  // founder. Cent remainders from flooring also stay with the founder.
+  // founder's wallet, proportionally to the equity their tickets carry right now.
+  // The share base is totalTickets scaled by equityOfferedPercent, so both the
+  // unsold tickets and the equity the founder never offered stay with the founder.
+  // Cent remainders from flooring also stay with the founder.
   async payReport(projectId: string, reportId: string, userId: string) {
     return this.dataSource.transaction(async (manager) => {
       const report = await manager.findOne(ProjectFinancialReport, {
@@ -290,11 +291,17 @@ export class ProjectFinanceService {
 
       const netCents = BigInt(Math.round(netProfit * 100));
       const totalTickets = BigInt(project.totalTickets);
+      // All totalTickets together carry equityOfferedPercent of the company, not all of
+      // it, so a holder's cut of the profit is scaled down by that share. Counted in
+      // hundredths of a percent to stay in integers; at the default 100% this is a
+      // multiply and divide by the same 10000 and the split is unchanged.
+      const equityHundredths = BigInt(Math.round(parseFloat(project.equityOfferedPercent) * 100));
       const holders = [...ticketsByOwner.entries()]
         .map(([ownerId, quantity]) => ({
           ownerId,
           quantity,
-          amountCents: (netCents * BigInt(quantity)) / totalTickets,
+          // One division at the end: dividing per factor would floor twice and lose cents.
+          amountCents: (netCents * BigInt(quantity) * equityHundredths) / (totalTickets * 10000n),
         }))
         .filter((holder) => holder.amountCents > 0n);
 
@@ -338,7 +345,11 @@ export class ProjectFinanceService {
               reportId: report.id,
               userId: holder.ownerId,
               tickets: holder.quantity,
-              sharePercent: ((holder.quantity / project.totalTickets) * 100).toFixed(4),
+              // Share of the company, not of the ticket pool: what the holder owns.
+              sharePercent: (
+                (holder.quantity / project.totalTickets) *
+                parseFloat(project.equityOfferedPercent)
+              ).toFixed(4),
               amount: amount.toFixed(2),
             }),
           );

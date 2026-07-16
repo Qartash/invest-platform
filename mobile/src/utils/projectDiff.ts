@@ -30,6 +30,7 @@ export const DIFF_FIELD_LABEL_KEYS: Record<string, string> = {
   category: 'founder.categoryField',
   deadline: 'founder.deadline',
   priceTierCount: 'founder.priceTierCount',
+  equityOfferedPercent: 'founder.equityOfferedPercent',
   resaleEnabled: 'founder.resaleEnabled',
   expectedAnnualReturnPercent: 'founder.expectedAnnualReturn',
   payoutStartDays: 'founder.payoutStartDays',
@@ -45,6 +46,7 @@ export function formatDiffValue(field: string, value: any, t: TFunction, lang: s
     case 'ticketPrice':
       return `${parseFloat(value).toLocaleString()} ${t('common.currency')}`;
     case 'expectedAnnualReturnPercent':
+    case 'equityOfferedPercent':
       return `${parseFloat(value)}%`;
     case 'deadline':
       return formatDate(value, lang);

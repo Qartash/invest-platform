@@ -84,6 +84,7 @@ export interface Project {
   ticketsSold: number;
   priceTierCount: number;
   priceTierIncrementPercent?: string;
+  equityOfferedPercent: string;
   youtubeUrl?: string | null;
   resaleEnabled: boolean;
   resaleListingsCount?: number;
@@ -321,6 +322,12 @@ export interface TeamMemberInput {
   photoUrl?: string;
 }
 
+/**
+ * A holding in a project as it stands now, not a record of a sale. Once a ticket is
+ * resold, this row reports the new owner and the secondary price they paid — money that
+ * went to the previous holder, never to the project. Sum these for "who owns what", but
+ * take what the project actually raised from Project.collectedAmount.
+ */
 export interface ProjectPurchase {
   id: string;
   buyerId: string;
@@ -330,6 +337,8 @@ export interface ProjectPurchase {
   unitPrice: number;
   totalPrice: number;
   purchaseDate: string;
+  /** Bought off another investor rather than from the project. */
+  isResale?: boolean;
 }
 
 export type ProjectReviewAction =

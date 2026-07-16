@@ -10,6 +10,7 @@ import { RichTextEditor } from '../../components/RichTextEditor';
 import { SectionHeader, SegmentedTabs, StepRail, StepState } from '../../components/ui';
 import { BudgetMeter } from './createProject/BudgetMeter';
 import { EconomicsCard } from './createProject/EconomicsCard';
+import { EquityCard } from './createProject/EquityCard';
 import { ProjectPreview } from './createProject/ProjectPreview';
 import { ChecklistRow, ReviewChecklist } from './createProject/ReviewChecklist';
 import { radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
@@ -167,6 +168,11 @@ export function CreateProjectScreen({ route, navigation }: Props) {
   const [deadline, setDeadline] = useState('');
   const [priceTierCount, setPriceTierCount] = useState('4');
   const [priceTierIncrementPercent, setPriceTierIncrementPercent] = useState('20');
+  const [equityOfferedPercent, setEquityOfferedPercent] = useState('');
+  // Mirrors the guard in backend projects.service.ts update(): once tickets are sold the
+  // founder can't redraw the share they were sold. A moderator still can, so admin edits
+  // never lock the field.
+  const [equityLocked, setEquityLocked] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [resaleEnabled, setResaleEnabled] = useState(false);
   const [expectedAnnualReturnPercent, setExpectedAnnualReturnPercent] = useState('20');
@@ -216,6 +222,8 @@ export function CreateProjectScreen({ route, navigation }: Props) {
       setDeadline(project.deadline ?? '');
       setPriceTierCount(String(project.priceTierCount));
       setPriceTierIncrementPercent(project.priceTierIncrementPercent ?? '20');
+      setEquityOfferedPercent(project.equityOfferedPercent ?? '100');
+      setEquityLocked(project.ticketsSold > 0 && !isAdminEdit);
       setYoutubeUrl(project.youtubeUrl ?? '');
       setResaleEnabled(project.resaleEnabled);
       setExpectedAnnualReturnPercent(project.expectedAnnualReturnPercent);
@@ -381,6 +389,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
   const totalTicketsNum = parseInt(totalTickets, 10) || 0;
   const priceTierCountNum = parseInt(priceTierCount, 10) || 0;
   const priceTierIncrementPercentNum = parseFloat(priceTierIncrementPercent) || 0;
+  const equityOfferedNum = parseFloat(equityOfferedPercent) || 0;
   const expectedAnnualReturnNum = parseFloat(expectedAnnualReturnPercent) || 0;
   const payoutStartDaysNum = payoutStartDays.trim() === '' ? 0 : parseInt(payoutStartDays, 10) || -1;
 
@@ -412,6 +421,8 @@ export function CreateProjectScreen({ route, navigation }: Props) {
         ? t('founder.priceTierCountRangeError', { min: MIN_PRICE_TIER_COUNT, max: MAX_PRICE_TIER_COUNT })
         : undefined,
     payoutStartDays: payoutStartDaysNum < 0 ? t('founder.requiredFieldError') : undefined,
+    equityOfferedPercent:
+      equityOfferedNum <= 0 || equityOfferedNum > 100 ? t('founder.equityOfferedRangeError') : undefined,
     youtubeUrl: youtubeUrl.trim() && !youtubeVideoId ? t('founder.youtubeUrlInvalidError') : undefined,
   };
 
@@ -420,6 +431,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
     totalTickets: totalTicketsNum,
     priceTierCount: priceTierCountNum || 4,
     incrementPercent: priceTierIncrementPercentNum,
+    targetAmount: targetAmountNum,
   });
 
   const canSubmit = Object.values(errors).every((e) => !e) && ticketPriceNum > 0;
@@ -439,7 +451,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
   const aboutOk = missingLanguages.length === 0;
   const fundingOk =
     !errors.targetAmount && !errors.totalTickets && !errors.priceTierCount && !errors.deadline &&
-    !errors.payoutStartDays && ticketPriceNum > 0;
+    !errors.payoutStartDays && !errors.equityOfferedPercent && ticketPriceNum > 0;
   const mediaOk = !errors.youtubeUrl;
 
   /**
@@ -482,6 +494,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
             currency,
             tickets: totalTicketsNum,
             rounds: priceTierCountNum,
+            equity: equityOfferedNum.toLocaleString(undefined, { maximumFractionDigits: 2 }),
           })
         : t('founder.wizard.sumFundingBad'),
     },
@@ -580,6 +593,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
         deadline: deadline.trim() || undefined,
         priceTierCount: priceTierCountNum || 4,
         priceTierIncrementPercent: priceTierIncrementPercentNum || 20,
+        equityOfferedPercent: equityOfferedNum,
         youtubeUrl: youtubeUrl.trim() || undefined,
         resaleEnabled,
         expectedAnnualReturnPercent: expectedAnnualReturnNum || 20,
@@ -829,6 +843,26 @@ export function CreateProjectScreen({ route, navigation }: Props) {
                 onHintPress={() => showHint(t('founder.deadline'), t('founder.deadlineFieldHint'))}
               />
             )}
+
+            <SectionHeader title={t('founder.wizard.groupEquity')} spaced />
+            <TextField
+              label={t('founder.equityOfferedPercent')}
+              keyboardType="decimal-pad"
+              format="decimal"
+              placeholder="49"
+              hint={equityLocked ? t('founder.equityOfferedLockedHint') : t('founder.equityOfferedHint')}
+              editable={!equityLocked}
+              value={equityOfferedPercent}
+              onChangeText={setEquityOfferedPercent}
+              error={attemptedSubmit ? errors.equityOfferedPercent : undefined}
+              onHintPress={() => showHint(t('founder.equityOfferedPercent'), t('founder.equityOfferedFieldHint'))}
+            />
+            <EquityCard
+              equityOfferedPercent={equityOfferedNum}
+              targetAmount={targetAmountNum}
+              totalTickets={totalTicketsNum}
+              onHintPress={() => showHint(t('founder.wizard.impliedValuation'), t('founder.impliedValuationHint'))}
+            />
 
             <SectionHeader title={t('founder.wizard.groupRounds')} spaced />
             <TextField

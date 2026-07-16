@@ -106,6 +106,7 @@ interface ProjectFormData {
   deadline?: string;
   priceTierCount?: number;
   priceTierIncrementPercent?: number;
+  equityOfferedPercent?: number;
   youtubeUrl?: string;
   resaleEnabled?: boolean;
   expectedAnnualReturnPercent?: number;

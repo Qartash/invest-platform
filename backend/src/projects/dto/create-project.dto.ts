@@ -33,9 +33,15 @@ export class CreateProjectDto {
   @IsPositive()
   targetAmount: number;
 
+  /**
+   * @deprecated Ignored. The round-1 price is derived server-side from targetAmount,
+   * totalTickets and the round settings so that selling out raises exactly the goal.
+   * Still accepted so existing clients that send it don't fail validation.
+   */
   @IsNumber()
   @IsPositive()
-  ticketPrice: number;
+  @IsOptional()
+  ticketPrice?: number;
 
   @IsInt()
   @IsPositive()
@@ -74,6 +80,12 @@ export class CreateProjectDto {
   @Max(200)
   @IsOptional()
   priceTierIncrementPercent?: number;
+
+  @IsNumber()
+  @Min(0.01)
+  @Max(100)
+  @IsOptional()
+  equityOfferedPercent?: number;
 
   @IsString()
   @IsOptional()

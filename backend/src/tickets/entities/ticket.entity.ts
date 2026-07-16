@@ -43,6 +43,14 @@ export class Ticket {
   @Column('decimal', { precision: 14, scale: 2, nullable: true, name: 'asking_price' })
   askingPrice: string | null;
 
+  // True once this holding was bought off another investor rather than from the project.
+  // purchasePrice then carries what the buyer paid on the secondary market, which has
+  // nothing to do with the project's round ladder and never reached the project's
+  // treasury — so a resold holding must be kept out of the round price history and out
+  // of any figure meant to represent what the project raised.
+  @Column({ type: 'boolean', default: false, name: 'acquired_via_resale' })
+  acquiredViaResale: boolean;
+
   @OneToMany(() => EarningsSnapshot, (snapshot) => snapshot.ticket)
   earningsSnapshots: EarningsSnapshot[];
 

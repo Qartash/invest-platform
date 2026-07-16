@@ -112,6 +112,11 @@ export class TicketsService {
       unitPrice: parseFloat(ticket.purchasePrice) / ticket.quantity,
       totalPrice: parseFloat(ticket.purchasePrice),
       purchaseDate: ticket.purchaseDate,
+      // These are current holdings, not a log of what the project sold: a resold ticket
+      // reports its secondary price and its new owner, and the original purchase it
+      // replaced is gone. Callers showing what the project raised must use the project's
+      // collectedAmount rather than summing these.
+      isResale: ticket.acquiredViaResale,
     }));
   }
 
@@ -305,6 +310,9 @@ export class TicketsService {
         ticket.status = TicketStatus.ACTIVE;
         ticket.purchasePrice = ticket.askingPrice;
         ticket.askingPrice = null;
+        // The row now describes a secondary holding: its price is what this buyer paid
+        // another investor, not what the project ever collected for it.
+        ticket.acquiredViaResale = true;
         purchasedTicket = await manager.save(ticket);
         // Row is reused for the buyer at a new cost basis (the price paid); drop
         // the seller-era snapshots so the buyer doesn't inherit a phantom return.
@@ -328,6 +336,7 @@ export class TicketsService {
             quantity: purchaseQuantity,
             purchasePrice: price.toFixed(2),
             status: TicketStatus.ACTIVE,
+            acquiredViaResale: true,
           }),
         );
       }

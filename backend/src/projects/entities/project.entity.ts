@@ -61,6 +61,14 @@ export class Project {
   @Column('decimal', { precision: 5, scale: 2, default: 20, name: 'price_tier_increment_percent' })
   priceTierIncrementPercent: string;
 
+  // What share of the company all totalTickets together represent. One ticket is
+  // worth equityOfferedPercent / totalTickets of the company, and the unsold
+  // remainder stays with the founder along with 100 - equityOfferedPercent.
+  // Defaults to 100 because that is what the payout split assumed before this
+  // column existed — projects created back then really did offer the whole company.
+  @Column('decimal', { precision: 5, scale: 2, default: 100, name: 'equity_offered_percent' })
+  equityOfferedPercent: string;
+
   @Column({ type: 'enum', enum: ProjectStatus, default: ProjectStatus.DRAFT })
   status: ProjectStatus;
 

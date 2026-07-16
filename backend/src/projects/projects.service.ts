@@ -12,6 +12,7 @@ import { TeamMemberInputDto } from './dto/set-team-members.dto';
 import { SetRiskDto } from './dto/set-risk.dto';
 import { SetPriorityDto } from './dto/set-priority.dto';
 import { BudgetItemStatus, ProjectPriority, ProjectReviewAction, ProjectStatus, UserRole } from '../common/enums';
+import { deriveBaseTicketPrice } from './pricing';
 
 const MAX_ATTACHMENTS_PER_PROJECT = 10;
 
@@ -102,20 +103,30 @@ export class ProjectsService {
   }
 
   async create(founderId: string, dto: CreateProjectDto): Promise<Project> {
+    const priceTierCount = dto.priceTierCount ?? 4;
+    const priceTierIncrementPercent = dto.priceTierIncrementPercent ?? 20;
     const project = this.projectsRepository.create({
       founderId,
       title: dto.title,
       description: dto.description,
       targetAmount: dto.targetAmount.toFixed(2),
-      ticketPrice: dto.ticketPrice.toFixed(2),
+      // Derived, not dto.ticketPrice: see deriveBaseTicketPrice for why a caller-supplied
+      // price can't be trusted to keep a sell-out equal to the funding goal.
+      ticketPrice: deriveBaseTicketPrice({
+        targetAmount: dto.targetAmount,
+        totalTickets: dto.totalTickets,
+        priceTierCount,
+        incrementPercent: priceTierIncrementPercent,
+      }).toFixed(2),
       totalTickets: dto.totalTickets,
       category: dto.category,
       riskLevel: dto.riskLevel,
       priority: (dto.priority as ProjectPriority) ?? ProjectPriority.MEDIUM,
       coverImageUrl: dto.coverImageUrl,
       deadline: dto.deadline ?? null,
-      priceTierCount: dto.priceTierCount ?? 4,
-      priceTierIncrementPercent: (dto.priceTierIncrementPercent ?? 20).toFixed(2),
+      priceTierCount,
+      priceTierIncrementPercent: priceTierIncrementPercent.toFixed(2),
+      equityOfferedPercent: (dto.equityOfferedPercent ?? 100).toFixed(2),
       youtubeUrl: dto.youtubeUrl ?? null,
       resaleEnabled: dto.resaleEnabled ?? false,
       expectedAnnualReturnPercent: (dto.expectedAnnualReturnPercent ?? 20).toFixed(2),
@@ -243,11 +254,59 @@ export class ProjectsService {
     'deadline',
     'priceTierCount',
     'priceTierIncrementPercent',
+    'equityOfferedPercent',
     'youtubeUrl',
     'resaleEnabled',
     'expectedAnnualReturnPercent',
     'payoutStartDays',
   ] as const;
+
+  // Editing any of these moves the round-1 price with them.
+  private static readonly PRICE_INPUT_FIELDS = [
+    'targetAmount',
+    'totalTickets',
+    'priceTierCount',
+    'priceTierIncrementPercent',
+  ] as const;
+
+  /**
+   * Turns an edit DTO into the column values it implies, shared by the founder and
+   * moderator edit paths so the two can't normalize differently.
+   *
+   * ticketPrice is never taken from the DTO. It's a function of the goal, ticket count
+   * and round settings, so it's re-derived from the merged project+DTO values whenever
+   * one of those moves, and left untouched otherwise. Deriving from the merge matters:
+   * an edit that only sends targetAmount still has to price against the project's
+   * existing ticket count.
+   */
+  private normalizeEdit(project: Project, dto: UpdateProjectDto): Record<string, any> {
+    const normalized: Record<string, any> = { ...dto };
+    if (dto.targetAmount !== undefined) normalized.targetAmount = dto.targetAmount.toFixed(2);
+    if (dto.expectedAnnualReturnPercent !== undefined) {
+      normalized.expectedAnnualReturnPercent = dto.expectedAnnualReturnPercent.toFixed(2);
+    }
+    if (dto.priceTierIncrementPercent !== undefined) {
+      normalized.priceTierIncrementPercent = dto.priceTierIncrementPercent.toFixed(2);
+    }
+    if (dto.equityOfferedPercent !== undefined) {
+      normalized.equityOfferedPercent = dto.equityOfferedPercent.toFixed(2);
+    }
+    if (dto.deadline !== undefined) normalized.deadline = dto.deadline;
+
+    const touchesPrice = ProjectsService.PRICE_INPUT_FIELDS.some((field) => dto[field] !== undefined);
+    if (touchesPrice) {
+      normalized.ticketPrice = deriveBaseTicketPrice({
+        targetAmount: dto.targetAmount ?? parseFloat(project.targetAmount),
+        totalTickets: dto.totalTickets ?? project.totalTickets,
+        priceTierCount: dto.priceTierCount ?? project.priceTierCount,
+        incrementPercent: dto.priceTierIncrementPercent ?? parseFloat(project.priceTierIncrementPercent),
+      }).toFixed(2);
+    } else {
+      delete normalized.ticketPrice;
+    }
+
+    return normalized;
+  }
 
   async update(id: string, founderId: string, dto: UpdateProjectDto): Promise<Project> {
     const project = await this.findOne(id);
@@ -262,17 +321,18 @@ export class ProjectsService {
     if (project.deletedAt || project.deletionRequestedAt) {
       throw new BadRequestException('Cannot edit a project that is deleted or pending deletion.');
     }
+    // The share of the company a ticket carries is part of what an investor paid for,
+    // so once anyone has bought in the founder can no longer redraw it — that would
+    // dilute existing holders retroactively. A moderator can still fix it via adminUpdate.
+    if (
+      dto.equityOfferedPercent !== undefined &&
+      project.ticketsSold > 0 &&
+      dto.equityOfferedPercent.toFixed(2) !== project.equityOfferedPercent
+    ) {
+      throw new BadRequestException('Cannot change the offered equity share after tickets have been sold.');
+    }
 
-    const normalized: Record<string, any> = { ...dto };
-    if (dto.targetAmount !== undefined) normalized.targetAmount = dto.targetAmount.toFixed(2);
-    if (dto.ticketPrice !== undefined) normalized.ticketPrice = dto.ticketPrice.toFixed(2);
-    if (dto.expectedAnnualReturnPercent !== undefined) {
-      normalized.expectedAnnualReturnPercent = dto.expectedAnnualReturnPercent.toFixed(2);
-    }
-    if (dto.priceTierIncrementPercent !== undefined) {
-      normalized.priceTierIncrementPercent = dto.priceTierIncrementPercent.toFixed(2);
-    }
-    if (dto.deadline !== undefined) normalized.deadline = dto.deadline;
+    const normalized = this.normalizeEdit(project, dto);
 
     const changes: Record<string, any> = {};
     for (const field of ProjectsService.EDITABLE_FIELDS) {
@@ -315,16 +375,7 @@ export class ProjectsService {
       throw new BadRequestException('Cannot edit a deleted project. Restore it first.');
     }
 
-    const normalized: Record<string, any> = { ...dto };
-    if (dto.targetAmount !== undefined) normalized.targetAmount = dto.targetAmount.toFixed(2);
-    if (dto.ticketPrice !== undefined) normalized.ticketPrice = dto.ticketPrice.toFixed(2);
-    if (dto.expectedAnnualReturnPercent !== undefined) {
-      normalized.expectedAnnualReturnPercent = dto.expectedAnnualReturnPercent.toFixed(2);
-    }
-    if (dto.priceTierIncrementPercent !== undefined) {
-      normalized.priceTierIncrementPercent = dto.priceTierIncrementPercent.toFixed(2);
-    }
-    if (dto.deadline !== undefined) normalized.deadline = dto.deadline;
+    const normalized = this.normalizeEdit(project, dto);
 
     const changes: Record<string, any> = {};
     for (const field of ProjectsService.EDITABLE_FIELDS) {

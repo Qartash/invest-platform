@@ -22,10 +22,17 @@ import {
   fetchProjectTeam,
 } from '../../api/projects';
 import { buyTicket, buyListing } from '../../api/tickets';
+import { fetchWallet } from '../../api/wallet';
 import { resolveMediaUrl } from '../../api/client';
-import { Project, ProjectAttachment, ProjectPurchase, ProjectTeamMember, TicketListing } from '../../types';
+import { Project, ProjectAttachment, ProjectPurchase, ProjectTeamMember, TicketListing, Wallet } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
-import { computeTicketPurchaseCost } from '../../utils/pricing';
+import {
+  computeMaxAffordableTickets,
+  computeTicketPurchaseCost,
+  equityForTickets,
+  equityPerTicket,
+  impliedValuation,
+} from '../../utils/pricing';
 import { formatDate, formatDateTime } from '../../utils/date';
 import { showAlert } from '../../utils/alert';
 import { useAuthStore } from '../../store/authStore';
@@ -96,6 +103,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   const [listings, setListings] = useState<TicketListing[]>([]);
   const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
   const [team, setTeam] = useState<ProjectTeamMember[]>([]);
+  const [wallet, setWallet] = useState<Wallet | null>(null);
   const [tab, setTab] = useState<TabKey>('about');
   const [quantity, setQuantity] = useState('1');
   const [forecastOpen, setForecastOpen] = useState(false);
@@ -118,6 +126,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
     fetchProjectListings(projectId).then(setListings);
     fetchProjectAttachments(projectId).then(setAttachments);
     fetchProjectTeam(projectId).then(setTeam);
+    fetchWallet().then(setWallet);
   }, [projectId]);
 
   useEffect(() => {
@@ -152,13 +161,11 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
       .sort((a, b) => (a.lastPurchaseDate < b.lastPurchaseDate ? 1 : -1));
   }, [purchases]);
 
-  const totalSold = useMemo(
-    () => ({
-      quantity: purchases.reduce((sum, p) => sum + p.quantity, 0),
-      amount: purchases.reduce((sum, p) => sum + p.totalPrice, 0),
-    }),
-    [purchases],
-  );
+  // Primary purchases only: these are the ones bought from the project at a round price,
+  // so they're the only ones whose price belongs on the round price history. A resale is
+  // priced by whatever two investors agreed on and would otherwise drag the chart's scale
+  // far off the ladder.
+  const primaryPurchases = useMemo(() => purchases.filter((p) => !p.isResale), [purchases]);
 
   const investorSummaries = useMemo<InvestorSummary[]>(
     () =>
@@ -185,14 +192,29 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   const parsedQuantity = Math.max(0, parseInt(quantity, 10) || 0);
   const totalCost = computeTicketPurchaseCost(pricing.tiers, project.ticketsSold, parsedQuantity);
 
+  // Mirrors what tickets.service.ts actually spends on a purchase: invest credit first,
+  // then the withdrawable balance. Anything less here would under-report what the user
+  // can buy; anything more would offer a quantity the backend rejects.
+  const spendable = wallet ? parseFloat(wallet.balance) + parseFloat(wallet.investCredit ?? '0') : null;
+  const maxAffordable =
+    spendable === null ? 0 : computeMaxAffordableTickets(pricing.tiers, project.ticketsSold, spendable, ticketsLeft);
+
+  const equityOffered = parseFloat(project.equityOfferedPercent ?? '100');
+  const equityRetained = Math.max(0, 100 - equityOffered);
+  const valuation = impliedValuation(target, equityOffered);
+  const perTicketEquity = equityPerTicket(equityOffered, project.totalTickets);
+  const purchaseEquity = equityForTickets(equityOffered, project.totalTickets, parsedQuantity);
+  const percent = (value: number, digits = 2) =>
+    `${value.toLocaleString(undefined, { maximumFractionDigits: digits })}%`;
+
   const annualReturnRate = parseFloat(project.expectedAnnualReturnPercent) / 100;
   const expectedDailyProfit = (totalCost * annualReturnRate) / 365;
   const expectedMonthlyProfit = expectedDailyProfit * 30;
   const paybackDays = annualReturnRate > 0 ? Math.round(36500 / parseFloat(project.expectedAnnualReturnPercent)) : 0;
 
   const chartPoints =
-    purchases.length > 0
-      ? purchases.map((p) => ({
+    primaryPurchases.length > 0
+      ? primaryPurchases.map((p) => ({
           unitPrice: p.unitPrice,
           quantity: p.quantity,
           totalPrice: p.totalPrice,
@@ -295,6 +317,22 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           label={t('project.investors')}
           value={project.investorCount ?? 0}
           onPress={investorSummaries.length > 0 ? () => setInvestorsModalVisible(true) : undefined}
+        />
+        <ListRow
+          label={t('project.equityOffered')}
+          value={percent(equityOffered)}
+          onHintPress={() => showHint(t('project.equityOffered'), t('project.equityOfferedHint'))}
+        />
+        <ListRow label={t('project.equityRetained')} value={percent(equityRetained)} />
+        <ListRow
+          label={t('project.valuation')}
+          value={roundedMoney(valuation)}
+          onHintPress={() => showHint(t('project.valuation'), t('project.valuationHint'))}
+        />
+        <ListRow
+          label={t('project.equityPerTicket')}
+          value={percent(perTicketEquity, 4)}
+          onHintPress={() => showHint(t('project.equityPerTicket'), t('project.equityPerTicketHint'))}
         />
         <ListRow label={t('project.annualReturn')} value={`${project.expectedAnnualReturnPercent}%`} />
         <ListRow
@@ -482,9 +520,13 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           })}
           <View style={styles.grandTotalRow}>
             <Text style={styles.grandTotalLabel}>
+              {/* Straight from the project rather than summed over the holdings above:
+                  a resold ticket carries the price its current owner paid the previous
+                  one, so summing them would drift away from what the project raised the
+                  moment anyone resells. */}
               {t('project.totalSold', {
-                quantity: totalSold.quantity,
-                amount: totalSold.amount.toLocaleString(),
+                quantity: project.ticketsSold,
+                amount: collected.toLocaleString(),
                 currency: t('common.currency'),
               })}
             </Text>
@@ -495,6 +537,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   );
 
   const canBuy = parsedQuantity >= 1 && parsedQuantity <= ticketsLeft;
+  const maxChipDisabled = maxAffordable < 1 || parsedQuantity === maxAffordable;
 
   return (
     <View style={styles.root}>
@@ -650,6 +693,24 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
         </View>
       </View>
 
+      {spendable !== null && (
+        <View style={styles.fundsRow}>
+          <Text style={styles.fundsAvailable} numberOfLines={1}>
+            {t('project.availableFunds')}: {money(spendable)}
+          </Text>
+          <Pressable
+            style={[styles.maxChip, maxChipDisabled && styles.maxChipDisabled]}
+            hitSlop={6}
+            disabled={maxChipDisabled}
+            onPress={() => setQuantity(String(maxAffordable))}
+          >
+            <Text style={[styles.maxChipText, maxChipDisabled && styles.maxChipTextDisabled]}>
+              {t('project.buyMax')}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
       <PrimaryButton title={t('project.confirmPurchase')} onPress={handleBuy} loading={buying} disabled={!canBuy} />
 
       {parsedQuantity > 0 && (
@@ -676,6 +737,10 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
               <View style={styles.forecastRow}>
                 <Text style={styles.forecastKey}>{t('project.ticketsToReceive')}</Text>
                 <Text style={styles.forecastVal}>{parsedQuantity}</Text>
+              </View>
+              <View style={styles.forecastRow}>
+                <Text style={styles.forecastKey}>{t('project.equityToReceive')}</Text>
+                <Text style={styles.forecastVal}>{percent(purchaseEquity, 4)}</Text>
               </View>
               <View style={styles.forecastRow}>
                 <Text style={styles.forecastKey}>{t('project.payoutStarts')}</Text>
@@ -1118,13 +1183,16 @@ const createStyles = (c: ThemeColors) =>
       ...typography.bodyStrong,
       ...tabularNums,
       color: c.text,
-      minWidth: 44,
+      // Fixed, not minWidth: an Android TextInput with no width claims its own intrinsic
+      // width, and the stepper never shrinks — which starves the total beside it.
+      width: 56,
       height: 38,
       textAlign: 'center',
       paddingVertical: 0,
     },
     costBlock: {
       flex: 1,
+      minWidth: 0,
       alignItems: 'flex-end',
     },
     costLabel: {
@@ -1135,6 +1203,41 @@ const createStyles = (c: ThemeColors) =>
       ...typography.heading,
       ...tabularNums,
       color: c.text,
+      // adjustsFontSizeToFit only shrinks when the Text has a width to shrink into;
+      // sized by its own content it ellipsizes instead. Stretch it across costBlock.
+      alignSelf: 'stretch',
+      textAlign: 'right',
+    },
+    fundsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      marginBottom: spacing.md - 4,
+    },
+    fundsAvailable: {
+      ...typography.micro,
+      ...tabularNums,
+      color: c.textMuted,
+      flexShrink: 1,
+    },
+    maxChip: {
+      paddingHorizontal: spacing.sm + 2,
+      paddingVertical: spacing.xs,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: c.primary,
+      flexShrink: 0,
+    },
+    maxChipDisabled: {
+      borderColor: c.border,
+    },
+    maxChipText: {
+      ...typography.microStrong,
+      color: c.primary,
+    },
+    maxChipTextDisabled: {
+      color: c.textMuted,
     },
     forecastToggle: {
       flexDirection: 'row',
