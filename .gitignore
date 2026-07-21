@@ -10,6 +10,7 @@ web-build/
 
 # demo data travels with the repo: uploads, the seed dump and the dev env files
 # hold placeholder credentials only. Production values live outside this repo.
+.env.local
 
 # OS / editor
 .DS_Store

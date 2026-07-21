@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: invest-platform-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: node dist/main
+    healthCheckPath: /api
+    envVars:
+      # NODE_ENV stays off "production" on purpose while we are still a test
+      # stand: it keeps TypeORM's synchronize on, so entity changes reach the
+      # database without migrations. Flip it before a real release.
+      - key: NODE_ENV
+        value: staging
+      # Set these in the Render dashboard, not here.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false

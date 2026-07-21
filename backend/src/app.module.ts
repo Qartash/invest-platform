@@ -42,44 +42,57 @@ import { ProjectWorksModule } from './project-works/project-works.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // .env.local stays out of git and wins over .env, so real credentials never
+    // sit next to the placeholder ones the repo ships.
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env.local', '.env'] }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>('DB_HOST', 'localhost'),
-        port: configService.get<number>('DB_PORT', 5432),
-        username: configService.get<string>('DB_USERNAME', 'postgres'),
-        password: configService.get<string>('DB_PASSWORD', 'postgres'),
-        database: configService.get<string>('DB_NAME', 'invest_platform'),
-        entities: [
-          User,
-          Wallet,
-          Project,
-          ProjectReviewLog,
-          ProjectAttachment,
-          ProjectBudgetItem,
-          ProjectTeamMember,
-          Ticket,
-          Transaction,
-          EarningsSnapshot,
-          ProjectExpense,
-          ProjectIncome,
-          ProjectFinancialReport,
-          ReportPayout,
-          FundReleaseRequest,
-          ProjectWork,
-          WorkApplication,
-          WorkReview,
-          WorkMilestone,
-          SystemLog,
-          LogSettings,
-        ],
-        synchronize: configService.get<string>('NODE_ENV') !== 'production',
-        logging: true,
-        logger: new DbQueryLogger(),
-      }),
+      useFactory: (configService: ConfigService) => {
+        // A hosted database (Neon) hands out a single URL and refuses plaintext
+        // connections; locally we still assemble it from the discrete vars.
+        const url = configService.get<string>('DATABASE_URL');
+        const connection = url
+          ? { url, ssl: { rejectUnauthorized: false } }
+          : {
+              host: configService.get<string>('DB_HOST', 'localhost'),
+              port: configService.get<number>('DB_PORT', 5432),
+              username: configService.get<string>('DB_USERNAME', 'postgres'),
+              password: configService.get<string>('DB_PASSWORD', 'postgres'),
+              database: configService.get<string>('DB_NAME', 'invest_platform'),
+            };
+
+        return {
+          type: 'postgres' as const,
+          ...connection,
+          entities: [
+            User,
+            Wallet,
+            Project,
+            ProjectReviewLog,
+            ProjectAttachment,
+            ProjectBudgetItem,
+            ProjectTeamMember,
+            Ticket,
+            Transaction,
+            EarningsSnapshot,
+            ProjectExpense,
+            ProjectIncome,
+            ProjectFinancialReport,
+            ReportPayout,
+            FundReleaseRequest,
+            ProjectWork,
+            WorkApplication,
+            WorkReview,
+            WorkMilestone,
+            SystemLog,
+            LogSettings,
+          ],
+          synchronize: configService.get<string>('NODE_ENV') !== 'production',
+          logging: true,
+          logger: new DbQueryLogger(),
+        };
+      },
     }),
     ScheduleModule.forRoot(),
     AuthModule,
