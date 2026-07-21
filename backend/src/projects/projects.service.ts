@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
 import { Project } from './entities/project.entity';
@@ -433,9 +439,9 @@ export class ProjectsService {
       throw new BadRequestException('Deletion is already pending moderator approval');
     }
 
-    if (project.ticketsSold > 0) {
-      // Investors already hold tickets in this project — a moderator must sign off
-      // before it disappears from view.
+    if (project.ticketsSold > 0 || ProjectsService.heldFunds(project) > 0) {
+      // Investors already hold tickets in this project, or it is still holding money — a
+      // moderator must sign off before it disappears from view.
       project.deletionRequestedAt = new Date();
       const saved = await this.projectsRepository.save(project);
       await this.logReview(saved.id, ProjectReviewAction.DELETION_REQUESTED);
@@ -462,10 +468,25 @@ export class ProjectsService {
     return saved;
   }
 
+  // How much of investors' and the project's money is still sitting in a project. Deleting it
+  // while this is non-zero strands the money: the row keeps the balances but drops out of every
+  // listing, so nobody can reach it again.
+  private static heldFunds(project: Project): number {
+    return parseFloat(project.treasuryBalance) + parseFloat(project.spendableBalance);
+  }
+
   async approveDeletion(id: string, moderatorId: string, moderatorName: string): Promise<Project> {
     const project = await this.findOne(id);
     if (!project.deletionRequestedAt) {
       throw new BadRequestException('There is no pending deletion request for this project');
+    }
+    // Refuse rather than silently refunding: paying money back to investors is a decision a
+    // moderator should make deliberately, via the refund endpoint, not a side effect of
+    // approving a deletion. Refunding first also closes the project, so the order is natural.
+    if (ProjectsService.heldFunds(project) > 0) {
+      throw new ConflictException(
+        'This project still holds investor funds — refund it before approving the deletion',
+      );
     }
     project.deletionRequestedAt = null;
     project.deletedAt = new Date();
