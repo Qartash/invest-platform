@@ -6,6 +6,8 @@ import { EarningsSnapshot } from '../earnings/entities/earnings-snapshot.entity'
 import { ReportPayout } from '../project-finance/entities/report-payout.entity';
 import { TicketStatus } from '../common/enums';
 
+const round2 = (value: number): number => Math.round(value * 100) / 100;
+
 export interface HoldingLot {
   ticketId: string;
   quantity: number;
@@ -174,30 +176,45 @@ export class PortfolioService {
     for (const holding of holdings) {
       const projectDividends = dividendsByProject.get(holding.projectId) ?? 0;
       const projectQty = heldQtyByProject.get(holding.projectId) ?? 0;
-      holding.dividendsReceived = projectQty > 0 ? (projectDividends * holding.quantity) / projectQty : 0;
+      // Splitting a project's dividends across the lots that earned them rarely divides
+      // evenly, so round here rather than shipping 2516.4772727272725 for the client to
+      // guess at. Money to the cent, percentages to two places.
+      holding.dividendsReceived = round2(
+        projectQty > 0 ? (projectDividends * holding.quantity) / projectQty : 0,
+      );
     }
 
     for (const holding of holdings) {
-      holding.returnAmount = holding.currentValue - holding.purchasePrice + holding.dividendsReceived;
-      holding.returnPercent =
-        holding.purchasePrice > 0 ? (holding.returnAmount / holding.purchasePrice) * 100 : 0;
+      // Merged lots accumulate in floating point, so a card can arrive here holding
+      // 236959.74000000002. Settle every figure to the cent once, at the end.
+      holding.purchasePrice = round2(holding.purchasePrice);
+      holding.currentValue = round2(holding.currentValue);
+      holding.returnAmount = round2(holding.currentValue - holding.purchasePrice + holding.dividendsReceived);
+      holding.returnPercent = round2(
+        holding.purchasePrice > 0 ? (holding.returnAmount / holding.purchasePrice) * 100 : 0,
+      );
+      for (const lot of holding.lots) {
+        lot.purchasePrice = round2(lot.purchasePrice);
+        lot.currentValue = round2(lot.currentValue);
+        lot.returnAmount = round2(lot.returnAmount);
+      }
     }
 
     // All dividends the user was ever paid, even for projects they have since
     // fully sold out of — those earnings are real and belong in the total.
-    const totalDividends = [...dividendsByProject.values()].reduce((sum, amount) => sum + amount, 0);
-    const totalReturnAmount = totalCurrentValue - totalInvested + totalDividends;
+    const totalDividends = round2([...dividendsByProject.values()].reduce((sum, amount) => sum + amount, 0));
+    const totalReturnAmount = round2(totalCurrentValue - totalInvested + totalDividends);
 
     return {
       holdings,
       summary: {
-        totalInvested,
-        totalCurrentValue,
+        totalInvested: round2(totalInvested),
+        totalCurrentValue: round2(totalCurrentValue),
         totalDividends,
         totalReturnAmount,
-        totalReturnPercent: totalInvested > 0 ? (totalReturnAmount / totalInvested) * 100 : 0,
-        todayReturn,
-        monthReturn,
+        totalReturnPercent: round2(totalInvested > 0 ? (totalReturnAmount / totalInvested) * 100 : 0),
+        todayReturn: round2(todayReturn),
+        monthReturn: round2(monthReturn),
       },
     };
   }
