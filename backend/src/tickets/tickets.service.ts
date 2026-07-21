@@ -2,12 +2,12 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { DataSource, EntityManager, In } from 'typeorm';
 import { Ticket } from './entities/ticket.entity';
 import { EarningsSnapshot } from '../earnings/entities/earnings-snapshot.entity';
-import { Wallet } from '../wallets/entities/wallet.entity';
 import { Project } from '../projects/entities/project.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { BuyTicketDto } from './dto/buy-ticket.dto';
 import { ProjectStatus, TicketStatus, TransactionStatus, TransactionType } from '../common/enums';
 import { computeTicketPricing, computeTicketPurchaseCost } from '../projects/pricing';
+import { lockProject, lockWallet, lockWallets } from '../common/row-locks';
 
 @Injectable()
 export class TicketsService {
@@ -25,10 +25,12 @@ export class TicketsService {
 
   async buyTicket(userId: string, dto: BuyTicketDto): Promise<Ticket> {
     return this.dataSource.transaction(async (manager) => {
-      const project = await manager.findOne(Project, { where: { id: dto.projectId } });
-      if (!project) {
-        throw new BadRequestException('Project not found');
-      }
+      // Held FOR UPDATE for the whole purchase: ticketsSold, the tier the price is read
+      // from and the treasury are all read-modify-write. Unlocked, parallel buys read the
+      // same ticketsSold and overwrite each other's increment while every one of them still
+      // creates a ticket row — twelve tickets issued in a five-ticket project, charged for
+      // one, with the "not enough tickets" check never seeing the other eleven.
+      const project = await lockProject(manager, dto.projectId);
       if (project.status !== ProjectStatus.ACTIVE) {
         throw new BadRequestException('Project is not open for investment');
       }
@@ -40,10 +42,7 @@ export class TicketsService {
       const { tiers } = computeTicketPricing(project);
       const totalCost = computeTicketPurchaseCost(tiers, project.ticketsSold, dto.quantity);
 
-      const wallet = await manager.findOne(Wallet, { where: { userId } });
-      if (!wallet) {
-        throw new BadRequestException('Wallet not found');
-      }
+      const wallet = await lockWallet(manager, userId);
       // Invest credit (earned from work, non-withdrawable) is spent first, then
       // the withdrawable balance covers the rest.
       const credit = parseFloat(wallet.investCredit);
@@ -158,7 +157,13 @@ export class TicketsService {
         throw new BadRequestException('Asking price must be positive');
       }
 
-      const tickets = await manager.find(Ticket, { where: { id: In(ticketIds) } });
+      // Locked in id order: listing splits a lot by rewriting its quantity and cost basis, so
+      // two listings racing over the same lot would each split from the same starting figures.
+      const tickets = await manager.find(Ticket, {
+        where: { id: In(ticketIds) },
+        order: { id: 'ASC' },
+        lock: { mode: 'pessimistic_write' },
+      });
       if (tickets.length !== ticketIds.length) {
         throw new NotFoundException('Ticket not found');
       }
@@ -226,20 +231,28 @@ export class TicketsService {
     });
   }
 
+  // Runs in a transaction holding the listing row so it cannot cross with a buyer taking the
+  // same listing: read outside one, this could re-save a stale row over a completed sale and
+  // hand the seller back a ticket they had already been paid for.
   async cancelListing(ticketId: string, ownerId: string): Promise<Ticket> {
-    const ticket = await this.dataSource.getRepository(Ticket).findOne({ where: { id: ticketId } });
-    if (!ticket) {
-      throw new NotFoundException('Ticket not found');
-    }
-    if (ticket.ownerId !== ownerId) {
-      throw new ForbiddenException('Not your ticket');
-    }
-    if (ticket.status !== TicketStatus.LISTED_FOR_SALE) {
-      throw new BadRequestException('Ticket is not listed for sale');
-    }
-    ticket.status = TicketStatus.ACTIVE;
-    ticket.askingPrice = null;
-    return this.dataSource.getRepository(Ticket).save(ticket);
+    return this.dataSource.transaction(async (manager) => {
+      const ticket = await manager.findOne(Ticket, {
+        where: { id: ticketId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!ticket) {
+        throw new NotFoundException('Ticket not found');
+      }
+      if (ticket.ownerId !== ownerId) {
+        throw new ForbiddenException('Not your ticket');
+      }
+      if (ticket.status !== TicketStatus.LISTED_FOR_SALE) {
+        throw new BadRequestException('Ticket is not listed for sale');
+      }
+      ticket.status = TicketStatus.ACTIVE;
+      ticket.askingPrice = null;
+      return manager.save(ticket);
+    });
   }
 
   async findListingsByProject(projectId: string) {
@@ -264,9 +277,19 @@ export class TicketsService {
   // a new ACTIVE ticket for the buyer, and the remainder stays LISTED_FOR_SALE under the seller.
   async buyListing(listingId: string, buyerId: string, quantity?: number): Promise<Ticket> {
     return this.dataSource.transaction(async (manager) => {
-      const ticket = await manager.findOne(Ticket, { where: { id: listingId } });
-      if (!ticket || ticket.status !== TicketStatus.LISTED_FOR_SALE || !ticket.askingPrice) {
-        throw new BadRequestException('Listing not found');
+      // FOR UPDATE so two buyers cannot both pass the status check on the same listing, and
+      // so a seller cancelling mid-sale queues behind the transfer instead of overwriting it.
+      const ticket = await manager.findOne(Ticket, {
+        where: { id: listingId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!ticket) {
+        throw new NotFoundException('Listing not found');
+      }
+      // Separate from the 404 above so a buyer who lost the race to another buyer, or to the
+      // seller cancelling, is told the listing went rather than that it never existed.
+      if (ticket.status !== TicketStatus.LISTED_FOR_SALE || !ticket.askingPrice) {
+        throw new BadRequestException('This listing is no longer for sale');
       }
       if (ticket.ownerId === buyerId) {
         throw new BadRequestException('Cannot buy your own listing');
@@ -283,18 +306,15 @@ export class TicketsService {
         ? totalAskingPrice
         : Math.round(((totalAskingPrice / ticket.quantity) * purchaseQuantity) * 100) / 100;
 
-      const buyerWallet = await manager.findOne(Wallet, { where: { userId: buyerId } });
-      if (!buyerWallet) {
-        throw new BadRequestException('Wallet not found');
-      }
+      // Both sides locked together in a fixed order, so two resales running in opposite
+      // directions between the same pair cannot each hold what the other waits for.
+      const wallets = await lockWallets(manager, [buyerId, ticket.ownerId]);
+      const buyerWallet = wallets.get(buyerId)!;
+      const sellerWallet = wallets.get(ticket.ownerId)!;
+
       const buyerBalance = parseFloat(buyerWallet.balance);
       if (buyerBalance < price) {
         throw new BadRequestException('Insufficient wallet balance');
-      }
-
-      const sellerWallet = await manager.findOne(Wallet, { where: { userId: ticket.ownerId } });
-      if (!sellerWallet) {
-        throw new BadRequestException('Seller wallet not found');
       }
 
       buyerWallet.balance = (buyerBalance - price).toFixed(2);

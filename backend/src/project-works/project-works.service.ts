@@ -12,7 +12,6 @@ import { WorkApplication } from './entities/work-application.entity';
 import { WorkReview } from './entities/work-review.entity';
 import { WorkMilestone } from './entities/work-milestone.entity';
 import { Project } from '../projects/entities/project.entity';
-import { Wallet } from '../wallets/entities/wallet.entity';
 import { ProjectExpense } from '../project-finance/entities/project-expense.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { CreateWorkDto } from './dto/create-work.dto';
@@ -28,6 +27,7 @@ import {
   WorkStatus,
 } from '../common/enums';
 import { EntityManager } from 'typeorm';
+import { lockProject, lockWallet } from '../common/row-locks';
 
 @Injectable()
 export class ProjectWorksService {
@@ -48,8 +48,7 @@ export class ProjectWorksService {
   // Pays a slice of a work's escrow to the assignee, into the right bucket:
   // cash to the withdrawable balance, tickets to the invest credit.
   private async payToWorker(manager: EntityManager, work: ProjectWork, amount: number) {
-    const wallet = await manager.findOne(Wallet, { where: { userId: work.assigneeId! } });
-    if (!wallet) throw new NotFoundException('Worker wallet not found');
+    const wallet = await lockWallet(manager, work.assigneeId!, 'Worker wallet not found');
     if (work.assigneePayment === WorkPaymentType.TICKETS) {
       wallet.investCredit = (parseFloat(wallet.investCredit) + amount).toFixed(2);
     } else {
@@ -303,11 +302,15 @@ export class ProjectWorksService {
     agreedAmount?: number,
   ) {
     return this.dataSource.transaction(async (manager) => {
-      const project = await manager.findOne(Project, { where: { id: projectId } });
-      if (!project) throw new NotFoundException('Project not found');
+      // Project before work, the order every path in this service takes, so two of them
+      // running at once queue up instead of deadlocking on each other's row.
+      const project = await lockProject(manager, projectId);
       if (project.founderId !== userId) throw new ForbiddenException('Not your project');
 
-      const work = await manager.findOne(ProjectWork, { where: { id: workId, projectId } });
+      const work = await manager.findOne(ProjectWork, {
+        where: { id: workId, projectId },
+        lock: { mode: 'pessimistic_write' },
+      });
       if (!work) throw new NotFoundException('Work not found');
       if (work.status !== WorkStatus.OPEN) throw new ConflictException('This work already has an assignee');
 
@@ -366,8 +369,7 @@ export class ProjectWorksService {
   // the worker's withdrawable balance.
   async accept(projectId: string, workId: string, userId: string) {
     return this.dataSource.transaction(async (manager) => {
-      const project = await manager.findOne(Project, { where: { id: projectId } });
-      if (!project) throw new NotFoundException('Project not found');
+      const project = await lockProject(manager, projectId);
       if (project.founderId !== userId) throw new ForbiddenException('Not your project');
 
       const work = await manager.findOne(ProjectWork, {
@@ -392,11 +394,15 @@ export class ProjectWorksService {
   // project's spendable balance and the work reopens.
   async cancel(projectId: string, workId: string, userId: string) {
     return this.dataSource.transaction(async (manager) => {
-      const project = await manager.findOne(Project, { where: { id: projectId } });
-      if (!project) throw new NotFoundException('Project not found');
+      // Allowed on a deleted project: cancelling returns escrow to the project rather than
+      // taking anything from anyone, and a work left frozen in a deleted project is worse.
+      const project = await lockProject(manager, projectId, { allowDeleted: true });
       if (project.founderId !== userId) throw new ForbiddenException('Not your project');
 
-      const work = await manager.findOne(ProjectWork, { where: { id: workId, projectId } });
+      const work = await manager.findOne(ProjectWork, {
+        where: { id: workId, projectId },
+        lock: { mode: 'pessimistic_write' },
+      });
       if (!work) throw new NotFoundException('Work not found');
       if (work.status === WorkStatus.ACCEPTED) throw new ConflictException('An accepted work cannot be cancelled');
 
@@ -509,6 +515,14 @@ export class ProjectWorksService {
   // Moderator resolves: pay the worker or refund the project's spendable balance.
   async resolveDispute(workId: string, releaseToWorker: boolean) {
     return this.dataSource.transaction(async (manager) => {
+      // Unlocked read purely to learn which project to lock first — the work is then taken
+      // again under a lock below, so nothing is decided on this copy.
+      const unlocked = await manager.findOne(ProjectWork, { where: { id: workId } });
+      if (!unlocked) throw new NotFoundException('Work not found');
+      // A dispute already in flight must stay resolvable even if the project was deleted
+      // underneath it — either outcome settles the escrow instead of leaving it frozen.
+      const project = await lockProject(manager, unlocked.projectId, { allowDeleted: true });
+
       const work = await manager.findOne(ProjectWork, {
         where: { id: workId },
         lock: { mode: 'pessimistic_write' },
@@ -523,11 +537,8 @@ export class ProjectWorksService {
         work.acceptedAt = new Date();
       } else {
         if (escrow > 0) {
-          const project = await manager.findOne(Project, { where: { id: work.projectId } });
-          if (project) {
-            project.spendableBalance = (parseFloat(project.spendableBalance) + escrow).toFixed(2);
-            await manager.save(project);
-          }
+          project.spendableBalance = (parseFloat(project.spendableBalance) + escrow).toFixed(2);
+          await manager.save(project);
         }
         work.status = WorkStatus.CANCELLED;
       }
@@ -575,8 +586,7 @@ export class ProjectWorksService {
   // the last milestone is accepted, the whole work is accepted.
   async acceptMilestone(projectId: string, workId: string, milestoneId: string, userId: string) {
     return this.dataSource.transaction(async (manager) => {
-      const project = await manager.findOne(Project, { where: { id: projectId } });
-      if (!project) throw new NotFoundException('Project not found');
+      const project = await lockProject(manager, projectId);
       if (project.founderId !== userId) throw new ForbiddenException('Not your project');
 
       const work = await manager.findOne(ProjectWork, {

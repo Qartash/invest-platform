@@ -13,7 +13,7 @@ import { ProjectFinancialReport } from './entities/project-financial-report.enti
 import { ReportPayout } from './entities/report-payout.entity';
 import { Project } from '../projects/entities/project.entity';
 import { Ticket } from '../tickets/entities/ticket.entity';
-import { Wallet } from '../wallets/entities/wallet.entity';
+import { lockWallets } from '../common/row-locks';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { ProjectsService } from '../projects/projects.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
@@ -308,11 +308,25 @@ export class ProjectFinanceService {
       const payoutTotalCents = holders.reduce((sum, holder) => sum + holder.amountCents, 0n);
       const payoutTotal = Number(payoutTotalCents) / 100;
 
+      // The shares are computed against totalTickets, so they can only add up to more than the
+      // offered slice of the profit if more tickets exist than the project ever issued. That
+      // should be impossible now the purchase path locks the project row, but paying out of a
+      // ledger that says otherwise takes real money out of the founder's wallet — a five-ticket
+      // project carrying twelve tickets billed 2.4x the whole profit. Refuse and let a human
+      // reconcile instead of overpaying.
+      const maxPayableCents = (netCents * equityHundredths) / 10000n;
+      if (payoutTotalCents > maxPayableCents) {
+        throw new ConflictException(
+          'Ticket holdings for this project exceed its issued tickets; dividends are on hold until the ledger is reconciled',
+        );
+      }
+
       if (payoutTotalCents > 0n) {
-        const founderWallet = await manager.findOne(Wallet, { where: { userId: project.founderId } });
-        if (!founderWallet) {
-          throw new BadRequestException('Founder wallet not found');
-        }
+        // Founder and every holder taken together, in one fixed order, before any of them is
+        // touched: the payout is a read-modify-write on each balance, and a holder being paid
+        // by two projects at once would otherwise lose one of the two credits.
+        const wallets = await lockWallets(manager, [project.founderId, ...holders.map((h) => h.ownerId)]);
+        const founderWallet = wallets.get(project.founderId)!;
         const founderBalance = parseFloat(founderWallet.balance);
         if (founderBalance < payoutTotal) {
           throw new BadRequestException('Insufficient wallet balance to pay dividends');
@@ -323,10 +337,7 @@ export class ProjectFinanceService {
         for (const holder of holders) {
           const amount = Number(holder.amountCents) / 100;
 
-          let wallet = await manager.findOne(Wallet, { where: { userId: holder.ownerId } });
-          if (!wallet) {
-            wallet = manager.create(Wallet, { userId: holder.ownerId, balance: '0', currency: 'AMD' });
-          }
+          const wallet = wallets.get(holder.ownerId)!;
           wallet.balance = (parseFloat(wallet.balance) + amount).toFixed(2);
           await manager.save(wallet);
 

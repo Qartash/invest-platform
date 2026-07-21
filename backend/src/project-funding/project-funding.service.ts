@@ -10,11 +10,11 @@ import { DataSource, Repository } from 'typeorm';
 import { FundReleaseRequest } from './entities/fund-release-request.entity';
 import { Project } from '../projects/entities/project.entity';
 import { ProjectBudgetItem } from '../projects/entities/project-budget-item.entity';
-import { Wallet } from '../wallets/entities/wallet.entity';
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { RequestReleaseDto } from './dto/request-release.dto';
 import { DecideReleaseDto } from './dto/decide-release.dto';
 import { FundReleaseStatus, ProjectStatus, TicketStatus } from '../common/enums';
+import { lockProject, lockWallet, lockWallets } from '../common/row-locks';
 
 @Injectable()
 export class ProjectFundingService {
@@ -101,8 +101,7 @@ export class ProjectFundingService {
         return manager.save(request);
       }
 
-      const project = await manager.findOne(Project, { where: { id: request.projectId } });
-      if (!project) throw new NotFoundException('Project not found');
+      const project = await lockProject(manager, request.projectId);
       const amount = parseFloat(request.amount);
       if (parseFloat(project.treasuryBalance) < amount) {
         throw new BadRequestException('Project treasury does not hold enough funds for this stage yet');
@@ -129,14 +128,12 @@ export class ProjectFundingService {
   async withdrawToWallet(projectId: string, userId: string, amount: number) {
     if (!amount || amount <= 0) throw new BadRequestException('Amount must be positive');
     return this.dataSource.transaction(async (manager) => {
-      const project = await manager.findOne(Project, { where: { id: projectId } });
-      if (!project) throw new NotFoundException('Project not found');
+      const project = await lockProject(manager, projectId);
       if (project.founderId !== userId) throw new ForbiddenException('Not your project');
       if (parseFloat(project.spendableBalance) < amount) {
         throw new BadRequestException('Not enough released funds');
       }
-      const wallet = await manager.findOne(Wallet, { where: { userId } });
-      if (!wallet) throw new NotFoundException('Wallet not found');
+      const wallet = await lockWallet(manager, userId);
 
       project.spendableBalance = (parseFloat(project.spendableBalance) - amount).toFixed(2);
       wallet.balance = (parseFloat(wallet.balance) + amount).toFixed(2);
@@ -172,14 +169,12 @@ export class ProjectFundingService {
       let refundedCents = 0n;
       const refunds: Array<{ userId: string; amount: number }> = [];
       if (treasuryCents > 0n && totalQty > 0) {
+        const wallets = await lockWallets(manager, [...byHolder.keys()]);
         for (const [userId, qty] of byHolder) {
           const share = (treasuryCents * BigInt(qty)) / BigInt(totalQty);
           if (share <= 0n) continue;
           const amount = Number(share) / 100;
-          let wallet = await manager.findOne(Wallet, { where: { userId } });
-          if (!wallet) {
-            wallet = manager.create(Wallet, { userId, balance: '0', currency: 'AMD' });
-          }
+          const wallet = wallets.get(userId)!;
           wallet.balance = (parseFloat(wallet.balance) + amount).toFixed(2);
           await manager.save(wallet);
           refundedCents += share;
