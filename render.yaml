@@ -1,4 +1,22 @@
 services:
+  # The web build, mainly so iPhone users have something to open at all: Apple allows no
+  # sideloading, and TestFlight needs a paid account we do not have yet.
+  - type: web
+    name: invest-platform-web
+    runtime: static
+    rootDir: mobile
+    buildCommand: npm ci && npx expo export --platform web
+    staticPublishPath: ./dist
+    # The app routes on the client, so every path has to be handed the same document —
+    # without this a refresh anywhere but "/" is a 404 from the CDN.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
+        value: https://invest-platform-api-7msz.onrender.com/api
+
   - type: web
     name: invest-platform-api
     runtime: node
