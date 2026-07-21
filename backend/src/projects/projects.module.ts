@@ -8,11 +8,13 @@ import { ProjectTeamMember } from './entities/project-team-member.entity';
 import { ProjectsService } from './projects.service';
 import { ProjectsController } from './projects.controller';
 import { TicketsModule } from '../tickets/tickets.module';
+import { ProjectWorksModule } from '../project-works/project-works.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Project, ProjectReviewLog, ProjectAttachment, ProjectBudgetItem, ProjectTeamMember]),
     TicketsModule,
+    ProjectWorksModule,
   ],
   providers: [ProjectsService],
   controllers: [ProjectsController],

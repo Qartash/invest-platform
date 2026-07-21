@@ -97,6 +97,12 @@ export class ProjectWorksService {
     return parseFloat(application?.offeredPrice ?? work.price);
   }
 
+  // Just the tally, for the project card and header — listWorks would drag in applications,
+  // reviews and the caller's own application to answer a question that is one number.
+  countWorks(projectId: string) {
+    return this.worksRepository.count({ where: { projectId } });
+  }
+
   async listWorks(projectId: string, currentUserId?: string) {
     const works = await this.worksRepository.find({ where: { projectId }, order: { createdAt: 'DESC' } });
     if (works.length === 0) return [];

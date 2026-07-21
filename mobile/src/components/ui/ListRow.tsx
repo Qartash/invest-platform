@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { radius, spacing, tabularNums, ThemeColors, typography, useThemeStyles } from '../../theme';
+import { radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
+import { Icon, IconName } from './Icon';
 
 interface RowProps {
   label: string;
@@ -11,16 +12,17 @@ interface RowProps {
   /** Replaces `value` when the right side needs a Pill, button or custom node. */
   right?: React.ReactNode;
   /**
-   * Emoji shown in a tinted plaque. Only pass one where the icon carries meaning the label
+   * Glyph shown in a tinted plaque. Only pass one where the icon carries meaning the label
    * doesn't already — a row labelled "Риск" does not need a warning sign next to it.
    */
-  icon?: string;
+  icon?: IconName;
   onPress?: () => void;
   onHintPress?: () => void;
 }
 
 export function ListRow({ label, sublabel, value, right, icon, onPress, onHintPress }: RowProps) {
   const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const tappable = !!onPress;
   // On a read-only row the value is the thing being read, so the label steps back. A row you
   // can tap is a destination and its label is the point — it keeps full weight even when it
@@ -32,7 +34,7 @@ export function ListRow({ label, sublabel, value, right, icon, onPress, onHintPr
     <>
       {icon && (
         <View style={styles.plaque}>
-          <Text style={styles.plaqueIcon}>{icon}</Text>
+          <Icon name={icon} color={colors.primary} size={17} />
         </View>
       )}
       <View style={styles.labelBlock}>
@@ -113,9 +115,6 @@ const createStyles = (c: ThemeColors) =>
       backgroundColor: c.primarySoft,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    plaqueIcon: {
-      fontSize: 15,
     },
     labelBlock: {
       flex: 1,

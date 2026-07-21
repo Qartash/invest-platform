@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Image,
+  LayoutChangeEvent,
   Linking,
   Platform,
   Pressable,
@@ -24,7 +26,14 @@ import {
 import { buyTicket, buyListing } from '../../api/tickets';
 import { fetchWallet } from '../../api/wallet';
 import { resolveMediaUrl } from '../../api/client';
-import { Project, ProjectAttachment, ProjectPurchase, ProjectTeamMember, TicketListing, Wallet } from '../../types';
+import {
+  Project,
+  ProjectAttachment,
+  ProjectPurchase,
+  ProjectTeamMember,
+  TicketListing,
+  Wallet,
+} from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import {
   computeMaxAffordableTickets,
@@ -47,7 +56,7 @@ import { RichTextView } from '../../components/RichTextView';
 import { BuyListingModal } from '../../components/BuyListingModal';
 import { RoundLadder } from '../../components/RoundLadder';
 import { TeamMemberCard } from '../../components/TeamMemberCard';
-import { Card, HeroScrim, ListGroup, ListRow, Pill, SectionHeader, SegmentedTabs } from '../../components/ui';
+import { Card, HeroScrim, Icon, ListGroup, ListRow, Pill, SectionHeader, SegmentedTabs } from '../../components/ui';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
 
 // Raw DOM tag — real YouTube embed on web; native shows an "open in YouTube" link instead.
@@ -60,6 +69,10 @@ const STICKY_TABS_INDEX = 2;
 // How far the funding card rides up over the cover. The hero's own bottom padding has to
 // clear it, or the card lands on top of the founder line.
 const FUNDING_CARD_OVERLAP = 20;
+
+// The tab bar is sticky, so a scroll that lands exactly on the resale header would park it
+// underneath. This is roughly the bar's height plus a breath of air above the section.
+const STICKY_TABS_CLEARANCE = 64;
 
 type TabKey = 'about' | 'team' | 'market' | 'activity';
 
@@ -116,9 +129,58 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   const [hint, setHint] = useState<{ title: string; description: string } | null>(null);
 
   const showHint = (title: string, description: string) => setHint({ title, description });
-  // Resale lives on the Market tab now, so pointing the user at it is a tab switch rather
-  // than the measured scroll the flat layout needed.
-  const goToResale = () => setTab('market');
+
+  // Resale lives on the Market tab, so reaching it is a tab switch *and* a scroll — landing
+  // on the tab alone drops the user at the price chart with no sign of what they tapped for.
+  const scrollRef = useRef<ScrollView>(null);
+  const marketPanelY = useRef(0);
+  const resaleSectionY = useRef(0);
+  // Set when the tap happened on another tab: the market panel has not been laid out yet, so
+  // the scroll has to wait for the resale block's onLayout to report where it landed.
+  const [resaleScrollPending, setResaleScrollPending] = useState(false);
+  const resaleFlash = useRef(new Animated.Value(0)).current;
+
+  const revealResale = useCallback(() => {
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, marketPanelY.current + resaleSectionY.current - STICKY_TABS_CLEARANCE),
+      animated: true,
+    });
+    // Two pulses: enough to catch the eye at the end of the scroll without turning into a
+    // blinking banner the user has to wait out.
+    resaleFlash.setValue(0);
+    Animated.sequence([
+      Animated.delay(220),
+      Animated.timing(resaleFlash, { toValue: 1, duration: 260, useNativeDriver: false }),
+      Animated.timing(resaleFlash, { toValue: 0, duration: 260, useNativeDriver: false }),
+      Animated.timing(resaleFlash, { toValue: 1, duration: 260, useNativeDriver: false }),
+      Animated.timing(resaleFlash, { toValue: 0, duration: 420, useNativeDriver: false }),
+    ]).start();
+  }, [resaleFlash]);
+
+  const goToResale = () => {
+    if (tab === 'market') {
+      revealResale();
+    } else {
+      setTab('market');
+      setResaleScrollPending(true);
+    }
+  };
+
+  // The resale block reports its offset inside the panel, the panel its offset inside the
+  // scroll content; the target is their sum. The pending scroll is consumed on the panel's
+  // event rather than the block's because layout propagates bottom-up — by the time the
+  // parent reports, both halves of the sum are known.
+  const handleResaleLayout = (event: LayoutChangeEvent) => {
+    resaleSectionY.current = event.nativeEvent.layout.y;
+  };
+
+  const handleMarketPanelLayout = (event: LayoutChangeEvent) => {
+    marketPanelY.current = event.nativeEvent.layout.y;
+    if (resaleScrollPending) {
+      setResaleScrollPending(false);
+      revealResale();
+    }
+  };
 
   const load = useCallback(() => {
     fetchProject(projectId).then(setProject);
@@ -130,7 +192,10 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   }, [projectId]);
 
   useEffect(() => {
-    if (route.params.scrollToResale) setTab('market');
+    if (route.params.scrollToResale) {
+      setTab('market');
+      setResaleScrollPending(true);
+    }
   }, [route.params.scrollToResale]);
 
   useFocusEffect(load);
@@ -186,6 +251,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   const currentPrice = pricing.currentTicketPrice;
   const ticketsLeft = project.totalTickets - project.ticketsSold;
   const hasActiveListings = project.resaleEnabled && (project.resaleTicketsCount ?? 0) > 0;
+  const worksCount = project.worksCount ?? 0;
   const collected = parseFloat(project.collectedAmount);
   const target = parseFloat(project.targetAmount);
   const fundingProgress = target > 0 ? Math.min(collected / target, 1) : 0;
@@ -222,6 +288,19 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           date: p.purchaseDate,
         }))
       : pricing.tiers.map((tier) => ({ unitPrice: tier.price }));
+
+  // How a resale price compares to buying the same ticket from the project right now. This is
+  // the whole question a resale listing has to answer, and the asking price alone doesn't:
+  // it's a lot sum, and the round price it should be judged against is elsewhere on the page.
+  const resaleDelta = (unitPrice: number) =>
+    currentPrice > 0 ? Math.round(((unitPrice - currentPrice) / currentPrice) * 100) : 0;
+  const resaleDeltaLabel = (delta: number) =>
+    delta === 0
+      ? t('project.resaleSamePrice')
+      : delta < 0
+        ? t('project.resaleCheaper', { percent: Math.abs(delta) })
+        : t('project.resaleCostlier', { percent: delta });
+  const bestListingUnitPrice = listings.length > 0 ? Math.min(...listings.map((l) => l.unitPrice)) : null;
 
   const money = (value: number) => `${value.toLocaleString()} ${t('common.currency')}`;
   const roundedMoney = (value: number) =>
@@ -356,7 +435,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
             {attachments.map((file) => (
               <ListRow
                 key={file.id}
-                icon="📄"
+                icon="file"
                 label={file.fileName}
                 sublabel={formatFileSize(file.fileSize)}
                 onPress={() => {
@@ -372,15 +451,16 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
       <SectionHeader title={t('project.moreSection')} spaced />
       <ListGroup>
         <ListRow
-          icon="💰"
+          icon="chart"
           label={t('project.finance.title')}
           sublabel={t('project.financeSubtitle')}
           onPress={() => navigation.navigate('ProjectFinance', { projectId: project.id })}
         />
         <ListRow
-          icon="🛠️"
+          icon="wrench"
           label={t('works.title')}
           sublabel={t('project.worksSubtitle')}
+          value={worksCount > 0 ? worksCount : undefined}
           onPress={() => navigation.navigate('ProjectWorks', { projectId: project.id })}
         />
       </ListGroup>
@@ -409,7 +489,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   );
 
   const marketPanel = (
-    <View style={styles.panel}>
+    <View style={styles.panel} onLayout={handleMarketPanelLayout}>
       <SectionHeader title={t('project.priceChart')} />
       <Card>
         <TicketPriceChart points={chartPoints} isProjected={purchases.length === 0} />
@@ -433,56 +513,86 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
       {/* Sits directly on the page: its notches are painted in the background colour. */}
       <RoundLadder tiers={pricing.tiers} currentTier={pricing.currentTier} />
 
-      <SectionHeader title={t('project.resaleSection')} spaced />
-      {!project.resaleEnabled ? (
-        <Text style={styles.emptyNote}>{t('project.resaleNotAllowed')}</Text>
-      ) : (
-        <>
-          {hasActiveListings && (
-            <Card accented style={styles.resaleBanner}>
-              <View style={styles.resalePlaque}>
-                <Text style={styles.resalePlaqueIcon}>🔁</Text>
-              </View>
-              <View style={styles.resaleBannerBody}>
-                <Text style={styles.resaleBannerTitle}>
-                  {t('project.resaleBannerActive', { count: project.resaleTicketsCount })}
-                </Text>
-              </View>
-            </Card>
-          )}
-          {listings.length === 0 ? (
-            <Text style={styles.emptyNote}>{t('project.noListings')}</Text>
+      <View onLayout={handleResaleLayout}>
+        <SectionHeader title={t('project.resaleSection')} spaced />
+        <Animated.View
+          style={[
+            styles.resaleHighlight,
+            {
+              borderColor: resaleFlash.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['rgba(0, 0, 0, 0)', colors.primary],
+              }),
+              backgroundColor: resaleFlash.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['rgba(0, 0, 0, 0)', colors.primarySoft],
+              }),
+            },
+          ]}
+        >
+          {!project.resaleEnabled ? (
+            <Text style={styles.emptyNote}>{t('project.resaleNotAllowed')}</Text>
           ) : (
-            listings.map((listing) => {
-              const isOwn = listing.sellerId === currentUserId;
-              return (
-                <Card key={listing.id} accented={isOwn} style={styles.listingCard}>
-                  <View style={styles.listingInfo}>
-                    <View style={styles.listingSellerRow}>
-                      <Text style={styles.listingSeller}>{listing.sellerName}</Text>
-                      {isOwn && <Pill label={t('project.ownListing')} tone="primary" />}
-                    </View>
-                    <Text style={styles.listingMeta}>
-                      ×{listing.quantity} · {money(listing.unitPrice)}/{t('project.perUnit')}
-                    </Text>
+            <>
+              {hasActiveListings && (
+                <Card accented style={styles.resaleBanner}>
+                  <View style={styles.resalePlaque}>
+                    <Icon name="refresh" color={colors.primary} size={17} />
                   </View>
-                  <View style={styles.listingAction}>
-                    <Text style={styles.listingPrice}>{money(listing.askingPrice)}</Text>
-                    {!isOwn && (
-                      <PrimaryButton
-                        title={t('project.buyListing')}
-                        size="small"
-                        variant="outline"
-                        onPress={() => setBuyingListing(listing)}
-                      />
+                  <View style={styles.resaleBannerBody}>
+                    <Text style={styles.resaleBannerTitle}>
+                      {t('project.resaleBannerActive', { count: project.resaleTicketsCount })}
+                    </Text>
+                    {bestListingUnitPrice !== null && (
+                      <Text style={styles.resaleBannerNote}>
+                        {t('project.resaleFromPrice', { price: money(bestListingUnitPrice) })} ·{' '}
+                        <Text style={resaleDelta(bestListingUnitPrice) <= 0 ? styles.deltaGood : styles.deltaBad}>
+                          {resaleDeltaLabel(resaleDelta(bestListingUnitPrice))}
+                        </Text>
+                      </Text>
                     )}
                   </View>
                 </Card>
-              );
-            })
+              )}
+              {listings.length === 0 ? (
+                <Text style={styles.emptyNote}>{t('project.noListings')}</Text>
+              ) : (
+                listings.map((listing) => {
+                  const isOwn = listing.sellerId === currentUserId;
+                  const delta = resaleDelta(listing.unitPrice);
+                  return (
+                    <Card key={listing.id} accented={isOwn} style={styles.listingCard}>
+                      <View style={styles.listingInfo}>
+                        <View style={styles.listingSellerRow}>
+                          <Text style={styles.listingSeller}>{listing.sellerName}</Text>
+                          {isOwn && <Pill label={t('project.ownListing')} tone="primary" />}
+                        </View>
+                        <Text style={styles.listingMeta}>
+                          ×{listing.quantity} · {money(listing.unitPrice)}/{t('project.perUnit')}
+                        </Text>
+                        <Text style={[styles.listingDelta, delta <= 0 ? styles.deltaGood : styles.deltaBad]}>
+                          {resaleDeltaLabel(delta)}
+                        </Text>
+                      </View>
+                      <View style={styles.listingAction}>
+                        <Text style={styles.listingPrice}>{money(listing.askingPrice)}</Text>
+                        {!isOwn && (
+                          <PrimaryButton
+                            title={t('project.buyListing')}
+                            size="small"
+                            variant="outline"
+                            onPress={() => setBuyingListing(listing)}
+                          />
+                        )}
+                      </View>
+                    </Card>
+                  );
+                })
+              )}
+            </>
           )}
-        </>
-      )}
+        </Animated.View>
+      </View>
     </View>
   );
 
@@ -542,6 +652,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   return (
     <View style={styles.root}>
       <ScrollView
+        ref={scrollRef}
         style={styles.container}
         // The buy block is the last thing on the page now, so the content itself has to clear
         // the home indicator — there is no pinned bar below it doing that any more.
@@ -618,15 +729,35 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
                   {ticketsLeft}
                   <Text style={styles.splitValueMuted}> / {project.totalTickets}</Text>
                 </Text>
+              </View>
+            </View>
+
+            {/* Shortcuts to the two places on this page a reader most often wants next. Both
+                are counts, so they double as a signal that there is anything there at all. */}
+            {(hasActiveListings || worksCount > 0) && (
+              <View style={styles.jumpRow}>
                 {hasActiveListings && (
-                  <Pressable hitSlop={6} onPress={goToResale}>
-                    <Text style={styles.splitLink}>
-                      {t('project.resaleExtra', { count: project.resaleTicketsCount })} ›
+                  <Pressable style={styles.jumpChip} hitSlop={4} onPress={goToResale}>
+                    <Icon name="refresh" color={colors.primary} size={13} />
+                    <Text style={styles.jumpChipText}>
+                      {t('project.resaleExtra', { count: project.resaleTicketsCount })}
                     </Text>
+                    <Text style={styles.jumpChipChevron}>›</Text>
+                  </Pressable>
+                )}
+                {worksCount > 0 && (
+                  <Pressable
+                    style={styles.jumpChip}
+                    hitSlop={4}
+                    onPress={() => navigation.navigate('ProjectWorks', { projectId: project.id })}
+                  >
+                    <Icon name="wrench" color={colors.primary} size={13} />
+                    <Text style={styles.jumpChipText}>{t('project.worksCount', { count: worksCount })}</Text>
+                    <Text style={styles.jumpChipChevron}>›</Text>
                   </Pressable>
                 )}
               </View>
-            </View>
+            )}
           </Card>
         </View>
 
@@ -949,10 +1080,34 @@ const createStyles = (c: ThemeColors) =>
       fontWeight: '600',
       color: c.textMuted,
     },
-    splitLink: {
+    // Jump chips under the funding split. Outlined rather than filled: they are navigation,
+    // not another number competing with the price and the ticket count above them.
+    jumpRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: spacing.sm - 2,
+      marginTop: spacing.md - 4,
+    },
+    jumpChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs + 1,
+      paddingVertical: 5,
+      paddingLeft: spacing.sm + 2,
+      paddingRight: spacing.sm,
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surfaceSunken,
+    },
+    jumpChipText: {
       ...typography.microStrong,
       color: c.primary,
-      marginTop: 2,
+    },
+    jumpChipChevron: {
+      ...typography.captionStrong,
+      color: c.primary,
+      marginTop: -2,
     },
 
     // tabs
@@ -1024,6 +1179,14 @@ const createStyles = (c: ThemeColors) =>
       color: c.primary,
     },
 
+    // Wraps the whole resale block so the arrival flash frames what the user was sent to,
+    // not just the first card in it. Transparent until the animation paints it.
+    resaleHighlight: {
+      borderWidth: 1,
+      borderRadius: radius.lg + 3,
+      padding: spacing.xs,
+      margin: -spacing.xs,
+    },
     resaleBanner: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -1038,15 +1201,27 @@ const createStyles = (c: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    resalePlaqueIcon: {
-      fontSize: 15,
-    },
     resaleBannerBody: {
       flex: 1,
     },
     resaleBannerTitle: {
       ...typography.captionStrong,
       color: c.text,
+    },
+    resaleBannerNote: {
+      ...typography.micro,
+      color: c.textMuted,
+      marginTop: 2,
+    },
+    // Cheaper than the round price is the good outcome for a buyer, dearer the bad one —
+    // that is the reading, so it gets the semantic colours rather than a neutral grey.
+    deltaGood: {
+      color: c.success,
+      fontWeight: '700',
+    },
+    deltaBad: {
+      color: c.warning,
+      fontWeight: '700',
     },
 
     listingCard: {
@@ -1072,6 +1247,10 @@ const createStyles = (c: ThemeColors) =>
       ...typography.micro,
       ...tabularNums,
       color: c.textMuted,
+      marginTop: 2,
+    },
+    listingDelta: {
+      ...typography.micro,
       marginTop: 2,
     },
     listingAction: {

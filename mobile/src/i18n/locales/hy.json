@@ -31,7 +31,21 @@
     "registerButton": "Գրանցվել",
     "noAccount": "Չունե՞ք հաշիվ",
     "haveAccount": "Արդեն ունե՞ք հաշիվ",
-    "invalidCredentials": "Սխալ օգտանուն կամ գաղտնաբառ"
+    "invalidCredentials": "Սխալ օգտանուն, էլ. հասցե կամ գաղտնաբառ",
+    "identifier": "Օգտանուն կամ էլ. հասցե",
+    "loginTitle": "Բարի վերադարձ",
+    "loginSubtitle": "Մուտք գործեք՝ ներդրումները շարունակելու համար",
+    "forgotPassword": "Մոռացե՞լ եք գաղտնաբառը",
+    "registerTitle": "Ստեղծել հաշիվ",
+    "registerSubtitle": "Կտևի մեկ րոպեից պակաս",
+    "passwordHint": "Նվազագույնը 8 նիշ",
+    "emailTaken": "Այս էլ. հասցեն արդեն գրանցված է",
+    "terms": "Գրանցվելով՝ դուք ընդունում եք պայմանները և գաղտնիության քաղաքականությունը",
+    "or": "կամ",
+    "orWithEmail": "կամ էլ. հասցեով",
+    "continueWithGoogle": "Շարունակել Google-ով",
+    "signUpWithGoogle": "Գրանցվել Google-ով",
+    "googleFailed": "Google-ով մուտքը չհաջողվեց"
   },
   "home": {
     "title": "Նախագծեր",
@@ -240,6 +254,11 @@
     "annualReturn": "Տարեկան եկամտաբերություն",
     "statusRaising": "Ընթանում է հավաքագրումը",
     "resaleExtra": "+{{count}} վերավաճառքում",
+    "worksCount": "Աշխատանքներ · {{count}}",
+    "resaleFromPrice": "{{price}}-ից մեկ բաժնետոմսի համար",
+    "resaleCheaper": "{{percent}}%-ով էժան հիմնական առաջարկից",
+    "resaleCostlier": "{{percent}}%-ով թանկ հիմնական առաջարկից",
+    "resaleSamePrice": "հիմնական առաջարկի գնով",
     "financeSubtitle": "Եկամուտներ, ծախսեր, վճարումներ",
     "worksSubtitle": "Նախագծի միանվագ վճարովի առաջադրանքներ",
     "roundSold": "Փուլ {{round}} · վաճառված է {{sold}} / {{total}}",
@@ -270,7 +289,11 @@
     "showPurchases": "Ցույց տալ գնումները",
     "hidePurchases": "Թաքցնել",
     "sellQuantityLabel": "Վաճառքի քանակ",
-    "availableToSell": "Հասանելի է՝ {{max}}"
+    "availableToSell": "Հասանելի է՝ {{max}}",
+    "openProject": "Բացել նախագիծը",
+    "statEntryPrice": "Մուտքի գին",
+    "statHeld": "Պահման ժամկետ",
+    "cancelListingShort": "Հանել"
   },
   "wallet": {
     "title": "Դրամապանակ",
@@ -536,7 +559,14 @@
     "teamRemoveConfirm": "Հեռացնե՞լ այս մասնակցին թիմից",
     "teamMoveUp": "Վերև",
     "teamMoveDown": "Ներքև",
-    "teamMemberIncomplete": "Լրացրեք անունը և դերը, այլապես մասնակիցը չի պահպանվի"
+    "teamMemberIncomplete": "Լրացրեք անունը և դերը, այլապես մասնակիցը չի պահպանվի",
+    "navFinance": "Ֆինանսներ",
+    "navWorks": "Աշխատանքներ",
+    "previewProject": "Բացել որպես ներդրող",
+    "statEquity": "Բաժնեմաս",
+    "diffExpand": "Ցույց տալ ևս {{count}}",
+    "diffCollapse": "Ծալել",
+    "verificationRequiredShort": "Պահանջվում է հաստատված պրոֆիլ (KYC)"
   },
   "works": {
     "title": "Աշխատանքներ",

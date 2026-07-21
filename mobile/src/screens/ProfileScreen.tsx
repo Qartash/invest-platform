@@ -119,7 +119,7 @@ export function ProfileScreen({ navigation }: Props) {
       <SectionHeader title={t('profile.financeSection')} spaced />
       <ListGroup>
         <ListRow
-          icon="💰"
+          icon="wallet"
           label={t('wallet.title')}
           sublabel={
             investCredit > 0 ? `${t('wallet.investCredit')}: ${money(investCredit)}` : t('profile.walletSubtitle')
@@ -128,14 +128,14 @@ export function ProfileScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('Wallet')}
         />
         <ListRow
-          icon="📊"
+          icon="briefcase"
           label={t('portfolio.title')}
           sublabel={t('profile.portfolioSubtitle')}
           right={<Text style={styles.rowMoney}>{money(portfolio?.summary.totalCurrentValue)}</Text>}
           onPress={() => navigation.navigate('Portfolio')}
         />
         <ListRow
-          icon="📈"
+          icon="trendUp"
           label={t('reports.title')}
           sublabel={t('profile.reportsSubtitle')}
           onPress={() => navigation.navigate('Reports')}

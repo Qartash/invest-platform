@@ -31,6 +31,7 @@ import { isRichTextEmpty } from '../../utils/richText';
 import { PRIORITY_LEVELS, priorityColors } from '../../utils/priority';
 import { LANGUAGE_LABELS } from '../../i18n';
 import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
+import { Icon } from '../../components/ui';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { TicketPriceChart } from '../../components/TicketPriceChart';
 import { showAlert } from '../../utils/alert';
@@ -356,8 +357,9 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
                 if (url) Linking.openURL(url);
               }}
             >
+              <Icon name="file" color={colors.textMuted} size={15} />
               <Text style={styles.attachmentName} numberOfLines={1}>
-                📄 {file.fileName}
+                {file.fileName}
               </Text>
               <Text style={styles.attachmentMeta}>{formatFileSize(file.fileSize)}</Text>
             </Pressable>
@@ -652,6 +654,7 @@ const createStyles = (c: ThemeColors) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      gap: spacing.xs + 2,
       paddingVertical: spacing.xs,
       borderTopWidth: 1,
       borderTopColor: c.border,

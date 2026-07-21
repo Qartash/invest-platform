@@ -4,8 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { Holding } from '../types';
 import { getLocalizedText } from '../utils/localized';
 import { formatDate } from '../utils/date';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
-import { PrimaryButton } from './PrimaryButton';
+import { radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../theme';
+import { ActionSheet, ActionSheetItem, DisclosureRow, Icon, Pill, StatStrip } from './ui';
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -17,133 +17,142 @@ interface Props {
   cancellingId?: string | null;
 }
 
+// The investor's side of a project, built to the same rules as OwnedProjectCard: headline
+// number, one stat band, secondary actions behind "…". There is no hero here because a
+// holding carries no cover image — and because what matters on this tab is the money.
 export function HoldingCard({ holding, onPressTitle, onSellPress, onCancelListing, cancellingId }: Props) {
   const styles = useThemeStyles(createStyles);
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
-  const [expanded, setExpanded] = useState(false);
+  const [lotsOpen, setLotsOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const heldDays = Math.max(0, Math.floor((Date.now() - new Date(holding.purchaseDate).getTime()) / MS_PER_DAY));
   const unitPrice = holding.quantity > 0 ? holding.purchasePrice / holding.quantity : 0;
-
   const isPositive = holding.returnAmount >= 0;
   const returnColor = isPositive ? colors.success : colors.danger;
-  const returnBg = isPositive ? colors.successSoft : colors.dangerSoft;
+  const sign = isPositive ? '+' : '';
+  const listed = holding.status === 'listed_for_sale';
 
-  const body = (
-    <>
-      <View style={styles.titleRow}>
+  const menuItems: ActionSheetItem[] = [];
+  if (onPressTitle) {
+    menuItems.push({ key: 'open', label: t('portfolio.openProject'), icon: 'eye', onPress: onPressTitle });
+  }
+  if (holding.resaleEnabled && holding.status === 'active') {
+    menuItems.push({
+      key: 'sell',
+      label: t('portfolio.sellTicket'),
+      icon: 'tag',
+      onPress: () => onSellPress(holding),
+    });
+  }
+
+  return (
+    <View style={styles.card}>
+      <Pressable onPress={onPressTitle} disabled={!onPressTitle} style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>
           {getLocalizedText(holding.projectTitle, i18n.language)}
         </Text>
-        <View style={[styles.returnBadge, { backgroundColor: returnBg }]}>
-          <Text style={[styles.returnBadgeText, { color: returnColor }]}>
-            {isPositive ? '+' : ''}
-            {holding.returnPercent.toFixed(1)}%
-          </Text>
-        </View>
-      </View>
+        <Pill
+          label={`${sign}${holding.returnPercent.toFixed(1)}%`}
+          tone={isPositive ? 'success' : 'danger'}
+        />
+        {menuItems.length > 0 && (
+          <Pressable
+            hitSlop={10}
+            onPress={() => setMenuOpen(true)}
+            style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
+          >
+            <Icon name="dots" size={16} color={colors.textMuted} />
+          </Pressable>
+        )}
+      </Pressable>
 
       <View style={styles.heroRow}>
         <Text style={styles.heroValue}>
           {holding.currentValue.toLocaleString()} {t('common.currency')}
         </Text>
         <Text style={[styles.heroDelta, { color: returnColor }]}>
-          {isPositive ? '+' : ''}
-          {holding.returnAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })} {t('common.currency')}
+          {sign}
+          {holding.returnAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
         </Text>
       </View>
 
-      <View style={styles.statRow}>
-        <View style={styles.stat}>
-          <Text style={styles.statIcon}>🎟️</Text>
-          <Text style={styles.statText}>x{holding.quantity}</Text>
-        </View>
-        <View style={styles.stat}>
-          <Text style={styles.statIcon}>🏷️</Text>
-          <Text style={styles.statText}>
-            {unitPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}/{t('project.perUnit')}
+      <StatStrip
+        bounded
+        stats={[
+          { label: t('home.statTickets'), value: `×${holding.quantity}` },
+          {
+            label: t('portfolio.statEntryPrice'),
+            value: unitPrice.toLocaleString(undefined, { maximumFractionDigits: 0 }),
+          },
+          { label: t('portfolio.statHeld'), value: t('home.daysShort', { days: heldDays }) },
+        ]}
+      />
+
+      <View style={styles.footerRow}>
+        <Text style={styles.footerText} numberOfLines={1}>
+          {t('portfolio.totalInvested')} {holding.purchasePrice.toLocaleString()} ·{' '}
+          {formatDate(holding.purchaseDate, i18n.language)}
+        </Text>
+        {holding.dividendsReceived > 0 && (
+          <Text style={styles.dividends} numberOfLines={1}>
+            {t('portfolio.dividendsReceived')} +
+            {holding.dividendsReceived.toLocaleString(undefined, { maximumFractionDigits: 0 })}
           </Text>
-        </View>
-        <View style={styles.stat}>
-          <Text style={styles.statIcon}>📅</Text>
-          <Text style={styles.statText}>{t('portfolio.heldForDays', { days: heldDays })}</Text>
-        </View>
+        )}
       </View>
-      <Text style={styles.investedNote}>
-        {t('portfolio.totalInvested')}: {holding.purchasePrice.toLocaleString()} {t('common.currency')} ·{' '}
-        {formatDate(holding.purchaseDate, i18n.language)}
-      </Text>
-      {holding.dividendsReceived > 0 && (
-        <Text style={styles.dividendNote}>
-          {t('portfolio.dividendsReceived')}: +
-          {holding.dividendsReceived.toLocaleString(undefined, { maximumFractionDigits: 2 })} {t('common.currency')}
-        </Text>
-      )}
-    </>
-  );
 
-  return (
-    <View style={styles.card}>
-      {onPressTitle ? <Pressable onPress={onPressTitle}>{body}</Pressable> : body}
+      {listed && (
+        <View style={styles.listedRow}>
+          <Icon name="tag" size={14} color={colors.warning} />
+          <Text style={styles.listedText} numberOfLines={1}>
+            {t('portfolio.listedForSale', {
+              price: (holding.askingPrice ?? 0).toLocaleString(),
+              currency: t('common.currency'),
+            })}
+          </Text>
+          <Pressable
+            onPress={() => onCancelListing(holding.ticketId)}
+            disabled={cancellingId === holding.ticketId}
+            style={({ pressed }) => [styles.listedButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.listedButtonLabel}>{t('portfolio.cancelListingShort')}</Text>
+          </Pressable>
+        </View>
+      )}
 
       {holding.lotsCount > 1 && (
-        <>
-          <Pressable style={styles.expandRow} onPress={() => setExpanded((v) => !v)}>
-            <Text style={styles.expandText}>
-              {t('portfolio.mergedLots', { count: holding.lotsCount })} · {expanded ? t('portfolio.hidePurchases') : t('portfolio.showPurchases')}
-            </Text>
-          </Pressable>
-          {expanded && (
-            <View style={styles.lotsList}>
-              {[...holding.lots]
-                .sort((a, b) => (a.purchaseDate < b.purchaseDate ? -1 : 1))
-                .map((lot) => (
-                  <View key={lot.ticketId} style={styles.lotRow}>
-                    <Text style={styles.lotMeta}>
-                      {formatDate(lot.purchaseDate, i18n.language)} · x{lot.quantity}
-                    </Text>
-                    <Text style={{ color: lot.returnAmount >= 0 ? colors.success : colors.danger, fontSize: 12 }}>
-                      {lot.returnAmount >= 0 ? '+' : ''}
-                      {lot.returnAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })} {t('common.currency')}
-                    </Text>
-                  </View>
-                ))}
-            </View>
-          )}
-        </>
+        <DisclosureRow
+          icon="layers"
+          label={t('portfolio.mergedLots', { count: holding.lotsCount })}
+          expanded={lotsOpen}
+          onToggle={() => setLotsOpen((v) => !v)}
+        >
+          {[...holding.lots]
+            .sort((a, b) => (a.purchaseDate < b.purchaseDate ? -1 : 1))
+            .map((lot) => (
+              <View key={lot.ticketId} style={styles.lotRow}>
+                <Text style={styles.lotMeta}>
+                  {formatDate(lot.purchaseDate, i18n.language)} · ×{lot.quantity}
+                </Text>
+                <Text
+                  style={[styles.lotValue, { color: lot.returnAmount >= 0 ? colors.success : colors.danger }]}
+                >
+                  {lot.returnAmount >= 0 ? '+' : ''}
+                  {lot.returnAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </Text>
+              </View>
+            ))}
+        </DisclosureRow>
       )}
 
-      {holding.resaleEnabled && holding.status === 'active' && (
-        <View style={styles.actionRow}>
-          <PrimaryButton
-            title={t('portfolio.sellTicket')}
-            variant="outline"
-            size="small"
-            onPress={() => onSellPress(holding)}
-          />
-        </View>
-      )}
-      {holding.status === 'listed_for_sale' && (
-        <View style={styles.sellRow}>
-          <View style={styles.listedBadge}>
-            <Text style={styles.listedBadgeText}>
-              {t('portfolio.listedForSale', {
-                price: (holding.askingPrice ?? 0).toLocaleString(),
-                currency: t('common.currency'),
-              })}
-            </Text>
-          </View>
-          <View style={styles.actionRow}>
-            <PrimaryButton
-              title={t('portfolio.cancelListing')}
-              variant="outline"
-              size="small"
-              onPress={() => onCancelListing(holding.ticketId)}
-              loading={cancellingId === holding.ticketId}
-            />
-          </View>
-        </View>
-      )}
+      <ActionSheet
+        visible={menuOpen}
+        title={getLocalizedText(holding.projectTitle, i18n.language)}
+        items={menuItems}
+        onClose={() => setMenuOpen(false)}
+      />
     </View>
   );
 }
@@ -152,125 +161,92 @@ const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
     card: {
       backgroundColor: c.surface,
-      borderRadius: 16,
+      borderRadius: radius.xl,
       borderWidth: 1,
       borderColor: c.border,
-      padding: spacing.md,
-      marginBottom: spacing.sm,
+      padding: spacing.md - 4,
+      marginBottom: spacing.md,
+    },
+    pressed: {
+      opacity: 0.7,
     },
     titleRow: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
+      alignItems: 'center',
+      gap: spacing.sm,
       marginBottom: spacing.sm,
     },
     title: {
+      ...typography.subheading,
       flex: 1,
-      fontSize: 15,
-      fontWeight: '600',
       color: c.text,
-      marginRight: spacing.sm,
     },
-    returnBadge: {
-      borderRadius: 999,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 3,
-    },
-    returnBadgeText: {
-      fontSize: 11,
-      fontWeight: '700',
+    menuButton: {
+      paddingLeft: spacing.xs,
     },
     heroRow: {
       flexDirection: 'row',
       alignItems: 'baseline',
-      justifyContent: 'space-between',
-      marginBottom: spacing.sm,
+      gap: spacing.sm,
+      marginBottom: spacing.md - 4,
     },
     heroValue: {
-      fontSize: 20,
-      fontWeight: '700',
+      ...typography.title,
+      ...tabularNums,
       color: c.text,
-      fontVariant: ['tabular-nums'],
     },
     heroDelta: {
-      fontSize: 13,
-      fontWeight: '600',
-      fontVariant: ['tabular-nums'],
+      ...typography.captionStrong,
+      ...tabularNums,
     },
-    statRow: {
+    footerRow: {
       flexDirection: 'row',
-      borderTopWidth: 1,
-      borderTopColor: c.border,
-      paddingTop: spacing.sm,
-      marginBottom: spacing.xs,
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      marginTop: spacing.sm + 2,
     },
-    stat: {
+    footerText: {
+      ...typography.micro,
+      color: c.textMuted,
+      flexShrink: 1,
+    },
+    dividends: {
+      ...typography.micro,
+      color: c.success,
+    },
+    listedRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginRight: spacing.md,
+      gap: spacing.xs + 2,
+      marginTop: spacing.sm + 2,
     },
-    statIcon: {
-      fontSize: 12,
-      marginRight: spacing.xs,
+    listedText: {
+      ...typography.micro,
+      color: c.warning,
+      flex: 1,
     },
-    statText: {
-      fontSize: 12,
-      fontWeight: '500',
-      color: c.textMuted,
+    listedButton: {
+      paddingVertical: spacing.xs + 2,
+      paddingHorizontal: spacing.sm + 2,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: c.border,
     },
-    investedNote: {
-      fontSize: 11,
-      color: c.textMuted,
-    },
-    dividendNote: {
-      fontSize: 11,
-      fontWeight: '600',
-      color: c.success,
-      marginTop: 1,
-    },
-    expandRow: {
-      marginTop: spacing.xs,
-    },
-    expandText: {
-      fontSize: 12,
-      color: c.primary,
-      fontWeight: '600',
-    },
-    lotsList: {
-      marginTop: spacing.xs,
-      paddingTop: spacing.xs,
-      borderTopWidth: 1,
-      borderTopColor: c.border,
+    listedButtonLabel: {
+      ...typography.captionStrong,
+      color: c.text,
     },
     lotRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      paddingVertical: 2,
-    },
-    lotMeta: {
-      fontSize: 12,
-      color: c.textMuted,
-    },
-    sellRow: {
-      marginTop: spacing.sm,
-    },
-    actionRow: {
-      marginTop: spacing.sm,
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-    },
-    listedBadge: {
-      alignSelf: 'flex-start',
-      backgroundColor: c.background,
-      borderWidth: 1,
-      borderColor: c.warning,
-      borderRadius: 999,
-      paddingHorizontal: spacing.sm,
       paddingVertical: 3,
     },
-    listedBadgeText: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: c.warning,
+    lotMeta: {
+      ...typography.micro,
+      color: c.textMuted,
+    },
+    lotValue: {
+      ...typography.micro,
+      ...tabularNums,
     },
   });

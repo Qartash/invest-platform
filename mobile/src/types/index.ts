@@ -89,6 +89,7 @@ export interface Project {
   resaleEnabled: boolean;
   resaleListingsCount?: number;
   resaleTicketsCount?: number;
+  worksCount?: number;
   expectedAnnualReturnPercent: string;
   payoutStartDays: number;
   status: ProjectStatus;

@@ -31,7 +31,21 @@
     "registerButton": "Зарегистрироваться",
     "noAccount": "Нет аккаунта?",
     "haveAccount": "Уже есть аккаунт?",
-    "invalidCredentials": "Неверное имя пользователя или пароль"
+    "invalidCredentials": "Неверный логин, e-mail или пароль",
+    "identifier": "Логин или e-mail",
+    "loginTitle": "С возвращением",
+    "loginSubtitle": "Войдите, чтобы продолжить инвестировать",
+    "forgotPassword": "Забыли пароль?",
+    "registerTitle": "Создать аккаунт",
+    "registerSubtitle": "Займёт меньше минуты",
+    "passwordHint": "Минимум 8 символов",
+    "emailTaken": "Этот e-mail уже зарегистрирован",
+    "terms": "Регистрируясь, вы принимаете условия и политику конфиденциальности",
+    "or": "или",
+    "orWithEmail": "или по e-mail",
+    "continueWithGoogle": "Продолжить с Google",
+    "signUpWithGoogle": "Регистрация через Google",
+    "googleFailed": "Не удалось войти через Google"
   },
   "home": {
     "title": "Проекты",
@@ -240,6 +254,11 @@
     "annualReturn": "Доходность в год",
     "statusRaising": "Идёт сбор",
     "resaleExtra": "+{{count}} на перепродаже",
+    "worksCount": "Работы · {{count}}",
+    "resaleFromPrice": "От {{price}} за тикет",
+    "resaleCheaper": "на {{percent}}% дешевле основного предложения",
+    "resaleCostlier": "на {{percent}}% дороже основного предложения",
+    "resaleSamePrice": "по цене основного предложения",
     "financeSubtitle": "Доходы, расходы, выплаты",
     "worksSubtitle": "Разовые оплачиваемые задачи",
     "roundSold": "Этап {{round}} · продано {{sold}} из {{total}}",
@@ -270,7 +289,11 @@
     "showPurchases": "Показать покупки",
     "hidePurchases": "Скрыть",
     "sellQuantityLabel": "Количество для продажи",
-    "availableToSell": "Доступно: {{max}} шт."
+    "availableToSell": "Доступно: {{max}} шт.",
+    "openProject": "Открыть проект",
+    "statEntryPrice": "Цена входа",
+    "statHeld": "В держании",
+    "cancelListingShort": "Снять"
   },
   "wallet": {
     "title": "Кошелёк",
@@ -536,7 +559,14 @@
     "teamRemoveConfirm": "Убрать этого участника из команды?",
     "teamMoveUp": "Выше",
     "teamMoveDown": "Ниже",
-    "teamMemberIncomplete": "Заполните имя и роль — иначе участник не сохранится"
+    "teamMemberIncomplete": "Заполните имя и роль — иначе участник не сохранится",
+    "navFinance": "Финансы",
+    "navWorks": "Работы",
+    "previewProject": "Открыть как инвестор",
+    "statEquity": "Доля",
+    "diffExpand": "Показать ещё {{count}}",
+    "diffCollapse": "Свернуть",
+    "verificationRequiredShort": "Нужен верифицированный профиль (KYC)"
   },
   "works": {
     "title": "Работы",

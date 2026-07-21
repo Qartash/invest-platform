@@ -6,29 +6,54 @@ import { ProjectReviewLogEntry } from '../types';
 import { formatDateTime } from '../utils/date';
 import { DIFF_FIELD_LABEL_KEYS } from '../utils/projectDiff';
 import { priorityColors, ProjectPriority } from '../utils/priority';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import { radius, spacing, ThemeColors, typography, useTheme, useThemeStyles } from '../theme';
+import { Icon, IconName } from './ui';
 import { RichTextView } from './RichTextView';
+
+// Built per palette rather than at module load, so the action colours follow the theme.
+// Icons are drawn glyphs, not emoji: a log read top-to-bottom needs marks of one weight and
+// one colour system, and the emoji set rendered at a dozen different sizes and hues.
+const actionStyles = (
+  c: ThemeColors,
+): Record<string, { icon: IconName; labelKey: string; color: string; soft: string }> => ({
+  submitted: { icon: 'file', labelKey: 'founder.historySubmitted', color: c.primary, soft: c.primarySoft },
+  approved: { icon: 'check', labelKey: 'founder.historyApproved', color: c.success, soft: c.successSoft },
+  rejected: { icon: 'close', labelKey: 'founder.historyRejected', color: c.danger, soft: c.dangerSoft },
+  cancelled: { icon: 'undo', labelKey: 'founder.historyCancelled', color: c.textMuted, soft: c.surfaceSunken },
+  deletion_requested: {
+    icon: 'trash',
+    labelKey: 'founder.historyDeletionRequested',
+    color: c.danger,
+    soft: c.dangerSoft,
+  },
+  deletion_approved: {
+    icon: 'trash',
+    labelKey: 'founder.historyDeletionApproved',
+    color: c.danger,
+    soft: c.dangerSoft,
+  },
+  deletion_rejected: {
+    icon: 'shield',
+    labelKey: 'founder.historyDeletionRejected',
+    color: c.success,
+    soft: c.successSoft,
+  },
+  deleted: { icon: 'trash', labelKey: 'founder.historyDeleted', color: c.danger, soft: c.dangerSoft },
+  restored: { icon: 'refresh', labelKey: 'founder.historyRestored', color: c.success, soft: c.successSoft },
+  priority_changed: {
+    icon: 'flag',
+    labelKey: 'founder.historyPriorityChanged',
+    color: c.textMuted,
+    soft: c.surfaceSunken,
+  },
+  admin_edited: { icon: 'wrench', labelKey: 'founder.historyAdminEdited', color: c.warning, soft: c.warningSoft },
+});
 
 interface Props {
   visible: boolean;
   projectId: string;
   onClose: () => void;
 }
-
-// Built per palette rather than at module load, so the action colours follow the theme.
-const actionStyles = (c: ThemeColors): Record<string, { icon: string; labelKey: string; color: string }> => ({
-  submitted: { icon: '📝', labelKey: 'founder.historySubmitted', color: c.primary },
-  approved: { icon: '✅', labelKey: 'founder.historyApproved', color: c.success },
-  rejected: { icon: '❌', labelKey: 'founder.historyRejected', color: c.danger },
-  cancelled: { icon: '↩️', labelKey: 'founder.historyCancelled', color: c.textMuted },
-  deletion_requested: { icon: '🗑', labelKey: 'founder.historyDeletionRequested', color: c.danger },
-  deletion_approved: { icon: '🗑', labelKey: 'founder.historyDeletionApproved', color: c.danger },
-  deletion_rejected: { icon: '🛡', labelKey: 'founder.historyDeletionRejected', color: c.success },
-  deleted: { icon: '🗑', labelKey: 'founder.historyDeleted', color: c.danger },
-  restored: { icon: '♻️', labelKey: 'founder.historyRestored', color: c.success },
-  priority_changed: { icon: '🚩', labelKey: 'founder.historyPriorityChanged', color: c.textMuted },
-  admin_edited: { icon: '🛠', labelKey: 'founder.historyAdminEdited', color: c.warning },
-});
 
 export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
   const styles = useThemeStyles(createStyles);
@@ -59,12 +84,13 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable style={styles.card} onPress={() => {}}>
+          <View style={styles.grabber} />
           <View style={styles.headerRow}>
             <Text style={styles.title}>{t('founder.historyTitle')}</Text>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <Text style={styles.closeIcon}>✕</Text>
+            <Pressable onPress={onClose} hitSlop={10} style={({ pressed }) => pressed && styles.pressed}>
+              <Icon name="close" size={18} color={colors.textMuted} />
             </Pressable>
           </View>
 
@@ -72,32 +98,46 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
             <ActivityIndicator color={colors.primary} style={styles.loader} />
           ) : error ? (
             <Text style={styles.errorText}>{error}</Text>
+          ) : entries.length === 0 ? (
+            <Text style={styles.empty}>{t('founder.historyEmpty')}</Text>
           ) : (
-            <ScrollView>
-              {entries.length === 0 ? (
-                <Text style={styles.empty}>{t('founder.historyEmpty')}</Text>
-              ) : (
-                entries.map((entry, index) => {
-                  const meta = ACTION_STYLES[entry.action] ?? ACTION_STYLES.submitted;
-                  const isPriorityChange = entry.action === 'priority_changed';
-                  const changedFields = entry.changes && !isPriorityChange ? Object.keys(entry.changes) : [];
-                  return (
-                    <View key={entry.id} style={styles.entry}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {entries.map((entry, index) => {
+                const meta = ACTION_STYLES[entry.action] ?? ACTION_STYLES.submitted;
+                const isPriorityChange = entry.action === 'priority_changed';
+                const changedFields = entry.changes && !isPriorityChange ? Object.keys(entry.changes) : [];
+                const last = index === entries.length - 1;
+
+                return (
+                  <View key={entry.id} style={styles.entry}>
+                    {/* Rail and plaque: the marks stack into one vertical line down the log. */}
+                    <View style={styles.rail}>
+                      <View style={[styles.plaque, { backgroundColor: meta.soft }]}>
+                        <Icon name={meta.icon} size={15} color={meta.color} />
+                      </View>
+                      {!last && <View style={styles.railLine} />}
+                    </View>
+
+                    <View style={styles.entryBody}>
                       <View style={styles.entryHeader}>
-                        <Text style={styles.entryIcon}>{meta.icon}</Text>
-                        <Text style={[styles.entryAction, { color: meta.color }]}>{t(meta.labelKey)}</Text>
+                        <Text style={[styles.entryAction, { color: meta.color }]} numberOfLines={1}>
+                          {t(meta.labelKey)}
+                        </Text>
                         <Text style={styles.entryDate}>{formatDateTime(entry.createdAt, i18n.language)}</Text>
                       </View>
+
                       {entry.moderatorName && (
-                        <Text style={styles.entryModerator}>
+                        <Text style={styles.entryNote}>
                           {t('project.by')} {entry.moderatorName}
                         </Text>
                       )}
+
                       {index === 0 && entry.action === 'submitted' && !entry.changes && (
                         <Text style={styles.entryNote}>{t('founder.historyFirstSubmission')}</Text>
                       )}
+
                       {isPriorityChange && entry.changes && (
-                        <View style={styles.priorityChangeRow}>
+                        <View style={styles.priorityRow}>
                           <View
                             style={[
                               styles.priorityDot,
@@ -105,7 +145,7 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
                             ]}
                           />
                           <Text style={styles.entryNote}>{t(`project.priority.${entry.changes.from}`)}</Text>
-                          <Text style={styles.entryNote}> → </Text>
+                          <Text style={styles.entryNote}>→</Text>
                           <View
                             style={[
                               styles.priorityDot,
@@ -115,30 +155,32 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
                           <Text style={styles.entryNote}>{t(`project.priority.${entry.changes.to}`)}</Text>
                         </View>
                       )}
+
                       {changedFields.length > 0 && (
                         <Text style={styles.entryNote}>
                           {t('founder.historyChangedFields')}:{' '}
                           {changedFields.map((f) => t(DIFF_FIELD_LABEL_KEYS[f] ?? f)).join(', ')}
                         </Text>
                       )}
+
                       {entry.comment && (
-                        <View style={styles.entryCommentBox}>
+                        <View style={styles.commentBox}>
                           <RichTextView
                             html={entry.comment}
-                            textStyle={styles.entryComment}
+                            textStyle={styles.comment}
                             color={colors.text}
                             fontSize={13}
                           />
                         </View>
                       )}
                     </View>
-                  );
-                })
-              )}
+                  </View>
+                );
+              })}
             </ScrollView>
           )}
-        </View>
-      </View>
+        </Pressable>
+      </Pressable>
     </Modal>
   );
 }
@@ -147,15 +189,28 @@ const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
     backdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
+      backgroundColor: 'rgba(0,0,0,0.45)',
       justifyContent: 'flex-end',
     },
     card: {
       backgroundColor: c.surface,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      padding: spacing.lg,
-      maxHeight: '80%',
+      borderTopLeftRadius: radius.xl + 4,
+      borderTopRightRadius: radius.xl + 4,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.lg,
+      maxHeight: '82%',
+    },
+    grabber: {
+      alignSelf: 'center',
+      width: 36,
+      height: 4,
+      borderRadius: radius.pill,
+      backgroundColor: c.border,
+      marginBottom: spacing.sm,
+    },
+    pressed: {
+      opacity: 0.6,
     },
     headerRow: {
       flexDirection: 'row',
@@ -164,78 +219,87 @@ const createStyles = (c: ThemeColors) =>
       marginBottom: spacing.md,
     },
     title: {
-      fontSize: 18,
-      fontWeight: '700',
+      ...typography.heading,
       color: c.text,
-    },
-    closeIcon: {
-      fontSize: 18,
-      color: c.textMuted,
     },
     loader: {
       marginVertical: spacing.xl,
     },
     empty: {
+      ...typography.body,
       textAlign: 'center',
       color: c.textMuted,
       marginVertical: spacing.xl,
     },
     errorText: {
+      ...typography.body,
       textAlign: 'center',
       color: c.danger,
       marginVertical: spacing.xl,
     },
+
     entry: {
-      borderLeftWidth: 2,
-      borderLeftColor: c.border,
-      paddingLeft: spacing.md,
-      paddingBottom: spacing.md,
-      marginBottom: spacing.xs,
+      flexDirection: 'row',
+      gap: spacing.sm + 2,
+    },
+    rail: {
+      alignItems: 'center',
+      width: 28,
+    },
+    plaque: {
+      width: 28,
+      height: 28,
+      borderRadius: radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    railLine: {
+      flex: 1,
+      width: 1,
+      backgroundColor: c.border,
+      marginVertical: spacing.xs,
+    },
+    entryBody: {
+      flex: 1,
+      paddingBottom: spacing.md + 2,
     },
     entryHeader: {
       flexDirection: 'row',
-      alignItems: 'center',
-    },
-    entryIcon: {
-      fontSize: 14,
-      marginRight: spacing.xs,
+      alignItems: 'baseline',
+      gap: spacing.sm,
     },
     entryAction: {
-      fontSize: 14,
-      fontWeight: '700',
+      ...typography.labelStrong,
       flex: 1,
     },
     entryDate: {
-      fontSize: 11,
+      ...typography.micro,
       color: c.textMuted,
-    },
-    entryModerator: {
-      fontSize: 12,
-      color: c.textMuted,
-      marginTop: 2,
     },
     entryNote: {
-      fontSize: 12,
+      ...typography.micro,
       color: c.textMuted,
-      marginTop: spacing.xs,
+      marginTop: 3,
     },
-    priorityChangeRow: {
+    priorityRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginTop: spacing.xs,
+      gap: spacing.xs,
+      marginTop: 3,
     },
     priorityDot: {
       width: 8,
       height: 8,
       borderRadius: 4,
-      marginRight: 4,
     },
-    entryCommentBox: {
-      marginTop: spacing.xs,
+    commentBox: {
+      marginTop: spacing.sm,
+      backgroundColor: c.surfaceSunken,
+      borderRadius: radius.sm,
+      padding: spacing.sm,
     },
-    entryComment: {
-      fontSize: 13,
+    comment: {
+      ...typography.caption,
       color: c.text,
-      fontStyle: 'italic',
     },
   });

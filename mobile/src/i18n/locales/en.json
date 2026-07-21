@@ -31,7 +31,21 @@
     "registerButton": "Sign up",
     "noAccount": "No account?",
     "haveAccount": "Already have an account?",
-    "invalidCredentials": "Invalid username or password"
+    "invalidCredentials": "Wrong login, email or password",
+    "identifier": "Login or email",
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Sign in to keep investing",
+    "forgotPassword": "Forgot password?",
+    "registerTitle": "Create an account",
+    "registerSubtitle": "Takes less than a minute",
+    "passwordHint": "At least 8 characters",
+    "emailTaken": "That email is already registered",
+    "terms": "By signing up you accept the terms and the privacy policy",
+    "or": "or",
+    "orWithEmail": "or with email",
+    "continueWithGoogle": "Continue with Google",
+    "signUpWithGoogle": "Sign up with Google",
+    "googleFailed": "Google sign-in failed"
   },
   "home": {
     "title": "Projects",
@@ -240,6 +254,11 @@
     "annualReturn": "Annual return",
     "statusRaising": "Raising",
     "resaleExtra": "+{{count}} on resale",
+    "worksCount": "Works · {{count}}",
+    "resaleFromPrice": "From {{price}} per ticket",
+    "resaleCheaper": "{{percent}}% cheaper than the primary offer",
+    "resaleCostlier": "{{percent}}% dearer than the primary offer",
+    "resaleSamePrice": "same price as the primary offer",
     "financeSubtitle": "Income, expenses, payouts",
     "worksSubtitle": "One-off paid project tasks",
     "roundSold": "Round {{round}} · {{sold}} of {{total}} sold",
@@ -270,7 +289,11 @@
     "showPurchases": "Show purchases",
     "hidePurchases": "Hide",
     "sellQuantityLabel": "Quantity to sell",
-    "availableToSell": "Available: {{max}}"
+    "availableToSell": "Available: {{max}}",
+    "openProject": "Open project",
+    "statEntryPrice": "Entry price",
+    "statHeld": "Held for",
+    "cancelListingShort": "Unlist"
   },
   "wallet": {
     "title": "Wallet",
@@ -536,7 +559,14 @@
     "teamRemoveConfirm": "Remove this member from the team?",
     "teamMoveUp": "Up",
     "teamMoveDown": "Down",
-    "teamMemberIncomplete": "Fill in name and role, or this member will not be saved"
+    "teamMemberIncomplete": "Fill in name and role, or this member will not be saved",
+    "navFinance": "Finance",
+    "navWorks": "Works",
+    "previewProject": "Open as investor",
+    "statEquity": "Equity",
+    "diffExpand": "Show {{count}} more",
+    "diffCollapse": "Collapse",
+    "verificationRequiredShort": "Requires a verified profile (KYC)"
   },
   "works": {
     "title": "Works",

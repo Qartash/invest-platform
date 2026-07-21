@@ -6,9 +6,9 @@ import { ProjectsStackNavigator } from './FounderNavigator';
 import { ProfileStackNavigator } from './ProfileNavigator';
 import { ModerationStackNavigator } from './ModerationNavigator';
 import { useAuthStore } from '../store/authStore';
-import { typography, useTheme } from '../theme';
 import { logEvent } from '../utils/logger';
 import { TabBarIcon, TabIconName } from '../components/TabBarIcon';
+import { BottomDock } from '../components/BottomDock';
 
 const Tab = createBottomTabNavigator();
 
@@ -24,17 +24,13 @@ function tabOptions(title: string, icon: TabIconName) {
 export function MainNavigator() {
   const { t } = useTranslation();
   const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
-  const { colors } = useTheme();
 
   return (
     <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
-        tabBarLabelStyle: { fontSize: typography.eyebrow.fontSize, fontWeight: '600' },
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-      }}
+      // The dock owns its own colours and selected state, so the tint/label/bar options
+      // above it no longer apply — `title` survives only as the accessible tab name.
+      tabBar={(props) => <BottomDock {...props} />}
+      screenOptions={{ headerShown: false }}
       screenListeners={{
         focus: (e) => logEvent('navigation', 'Tab focus', { tab: e.target?.split('-')[0] }),
       }}

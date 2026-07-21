@@ -1,10 +1,17 @@
+export { ActionSheet } from './ActionSheet';
+export type { ActionSheetItem } from './ActionSheet';
 export { Card } from './Card';
+export { DisclosureRow } from './DisclosureRow';
 export { HeroScrim } from './HeroScrim';
+export { Icon } from './Icon';
+export type { IconName } from './Icon';
 export { ListGroup, ListRow } from './ListRow';
 export { Pill } from './Pill';
 export type { PillTone } from './Pill';
 export { SectionHeader } from './SectionHeader';
 export { SegmentedTabs } from './SegmentedTabs';
 export type { TabItem } from './SegmentedTabs';
+export { StatStrip } from './StatStrip';
+export type { StatItem } from './StatStrip';
 export { StepRail } from './StepRail';
 export type { StepState } from './StepRail';

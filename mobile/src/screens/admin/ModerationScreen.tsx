@@ -10,8 +10,9 @@ import { AuthUser, Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { priorityColors } from '../../utils/priority';
 import { Avatar } from '../../components/Avatar';
+import { Icon, IconName } from '../../components/ui';
 import { formatDate } from '../../utils/date';
-import { spacing, ThemeColors, useThemeStyles, useTheme } from '../../theme';
+import { spacing, ThemeColors, typography, useThemeStyles, useTheme } from '../../theme';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
 import { LogsScreen } from './LogsScreen';
 import { ModerationReleasesScreen } from './ModerationReleasesScreen';
@@ -20,6 +21,18 @@ import { ModerationDisputesScreen } from './ModerationDisputesScreen';
 type Props = NativeStackScreenProps<ModerationStackParamList, 'ModerationList'>;
 
 type Tab = 'pending' | 'all' | 'users' | 'releases' | 'disputes' | 'logs';
+
+// Six destinations do not fit as text on a phone — the labels used to overlap each other.
+// The row is icons only, with the active one's name spelled out underneath so the screen
+// still says where you are.
+const TABS: Array<{ key: Tab; icon: IconName; labelKey: string }> = [
+  { key: 'pending', icon: 'clock', labelKey: 'moderation.tabPending' },
+  { key: 'all', icon: 'layers', labelKey: 'moderation.tabAll' },
+  { key: 'users', icon: 'users', labelKey: 'moderation.users.title' },
+  { key: 'releases', icon: 'unlock', labelKey: 'moderation.releases.tab' },
+  { key: 'disputes', icon: 'flag', labelKey: 'works.disputesTab' },
+  { key: 'logs', icon: 'history', labelKey: 'moderation.logs.title' },
+];
 
 // "deleted" is not a ProjectStatus — it's a soft-delete flag (deletedAt), shown
 // and filtered here as if it were a status because that's how moderators think.
@@ -107,26 +120,29 @@ export function ModerationScreen({ navigation }: Props) {
     return allProjects.filter((p) => displayStatus(p) === statusFilter);
   }, [allProjects, statusFilter]);
 
+  const activeTab = TABS.find((item) => item.key === tab) ?? TABS[0];
+
   const tabSwitcher = (
-    <View style={styles.tabRow}>
-      <Pressable style={[styles.tab, tab === 'pending' && styles.tabActive]} onPress={() => setTab('pending')}>
-        <Text style={[styles.tabText, tab === 'pending' && styles.tabTextActive]}>{t('moderation.tabPending')}</Text>
-      </Pressable>
-      <Pressable style={[styles.tab, tab === 'all' && styles.tabActive]} onPress={() => setTab('all')}>
-        <Text style={[styles.tabText, tab === 'all' && styles.tabTextActive]}>{t('moderation.tabAll')}</Text>
-      </Pressable>
-      <Pressable style={[styles.tab, tab === 'users' && styles.tabActive]} onPress={() => setTab('users')}>
-        <Text style={[styles.tabText, tab === 'users' && styles.tabTextActive]}>{t('moderation.users.title')}</Text>
-      </Pressable>
-      <Pressable style={[styles.tab, tab === 'releases' && styles.tabActive]} onPress={() => setTab('releases')}>
-        <Text style={[styles.tabText, tab === 'releases' && styles.tabTextActive]}>{t('moderation.releases.tab')}</Text>
-      </Pressable>
-      <Pressable style={[styles.tab, tab === 'disputes' && styles.tabActive]} onPress={() => setTab('disputes')}>
-        <Text style={[styles.tabText, tab === 'disputes' && styles.tabTextActive]}>{t('works.disputesTab')}</Text>
-      </Pressable>
-      <Pressable style={[styles.tab, tab === 'logs' && styles.tabActive]} onPress={() => setTab('logs')}>
-        <Text style={[styles.tabText, tab === 'logs' && styles.tabTextActive]}>{t('moderation.logs.title')}</Text>
-      </Pressable>
+    <View style={styles.tabBlock}>
+      <View style={styles.tabRow}>
+        {TABS.map((item) => {
+          const active = item.key === tab;
+          return (
+            <Pressable
+              key={item.key}
+              style={[styles.tab, active && styles.tabActive]}
+              onPress={() => setTab(item.key)}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              // The glyph carries no text, so the label has to reach assistive tech somehow.
+              accessibilityLabel={t(item.labelKey)}
+            >
+              <Icon name={item.icon} color={active ? colors.primary : colors.textMuted} size={20} />
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={styles.tabCaption}>{t(activeTab.labelKey)}</Text>
     </View>
   );
 
@@ -307,14 +323,16 @@ const createStyles = (c: ThemeColors) =>
       padding: spacing.lg,
       paddingBottom: spacing.sm,
     },
+    tabBlock: {
+      marginBottom: spacing.sm,
+    },
     tabRow: {
       flexDirection: 'row',
       paddingHorizontal: spacing.lg,
-      marginBottom: spacing.sm,
     },
     tab: {
       flex: 1,
-      paddingVertical: spacing.sm,
+      paddingVertical: spacing.sm + 2,
       borderBottomWidth: 2,
       borderBottomColor: c.border,
       alignItems: 'center',
@@ -322,12 +340,11 @@ const createStyles = (c: ThemeColors) =>
     tabActive: {
       borderBottomColor: c.primary,
     },
-    tabText: {
-      color: c.textMuted,
-      fontWeight: '600',
-    },
-    tabTextActive: {
+    tabCaption: {
+      ...typography.captionStrong,
       color: c.primary,
+      textAlign: 'center',
+      marginTop: spacing.xs + 2,
     },
     filterRow: {
       flexGrow: 0,

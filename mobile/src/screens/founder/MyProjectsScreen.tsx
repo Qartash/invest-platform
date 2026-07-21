@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -12,28 +12,17 @@ import {
 } from '../../api/projects';
 import { fetchPortfolio } from '../../api/portfolio';
 import { cancelTicketListing, listTicketForSale } from '../../api/tickets';
-import { resolveMediaUrl } from '../../api/client';
-import { Holding, Project } from '../../types';
-import { getLocalizedText } from '../../utils/localized';
-import {
-  DIFF_FIELD_LABEL_KEYS,
-  LOCALIZED_DIFF_FIELDS,
-  formatDiffValue,
-  formatLocalizedDiffText,
-  getChangedLanguages,
-} from '../../utils/projectDiff';
-import { LANGUAGE_LABELS } from '../../i18n';
+import { Holding, PortfolioSummary, Project } from '../../types';
 import { showAlert } from '../../utils/alert';
 import { useAuthStore } from '../../store/authStore';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
-import { PrimaryButton } from '../../components/PrimaryButton';
-import { RichTextView } from '../../components/RichTextView';
+import { radius, spacing, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
+import { Icon, SegmentedTabs } from '../../components/ui';
 import { ProjectHistoryModal } from '../../components/ProjectHistoryModal';
+import { OwnedProjectCard } from '../../components/OwnedProjectCard';
 import { HoldingCard } from '../../components/HoldingCard';
+import { PortfolioSummaryCard } from '../../components/PortfolioSummaryCard';
 import { SellTicketModal } from '../../components/SellTicketModal';
 import { FounderStackParamList } from '../../navigation/FounderNavigator';
-
-const RESTORE_WINDOW_DAYS = 7;
 
 type Tab = 'owned' | 'invested';
 
@@ -42,11 +31,12 @@ type Props = NativeStackScreenProps<FounderStackParamList, 'MyProjects'>;
 export function MyProjectsScreen({ navigation }: Props) {
   const styles = useThemeStyles(createStyles);
   const { colors } = useTheme();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const [tab, setTab] = useState<Tab>('owned');
   const [projects, setProjects] = useState<Project[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [historyProjectId, setHistoryProjectId] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -64,6 +54,7 @@ export function MyProjectsScreen({ navigation }: Props) {
       const [projectsData, portfolio] = await Promise.all([fetchMyProjects(), fetchPortfolio()]);
       setProjects(projectsData);
       setHoldings(portfolio.holdings);
+      setSummary(portfolio.summary);
       if (!tabTouched.current) {
         setTab(projectsData.length > 0 ? 'owned' : 'invested');
       }
@@ -78,6 +69,7 @@ export function MyProjectsScreen({ navigation }: Props) {
   };
 
   const tabOrder: Tab[] = projects.length > 0 ? ['owned', 'invested'] : ['invested', 'owned'];
+  const tabCount = (key: Tab) => (key === 'owned' ? projects.length : holdings.length);
 
   useFocusEffect(
     useCallback(() => {
@@ -132,9 +124,10 @@ export function MyProjectsScreen({ navigation }: Props) {
     navigation.navigate('CreateProject');
   };
 
-  const handleCancelReview = (id: string) => runAction(id, () => cancelProjectReview(id));
-  const handleCancelDeletion = (id: string) => runAction(id, () => cancelProjectDeletion(id));
-  const handleRestore = (id: string) => runAction(id, () => restoreProject(id));
+  const openAsInvestor = (projectId: string) =>
+    navigation
+      .getParent()
+      ?.navigate('HomeTab', { screen: 'ProjectDetail', params: { projectId } } as never);
 
   const handleDeleteProject = (item: Project) => {
     showAlert(
@@ -153,222 +146,53 @@ export function MyProjectsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>{t('founder.myProjects')}</Text>
-
-      <View style={styles.tabRow}>
-        {tabOrder.map((key) => (
-          <Pressable
-            key={key}
-            style={[styles.tab, tab === key && styles.tabActive]}
-            onPress={() => selectTab(key)}
-          >
-            <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>
-              {t(key === 'owned' ? 'founder.tabOwned' : 'founder.tabInvested')}
-            </Text>
-          </Pressable>
-        ))}
+      <View style={styles.head}>
+        <Text style={styles.header}>{t('founder.myProjects')}</Text>
+        <SegmentedTabs
+          active={tab}
+          onChange={selectTab}
+          variant="track"
+          tabs={tabOrder.map((key) => ({
+            key,
+            label: t(key === 'owned' ? 'founder.tabOwned' : 'founder.tabInvested'),
+            count: tabCount(key),
+          }))}
+        />
       </View>
 
       {tab === 'owned' && (
-      <FlatList
-        data={projects}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            {item.coverImageUrl ? (
-              <Image source={{ uri: resolveMediaUrl(item.coverImageUrl) }} style={styles.cover} />
-            ) : null}
-            <View style={styles.titleRow}>
-              <Text style={styles.title} numberOfLines={2}>
-                {getLocalizedText(item.title, i18n.language)}
-              </Text>
-              <View style={[styles.statusBadge, item.status === 'rejected' && styles.statusBadgeRejected]}>
-                <Text
-                  style={[styles.statusBadgeText, item.status === 'rejected' && styles.statusBadgeTextRejected]}
-                >
-                  {t(`project.status.${item.status}`)}
-                </Text>
-              </View>
-            </View>
-            {(() => {
-              const collected = parseFloat(item.collectedAmount);
-              const target = parseFloat(item.targetAmount);
-              const progress = target > 0 ? Math.min(collected / target, 1) : 0;
-              return (
-                <>
-                  <View style={styles.heroRow}>
-                    <Text style={styles.heroValue}>
-                      {collected.toLocaleString()} {t('common.currency')}
-                    </Text>
-                    <Text style={styles.heroMeta}>
-                      {t('home.ofGoal', { amount: target.toLocaleString(), currency: t('common.currency') })}
-                    </Text>
-                  </View>
-                  <View style={styles.progressTrack}>
-                    <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-                  </View>
-                </>
-              );
-            })()}
-            {!!item.reviewComment && (
-              <View style={styles.reviewCommentBox}>
-                <Text style={styles.reviewCommentLabel}>{t('founder.reviewCommentLabel')}:</Text>
-                <RichTextView
-                  html={item.reviewComment}
-                  textStyle={styles.reviewComment}
-                  color={colors.textMuted}
-                  fontSize={12}
-                />
-              </View>
-            )}
-            <View style={styles.linksRow}>
-              <Pressable style={styles.historyLink} onPress={() => setHistoryProjectId(item.id)}>
-                <Text style={styles.historyLinkText}>{t('founder.historyTitle')}</Text>
-              </Pressable>
-              <Pressable
-                style={styles.historyLink}
-                onPress={() => navigation.navigate('ProjectFinance', { projectId: item.id })}
-              >
-                <Text style={styles.historyLinkText}>{t('project.finance.title')}</Text>
-              </Pressable>
-              <Pressable
-                style={styles.historyLink}
-                onPress={() => navigation.navigate('ProjectWorks', { projectId: item.id })}
-              >
-                <Text style={styles.historyLinkText}>{t('works.title')}</Text>
-              </Pressable>
-            </View>
-
-            {item.deletedAt ? (
-              (() => {
-                const daysLeft =
-                  RESTORE_WINDOW_DAYS -
-                  Math.floor((Date.now() - new Date(item.deletedAt as string).getTime()) / (1000 * 60 * 60 * 24));
-                return daysLeft > 0 ? (
-                  <>
-                    <Text style={styles.deletedNotice}>
-                      {t('founder.deletedRestorableNotice', { days: daysLeft })}
-                    </Text>
-                    <View style={styles.actionsRow}>
-                      <Pressable
-                        style={styles.actionButton}
-                        onPress={() => handleRestore(item.id)}
-                        disabled={actingId === item.id}
-                      >
-                        <Text style={styles.actionButtonText}>{t('founder.restoreProject')}</Text>
-                      </Pressable>
-                    </View>
-                  </>
-                ) : (
-                  <Text style={styles.deletedNotice}>{t('founder.deletedFinalNotice')}</Text>
-                );
-              })()
-            ) : item.deletionRequestedAt ? (
-              <>
-                <Text style={styles.pendingNotice}>{t('founder.deletionPendingNotice')}</Text>
-                <View style={styles.actionsRow}>
-                  <Pressable
-                    style={styles.actionButton}
-                    onPress={() => handleCancelDeletion(item.id)}
-                    disabled={actingId === item.id}
-                  >
-                    <Text style={styles.actionButtonText}>{t('founder.cancelDeletionRequest')}</Text>
-                  </Pressable>
-                </View>
-              </>
-            ) : item.status === 'pending_review' ? (
-              <>
-                <Text style={styles.pendingNotice}>
-                  {item.pendingChanges ? t('founder.editPendingNotice') : t('founder.reviewPendingNotice')}
-                </Text>
-                {item.pendingChanges && (
-                  <View style={styles.diffBox}>
-                    {item.pendingChangeReason && (
-                      <View style={styles.founderNoteBox}>
-                        <Text style={styles.founderNoteLabel}>{t('founder.pendingChangeReasonLabel')}</Text>
-                        <Text style={styles.founderNoteText}>{item.pendingChangeReason}</Text>
-                      </View>
-                    )}
-                    {Object.entries(item.pendingChanges).map(([field, newValue]) => {
-                      if (LOCALIZED_DIFF_FIELDS.includes(field)) {
-                        const oldValue = (item as any)[field];
-                        const changedLangs = getChangedLanguages(oldValue, newValue);
-                        if (changedLangs.length === 0) return null;
-                        return (
-                          <View key={field} style={styles.diffRow}>
-                            <Text style={styles.diffLabel}>
-                              {t(DIFF_FIELD_LABEL_KEYS[field] ?? field)}
-                              {'  '}
-                              <Text style={styles.diffLangSummary}>
-                                ({changedLangs.map((lang) => LANGUAGE_LABELS[lang]).join(', ')})
-                              </Text>
-                            </Text>
-                            {changedLangs.map((lang) => (
-                              <View key={lang} style={styles.diffValues}>
-                                <Text style={styles.diffLangTag}>{lang.toUpperCase()}</Text>
-                                <View style={styles.diffValuesText}>
-                                  <Text style={styles.diffOld} numberOfLines={2}>
-                                    {formatLocalizedDiffText(field, oldValue?.[lang])}
-                                  </Text>
-                                  <Text style={styles.diffArrow}>→</Text>
-                                  <Text style={styles.diffNew} numberOfLines={2}>
-                                    {formatLocalizedDiffText(field, newValue?.[lang])}
-                                  </Text>
-                                </View>
-                              </View>
-                            ))}
-                          </View>
-                        );
-                      }
-                      return (
-                        <View key={field} style={styles.diffRow}>
-                          <Text style={styles.diffLabel}>{t(DIFF_FIELD_LABEL_KEYS[field] ?? field)}</Text>
-                          <View style={styles.diffValues}>
-                            <Text style={styles.diffOld} numberOfLines={2}>
-                              {formatDiffValue(field, (item as any)[field], t, i18n.language)}
-                            </Text>
-                            <Text style={styles.diffArrow}>→</Text>
-                            <Text style={styles.diffNew} numberOfLines={2}>
-                              {formatDiffValue(field, newValue, t, i18n.language)}
-                            </Text>
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                )}
-                <View style={styles.actionsRow}>
-                  <Pressable
-                    style={styles.actionButton}
-                    onPress={() => handleCancelReview(item.id)}
-                    disabled={actingId === item.id}
-                  >
-                    <Text style={styles.actionButtonText}>{t('founder.cancelReview')}</Text>
-                  </Pressable>
-                </View>
-              </>
-            ) : (
-              <View style={styles.actionsRow}>
-                <Pressable
-                  style={styles.actionButton}
-                  onPress={() => navigation.navigate('CreateProject', { projectId: item.id })}
-                >
-                  <Text style={styles.actionButtonText}>{t('founder.editProject')}</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.actionButton}
-                  onPress={() => handleDeleteProject(item)}
-                  disabled={actingId === item.id}
-                >
-                  <Text style={styles.deleteButtonText}>{t('founder.deleteProject')}</Text>
-                </Pressable>
-              </View>
-            )}
-          </View>
-        )}
-        ListEmptyComponent={!loading ? <Text style={styles.empty}>—</Text> : null}
-      />
+        <FlatList
+          data={projects}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <OwnedProjectCard
+              project={item}
+              busy={actingId === item.id}
+              onOpenFinance={() => navigation.navigate('ProjectFinance', { projectId: item.id })}
+              onOpenWorks={() => navigation.navigate('ProjectWorks', { projectId: item.id })}
+              onOpenHistory={() => setHistoryProjectId(item.id)}
+              onEdit={() => navigation.navigate('CreateProject', { projectId: item.id })}
+              onPreview={() => openAsInvestor(item.id)}
+              onDelete={() => handleDeleteProject(item)}
+              onCancelReview={() => runAction(item.id, () => cancelProjectReview(item.id))}
+              onCancelDeletion={() => runAction(item.id, () => cancelProjectDeletion(item.id))}
+              onRestore={() => runAction(item.id, () => restoreProject(item.id))}
+            />
+          )}
+          ListFooterComponent={
+            <Pressable
+              onPress={handleCreateProject}
+              style={({ pressed }) => [styles.createCard, pressed && styles.pressed]}
+            >
+              <Icon name="plus" size={20} color={colors.primary} />
+              <Text style={styles.createTitle}>{t('founder.createProject')}</Text>
+              {user?.kycStatus !== 'approved' && (
+                <Text style={styles.createNote}>{t('founder.verificationRequiredShort')}</Text>
+              )}
+            </Pressable>
+          }
+        />
       )}
 
       {tab === 'invested' && (
@@ -376,15 +200,11 @@ export function MyProjectsScreen({ navigation }: Props) {
           data={holdings}
           keyExtractor={(item) => item.ticketId}
           contentContainerStyle={styles.list}
+          ListHeaderComponent={summary && holdings.length > 0 ? <PortfolioSummaryCard summary={summary} /> : null}
           renderItem={({ item }) => (
             <HoldingCard
               holding={item}
-              onPressTitle={() =>
-                navigation.getParent()?.navigate(
-                  'HomeTab',
-                  { screen: 'ProjectDetail', params: { projectId: item.projectId } } as never,
-                )
-              }
+              onPressTitle={() => openAsInvestor(item.projectId)}
               onSellPress={setListingHolding}
               onCancelListing={handleCancelListing}
               cancellingId={cancellingId}
@@ -394,14 +214,6 @@ export function MyProjectsScreen({ navigation }: Props) {
         />
       )}
 
-      {tab === 'owned' && (
-        <View style={styles.footer}>
-          <PrimaryButton title={t('founder.createProject')} onPress={handleCreateProject} />
-          {user?.kycStatus !== 'approved' && (
-            <Text style={styles.verificationNote}>{t('founder.verificationRequiredMessage')}</Text>
-          )}
-        </View>
-      )}
       {historyProjectId && (
         <ProjectHistoryModal
           visible={!!historyProjectId}
@@ -426,256 +238,48 @@ const createStyles = (c: ThemeColors) =>
       flex: 1,
       backgroundColor: c.background,
     },
-    header: {
-      fontSize: 24,
-      fontWeight: '700',
-      color: c.text,
-      padding: spacing.lg,
+    // The tab control still needs an opaque ground — the list scrolls beneath it. The rule
+    // that used to sit under it is gone: the track's groove is the edge now.
+    head: {
+      backgroundColor: c.background,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.lg,
       paddingBottom: spacing.sm,
     },
-    tabRow: {
-      flexDirection: 'row',
-      paddingHorizontal: spacing.lg,
-      marginBottom: spacing.sm,
-    },
-    tab: {
-      flex: 1,
-      paddingVertical: spacing.sm,
-      borderBottomWidth: 2,
-      borderBottomColor: c.border,
-      alignItems: 'center',
-    },
-    tabActive: {
-      borderBottomColor: c.primary,
-    },
-    tabText: {
-      color: c.textMuted,
-      fontWeight: '600',
-    },
-    tabTextActive: {
-      color: c.primary,
+    header: {
+      ...typography.display,
+      color: c.text,
+      marginBottom: spacing.sm + 2,
     },
     list: {
-      paddingHorizontal: spacing.lg,
-    },
-    card: {
-      backgroundColor: c.surface,
-      borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: 16,
       padding: spacing.md,
-      marginBottom: spacing.sm,
     },
-    cover: {
-      width: '100%',
-      height: 140,
-      borderRadius: 12,
-      marginBottom: spacing.sm,
-      backgroundColor: c.border,
+    pressed: {
+      opacity: 0.7,
     },
-    titleRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      marginBottom: spacing.sm,
-    },
-    title: {
-      flex: 1,
-      fontSize: 16,
-      fontWeight: '600',
-      color: c.text,
-      marginRight: spacing.sm,
-    },
-    heroRow: {
-      flexDirection: 'row',
-      alignItems: 'baseline',
-      marginBottom: spacing.xs,
-    },
-    heroValue: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: c.text,
-      marginRight: spacing.xs,
-      fontVariant: ['tabular-nums'],
-    },
-    heroMeta: {
-      fontSize: 12,
-      color: c.textMuted,
-    },
-    progressTrack: {
-      height: 6,
-      borderRadius: 999,
-      backgroundColor: c.background,
-      overflow: 'hidden',
-      marginBottom: spacing.sm,
-    },
-    progressFill: {
-      height: '100%',
-      borderRadius: 999,
-      backgroundColor: c.success,
-    },
-    statusBadge: {
-      alignSelf: 'flex-start',
-      backgroundColor: c.primarySoft,
-      borderRadius: 999,
-      paddingHorizontal: spacing.sm,
-      paddingVertical: 3,
-    },
-    statusBadgeText: {
-      fontSize: 11,
-      fontWeight: '700',
-      color: c.primary,
-    },
-    statusBadgeRejected: {
-      backgroundColor: c.dangerSoft,
-    },
-    statusBadgeTextRejected: {
-      color: c.danger,
-    },
-    reviewCommentBox: {
-      marginTop: spacing.xs,
-    },
-    reviewCommentLabel: {
-      fontSize: 12,
-      color: c.textMuted,
-      fontWeight: '600',
-    },
-    reviewComment: {
-      fontSize: 12,
-      color: c.textMuted,
-      fontStyle: 'italic',
-    },
-    linksRow: {
-      flexDirection: 'row',
-    },
-    historyLink: {
-      alignSelf: 'flex-start',
-      marginTop: spacing.xs,
-      marginRight: spacing.lg,
-    },
-    historyLinkText: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: c.primary,
-      textDecorationLine: 'underline',
-    },
-    actionsRow: {
-      flexDirection: 'row',
-      marginTop: spacing.sm,
-    },
-    actionButton: {
-      marginRight: spacing.lg,
-    },
-    actionButtonText: {
-      color: c.primary,
-      fontWeight: '600',
-      fontSize: 13,
-    },
-    deleteButtonText: {
-      color: c.danger,
-      fontWeight: '600',
-      fontSize: 13,
-    },
-    pendingNotice: {
-      fontSize: 12,
-      color: c.textMuted,
-      fontStyle: 'italic',
-      marginTop: spacing.sm,
-    },
-    deletedNotice: {
-      fontSize: 12,
-      color: c.danger,
-      fontStyle: 'italic',
-      marginTop: spacing.sm,
-    },
-    diffBox: {
-      backgroundColor: c.background,
-      borderWidth: 1,
-      borderColor: c.border,
-      borderRadius: 10,
-      padding: spacing.sm,
-      marginTop: spacing.sm,
-    },
-    founderNoteBox: {
-      backgroundColor: c.surface,
-      borderRadius: 8,
-      padding: spacing.sm,
-      marginBottom: spacing.sm,
-    },
-    founderNoteLabel: {
-      fontSize: 10,
-      fontWeight: '700',
-      color: c.textMuted,
-      marginBottom: 2,
-    },
-    founderNoteText: {
-      fontSize: 12,
-      color: c.text,
-      fontStyle: 'italic',
-    },
-    diffRow: {
-      marginBottom: spacing.xs,
-    },
-    diffLabel: {
-      fontSize: 11,
-      color: c.textMuted,
-      marginBottom: 1,
-    },
-    diffLangSummary: {
-      fontSize: 10,
-      fontWeight: '600',
-      color: c.primary,
-    },
-    diffValues: {
-      flexDirection: 'row',
+    createCard: {
       alignItems: 'center',
-      marginTop: 2,
-    },
-    diffValuesText: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    diffLangTag: {
-      fontSize: 9,
-      fontWeight: '700',
-      color: c.textMuted,
+      gap: spacing.xs,
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.xl,
       borderWidth: 1,
+      borderStyle: 'dashed',
       borderColor: c.border,
-      borderRadius: 4,
-      paddingHorizontal: 4,
-      paddingVertical: 1,
-      marginRight: spacing.xs,
     },
-    diffOld: {
-      flex: 1,
-      fontSize: 12,
-      color: c.danger,
-      textDecorationLine: 'line-through',
+    createTitle: {
+      ...typography.bodyStrong,
+      color: c.text,
     },
-    diffArrow: {
-      fontSize: 12,
+    createNote: {
+      ...typography.micro,
       color: c.textMuted,
-      marginHorizontal: spacing.xs,
-    },
-    diffNew: {
-      flex: 1,
-      fontSize: 12,
-      fontWeight: '600',
-      color: c.success,
+      textAlign: 'center',
     },
     empty: {
+      ...typography.body,
       textAlign: 'center',
       color: c.textMuted,
       marginTop: spacing.xl,
-    },
-    footer: {
-      padding: spacing.lg,
-    },
-    verificationNote: {
-      fontSize: 12,
-      color: c.textMuted,
-      textAlign: 'center',
-      marginTop: spacing.sm,
     },
   });

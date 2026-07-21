@@ -5,25 +5,28 @@ import { Project } from '../types';
 import { getLocalizedText } from '../utils/localized';
 import { formatDate } from '../utils/date';
 import { resolveMediaUrl } from '../api/client';
-import { radius, spacing, tabularNums, ThemeColors, typography, useThemeStyles } from '../theme';
-import { HeroScrim, Pill } from './ui';
+import { radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../theme';
+import { HeroScrim, Icon, Pill } from './ui';
 
 interface Props {
   project: Project;
   onPress: () => void;
   onResalePress?: () => void;
+  onWorksPress?: () => void;
 }
 
 // Mirrors the project screen's hero — cover, scrim, title over the image — so opening a card
 // reads as the same surface expanding rather than a jump to a differently-built page.
-export function ProjectCard({ project, onPress, onResalePress }: Props) {
+export function ProjectCard({ project, onPress, onResalePress, onWorksPress }: Props) {
   const { t, i18n } = useTranslation();
   const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const collected = parseFloat(project.collectedAmount);
   const target = parseFloat(project.targetAmount);
   const progress = target > 0 ? Math.min(collected / target, 1) : 0;
   const ticketsLeft = project.totalTickets - project.ticketsSold;
   const hasResale = project.resaleEnabled && (project.resaleTicketsCount ?? 0) > 0;
+  const worksCount = project.worksCount ?? 0;
   const showsDeadline = project.deadline && typeof project.daysLeft === 'number';
 
   return (
@@ -35,17 +38,35 @@ export function ProjectCard({ project, onPress, onResalePress }: Props) {
           <View style={[StyleSheet.absoluteFill, styles.coverFallback]} />
         )}
         <HeroScrim />
-        {hasResale && (
-          <Pressable
-            hitSlop={8}
-            onPress={onResalePress}
-            disabled={!onResalePress}
-            style={({ pressed }) => [styles.resaleChip, pressed && onResalePress && styles.pressed]}
-          >
-            <Text style={styles.resaleChipText}>
-              🔁 {t('project.resaleBadge', { count: project.resaleTicketsCount })}
-            </Text>
-          </Pressable>
+        {/* Both chips are shortcuts past the card's own destination — resale to the market
+            tab, works to the works list. They wrap rather than run off a narrow cover. */}
+        {(hasResale || worksCount > 0) && (
+          <View style={styles.chipRow}>
+            {hasResale && (
+              <Pressable
+                hitSlop={8}
+                onPress={onResalePress}
+                disabled={!onResalePress}
+                style={({ pressed }) => [styles.coverChip, pressed && onResalePress && styles.pressed]}
+              >
+                <Icon name="refresh" color={colors.onOverlay} size={12} />
+                <Text style={styles.coverChipText}>
+                  {t('project.resaleBadge', { count: project.resaleTicketsCount })}
+                </Text>
+              </Pressable>
+            )}
+            {worksCount > 0 && (
+              <Pressable
+                hitSlop={8}
+                onPress={onWorksPress}
+                disabled={!onWorksPress}
+                style={({ pressed }) => [styles.coverChip, pressed && onWorksPress && styles.pressed]}
+              >
+                <Icon name="wrench" color={colors.onOverlay} size={12} />
+                <Text style={styles.coverChipText}>{t('project.worksCount', { count: worksCount })}</Text>
+              </Pressable>
+            )}
+          </View>
         )}
         <View style={styles.coverBody}>
           <Text style={styles.title} numberOfLines={2}>
@@ -120,16 +141,28 @@ const createStyles = (c: ThemeColors) =>
     coverFallback: {
       backgroundColor: c.primaryDark,
     },
-    resaleChip: {
+    chipRow: {
       position: 'absolute',
       top: spacing.sm,
       right: spacing.sm,
+      // Bounded on the left so a long pair wraps onto a second line instead of sliding under
+      // the cover's edge.
+      left: spacing.sm,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'flex-end',
+      gap: spacing.xs + 2,
+    },
+    coverChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs + 1,
       backgroundColor: c.onOverlayFill,
       borderRadius: radius.pill,
       paddingHorizontal: spacing.sm,
       paddingVertical: 3,
     },
-    resaleChipText: {
+    coverChipText: {
       ...typography.microStrong,
       color: c.onOverlay,
     },

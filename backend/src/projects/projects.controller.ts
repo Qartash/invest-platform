@@ -4,6 +4,7 @@ import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { ProjectsService } from './projects.service';
 import { TicketsService } from '../tickets/tickets.service';
+import { ProjectWorksService } from '../project-works/project-works.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { SetRiskDto } from './dto/set-risk.dto';
@@ -38,6 +39,7 @@ export class ProjectsController {
   constructor(
     private readonly projectsService: ProjectsService,
     private readonly ticketsService: TicketsService,
+    private readonly worksService: ProjectWorksService,
   ) {}
 
   private async withInvestorCount(project: Project) {
@@ -45,11 +47,15 @@ export class ProjectsController {
     const resaleStats = project.resaleEnabled
       ? await this.ticketsService.getResaleStats(project.id)
       : { listingsCount: 0, ticketsCount: 0 };
+    // Rides along with the other counts so the project cards can offer a jump straight to
+    // the works list — without it the app would need one request per card to know.
+    const worksCount = await this.worksService.countWorks(project.id);
     return {
       ...toProjectResponse(project),
       investorCount,
       resaleListingsCount: resaleStats.listingsCount,
       resaleTicketsCount: resaleStats.ticketsCount,
+      worksCount,
     };
   }
 

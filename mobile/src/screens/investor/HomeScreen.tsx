@@ -48,6 +48,7 @@ export function HomeScreen({ navigation }: Props) {
         <SegmentedTabs
           active={tab}
           onChange={setTab}
+          variant="track"
           tabs={[
             { key: 'active', label: t('home.tabRaising') },
             { key: 'funded', label: t('home.tabStarted') },
@@ -67,6 +68,7 @@ export function HomeScreen({ navigation }: Props) {
             project={item}
             onPress={() => navigation.navigate('ProjectDetail', { projectId: item.id })}
             onResalePress={() => navigation.navigate('ProjectDetail', { projectId: item.id, scrollToResale: true })}
+            onWorksPress={() => navigation.navigate('ProjectWorks', { projectId: item.id })}
           />
         )}
         ListEmptyComponent={
@@ -94,11 +96,11 @@ const createStyles = (c: ThemeColors) =>
       paddingBottom: spacing.sm + 4,
     },
     // Fixed above the feed, so it carries the rule that separates it from the scrolling list.
+    // No rule under the control: the track's own groove already fences it off from the
+    // list, and a line on top of that reads as a second, competing edge.
     tabsWrap: {
       paddingHorizontal: spacing.md,
       paddingBottom: spacing.sm,
-      borderBottomWidth: 1,
-      borderBottomColor: c.border,
     },
     list: {
       paddingHorizontal: spacing.md,
