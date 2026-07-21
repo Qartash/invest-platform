@@ -134,12 +134,16 @@ export function ProfileScreen({ navigation }: Props) {
           right={<Text style={styles.rowMoney}>{money(portfolio?.summary.totalCurrentValue)}</Text>}
           onPress={() => navigation.navigate('Portfolio')}
         />
-        <ListRow
-          icon="trendUp"
-          label={t('reports.title')}
-          sublabel={t('profile.reportsSubtitle')}
-          onPress={() => navigation.navigate('Reports')}
-        />
+        {/* Platform-wide turnover and a by-name feed of everyone's deposits — moderation
+            figures, not the user's own. The API refuses non-admins; don't offer the door. */}
+        {user?.role === 'admin' && (
+          <ListRow
+            icon="trendUp"
+            label={t('reports.title')}
+            sublabel={t('profile.reportsSubtitle')}
+            onPress={() => navigation.navigate('Reports')}
+          />
+        )}
       </ListGroup>
 
       <SectionHeader title={t('profile.accountSection')} spaced />

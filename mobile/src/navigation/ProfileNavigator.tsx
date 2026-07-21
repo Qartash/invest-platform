@@ -7,6 +7,7 @@ import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WalletScreen } from '../screens/investor/WalletScreen';
 import { PortfolioScreen } from '../screens/investor/PortfolioScreen';
 import { ReportsScreen } from '../screens/ReportsScreen';
+import { useAuthStore } from '../store/authStore';
 
 export type ProfileStackParamList = {
   Profile: undefined;
@@ -30,6 +31,11 @@ function BackToProfileButton({ navigation }: { navigation: NativeStackNavigation
 
 export function ProfileStackNavigator() {
   const { t } = useTranslation();
+  // Reports is the platform-wide moderation dashboard — turnover across every account and a
+  // by-name feed of everyone's deposits. Registering it only for admins keeps /reports from
+  // being reachable by typing the URL now that the web build has real routes; the API
+  // answers non-admins with 403 either way, so this is about not showing a broken screen.
+  const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Profile" component={ProfileScreen} />
@@ -56,15 +62,17 @@ export function ProfileStackNavigator() {
           headerLeft: () => <BackToProfileButton navigation={navigation} />,
         })}
       />
-      <Stack.Screen
-        name="Reports"
-        component={ReportsScreen}
-        options={({ navigation }) => ({
-          headerShown: true,
-          title: t('reports.title'),
-          headerLeft: () => <BackToProfileButton navigation={navigation} />,
-        })}
-      />
+      {isAdmin && (
+        <Stack.Screen
+          name="Reports"
+          component={ReportsScreen}
+          options={({ navigation }) => ({
+            headerShown: true,
+            title: t('reports.title'),
+            headerLeft: () => <BackToProfileButton navigation={navigation} />,
+          })}
+        />
+      )}
     </Stack.Navigator>
   );
 }
