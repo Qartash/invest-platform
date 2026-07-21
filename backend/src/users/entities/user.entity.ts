@@ -22,8 +22,13 @@ export class User {
   @Column({ type: 'varchar', unique: true, nullable: true })
   email: string | null;
 
-  @Column({ name: 'password_hash' })
-  passwordHash: string;
+  // Null for accounts that only ever signed in with Google — they have no
+  // password to hash, and must not be able to log in through the password form.
+  @Column({ type: 'varchar', nullable: true, name: 'password_hash' })
+  passwordHash: string | null;
+
+  @Column({ type: 'varchar', unique: true, nullable: true, name: 'google_id' })
+  googleId: string | null;
 
   @Column({ nullable: true })
   fullName: string;

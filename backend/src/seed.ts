@@ -10,6 +10,7 @@ import { ProjectFinanceService } from './project-finance/project-finance.service
 import { User } from './users/entities/user.entity';
 import { Project } from './projects/entities/project.entity';
 import { ExpenseCategory, FinancialReportStatus, KycStatus, UserRole } from './common/enums';
+import { hashPassword, isHashed, verifyPassword } from './auth/password';
 
 const LEGACY_PASSWORD = 'password123';
 
@@ -24,6 +25,9 @@ async function ensureUser(
   if (!user) {
     await authService.register({
       username: opts.username,
+      // Registration is email-keyed now; demo accounts get a placeholder so they
+      // can still be created by handle.
+      email: `${opts.username}@demo.local`,
       password: opts.password,
       fullName: opts.fullName,
       languagePref: 'ru',
@@ -31,8 +35,15 @@ async function ensureUser(
     user = await usersRepo.findOneOrFail({ where: { username: opts.username } });
     console.log(`Created user ${opts.username}`);
   }
-  if (user.role !== opts.role || user.kycStatus !== KycStatus.APPROVED || user.passwordHash !== opts.password) {
-    await usersRepo.update(user.id, { role: opts.role, kycStatus: KycStatus.APPROVED, passwordHash: opts.password });
+  // `!isHashed` also drags rows seeded before hashing landed over to bcrypt,
+  // so a plain `npm run seed` is enough to clear the plaintext out of the DB.
+  const passwordOk = (await verifyPassword(opts.password, user.passwordHash)) && isHashed(user.passwordHash);
+  if (user.role !== opts.role || user.kycStatus !== KycStatus.APPROVED || !passwordOk) {
+    await usersRepo.update(user.id, {
+      role: opts.role,
+      kycStatus: KycStatus.APPROVED,
+      passwordHash: await hashPassword(opts.password),
+    });
     user = await usersRepo.findOneOrFail({ where: { username: opts.username } });
   }
   if (isNew && opts.deposit) {

@@ -1,17 +1,25 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
-import { spacing, ThemeColors, useThemeStyles } from '../../theme';
+import { LanguageSwitcher } from '../../components/LanguageSwitcher';
+import { BrandMark } from '../../components/BrandMark';
+import { OrDivider } from '../../components/OrDivider';
+import { GoogleSignInButton, isGoogleSignInConfigured } from '../../components/GoogleSignInButton';
+import { radius, spacing, ThemeColors, typography, useThemeStyles } from '../../theme';
 import { login } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { AuthStackParamList } from '../../navigation/AuthNavigator';
 
-export function LoginScreen() {
+type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+
+export function LoginScreen({ navigation }: Props) {
   const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const setSession = useAuthStore((s) => s.setSession);
-  const [username, setUsername] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +28,7 @@ export function LoginScreen() {
     setError(null);
     setLoading(true);
     try {
-      const response = await login(username.trim(), password);
+      const response = await login(identifier.trim(), password);
       setSession(response.accessToken, response.user);
     } catch {
       setError(t('auth.invalidCredentials'));
@@ -30,43 +38,136 @@ export function LoginScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <TextField
-        label={t('auth.username')}
-        value={username}
-        onChangeText={setUsername}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      <TextField
-        label={t('auth.password')}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      {error && <Text style={styles.error}>{error}</Text>}
-      <PrimaryButton
-        title={t('auth.loginButton')}
-        onPress={handleLogin}
-        loading={loading}
-        disabled={!username || !password}
-      />
-    </View>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.hero}>
+          <BrandMark />
+          <Text style={styles.title}>{t('auth.loginTitle')}</Text>
+          <Text style={styles.subtitle}>{t('auth.loginSubtitle')}</Text>
+        </View>
+
+        <View style={styles.form}>
+          <TextField
+            label={t('auth.identifier')}
+            value={identifier}
+            onChangeText={setIdentifier}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="username"
+          />
+          <TextField
+            label={t('auth.password')}
+            value={password}
+            onChangeText={setPassword}
+            secureToggle
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="password"
+            onSubmitEditing={identifier && password ? handleLogin : undefined}
+            returnKeyType="go"
+          />
+
+          <Pressable hitSlop={8} style={styles.forgotRow}>
+            <Text style={styles.forgotText}>{t('auth.forgotPassword')}</Text>
+          </Pressable>
+
+          {error && <Text style={styles.error}>{error}</Text>}
+
+          <PrimaryButton
+            title={t('auth.loginButton')}
+            onPress={handleLogin}
+            loading={loading}
+            disabled={!identifier || !password}
+          />
+
+          {isGoogleSignInConfigured && (
+            <>
+              <OrDivider label={t('auth.or')} />
+              <GoogleSignInButton label={t('auth.continueWithGoogle')} />
+            </>
+          )}
+        </View>
+
+        <View style={styles.foot}>
+          <LanguageSwitcher />
+          <Pressable hitSlop={8} onPress={() => navigation.navigate('Register')} style={styles.footLink}>
+            <Text style={styles.footText}>
+              {t('auth.noAccount')} <Text style={styles.footAccent}>{t('auth.registerButton')}</Text>
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    container: {
+    flex: {
       flex: 1,
       backgroundColor: c.background,
+    },
+    // `flexGrow` (not `flex`) so the footer still sinks to the bottom on a tall
+    // screen while the form stays scrollable once the keyboard covers it.
+    content: {
+      flexGrow: 1,
       padding: spacing.lg,
+    },
+    hero: {
+      alignItems: 'center',
       paddingTop: spacing.xl,
     },
-    error: {
-      color: c.danger,
+    title: {
+      ...typography.title,
+      color: c.text,
+      marginTop: spacing.md,
+    },
+    subtitle: {
+      ...typography.caption,
+      color: c.textMuted,
+      marginTop: spacing.xs,
+      textAlign: 'center',
+    },
+    form: {
+      marginTop: spacing.xl,
+    },
+    forgotRow: {
+      alignSelf: 'flex-end',
       marginBottom: spacing.md,
+    },
+    forgotText: {
+      ...typography.captionStrong,
+      color: c.primary,
+    },
+    error: {
+      ...typography.caption,
+      color: c.danger,
+      backgroundColor: c.dangerSoft,
+      borderRadius: radius.md,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
+    },
+    foot: {
+      marginTop: 'auto',
+      paddingTop: spacing.xl,
+    },
+    footLink: {
+      marginTop: spacing.md,
+      alignItems: 'center',
+    },
+    footText: {
+      ...typography.label,
+      color: c.textMuted,
+    },
+    footAccent: {
+      ...typography.labelStrong,
+      color: c.primary,
     },
   });

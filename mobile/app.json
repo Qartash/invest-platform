@@ -3,6 +3,7 @@
     "name": "Invest Platform",
     "slug": "invest-platform",
     "version": "1.0.0",
+    "scheme": "investplatform",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -31,7 +32,8 @@
             "usesCleartextTraffic": true
           }
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

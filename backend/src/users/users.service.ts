@@ -4,6 +4,7 @@ import { Not, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { UserRole } from '../common/enums';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
+import { hashPassword } from '../auth/password';
 
 @Injectable()
 export class UsersService {
@@ -16,13 +17,32 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { username } });
   }
 
+  findByEmail(email: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { email: email.trim().toLowerCase() } });
+  }
+
+  // The login form takes one field for both, so an identifier may be either.
+  // Both columns are nullable, and an empty identifier would otherwise match
+  // every row whose column is NULL — hence the guard.
+  findByUsernameOrEmail(identifier: string): Promise<User | null> {
+    const value = identifier.trim();
+    if (!value) {
+      return Promise.resolve(null);
+    }
+    return this.usersRepository.findOne({
+      where: [{ username: value }, { email: value.toLowerCase() }],
+    });
+  }
+
   findById(id: string): Promise<User | null> {
     return this.usersRepository.findOne({ where: { id } });
   }
 
   create(data: {
     username: string;
-    passwordHash: string;
+    email?: string;
+    passwordHash: string | null;
+    googleId?: string;
     fullName?: string;
     role: UserRole;
     languagePref?: string;
@@ -68,6 +88,14 @@ export class UsersService {
     return this.usersRepository.findOneBy({ id });
   }
 
+  async setPasswordHash(id: string, passwordHash: string): Promise<void> {
+    await this.usersRepository.update(id, { passwordHash });
+  }
+
+  async linkGoogleAccount(id: string, googleId: string): Promise<void> {
+    await this.usersRepository.update(id, { googleId });
+  }
+
   async setAvatar(id: string, avatarUrl: string): Promise<User | null> {
     await this.usersRepository.update(id, { avatarUrl, avatarEmoji: null });
     return this.usersRepository.findOneBy({ id });
@@ -106,7 +134,7 @@ export class UsersService {
     const { password, ...rest } = dto;
     Object.assign(user, rest);
     if (password) {
-      user.passwordHash = password;
+      user.passwordHash = await hashPassword(password);
     }
     return this.usersRepository.save(user);
   }

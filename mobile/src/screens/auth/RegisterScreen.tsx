@@ -1,80 +1,181 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import axios from 'axios';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
-import { spacing, ThemeColors, useThemeStyles } from '../../theme';
+import { radius, spacing, ThemeColors, typography, useThemeStyles } from '../../theme';
+import { OrDivider } from '../../components/OrDivider';
+import { GoogleSignInButton, isGoogleSignInConfigured } from '../../components/GoogleSignInButton';
 import { register } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import i18n from '../../i18n';
 
-export function RegisterScreen() {
+type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
+
+const MIN_PASSWORD_LENGTH = 8;
+
+export function RegisterScreen({ navigation }: Props) {
   const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const setSession = useAuthStore((s) => s.setSession);
   const [fullName, setFullName] = useState('');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const canSubmit = email.includes('@') && password.length >= MIN_PASSWORD_LENGTH;
 
   const handleRegister = async () => {
     setError(null);
     setLoading(true);
     try {
       const response = await register({
-        username: username.trim(),
+        email: email.trim(),
         password,
         fullName: fullName.trim() || undefined,
         languagePref: i18n.language,
       });
       setSession(response.accessToken, response.user);
-    } catch {
-      setError(t('common.error'));
+    } catch (e) {
+      // A taken email is the one failure the user can actually act on, so it gets
+      // its own message instead of the generic one.
+      setError(axios.isAxiosError(e) && e.response?.status === 409 ? t('auth.emailTaken') : t('common.error'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <TextField label={t('auth.fullName')} value={fullName} onChangeText={setFullName} />
-      <TextField
-        label={t('auth.username')}
-        value={username}
-        onChangeText={setUsername}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      <TextField
-        label={t('auth.password')}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      {error && <Text style={styles.error}>{error}</Text>}
-      <PrimaryButton
-        title={t('auth.registerButton')}
-        onPress={handleRegister}
-        loading={loading}
-        disabled={!username || password.length < 3}
-      />
-    </View>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.hero}>
+          <Text style={styles.title}>{t('auth.registerTitle')}</Text>
+          <Text style={styles.subtitle}>{t('auth.registerSubtitle')}</Text>
+        </View>
+
+        <View style={styles.form}>
+          {/* Above the form, not below: the one-tap path should be the first
+              thing offered when creating an account. */}
+          {isGoogleSignInConfigured && (
+            <>
+              <GoogleSignInButton label={t('auth.signUpWithGoogle')} />
+              <OrDivider label={t('auth.orWithEmail')} />
+            </>
+          )}
+
+          <TextField
+            label={t('auth.fullName')}
+            value={fullName}
+            onChangeText={setFullName}
+            autoCapitalize="words"
+            textContentType="name"
+          />
+          <TextField
+            label={t('auth.email')}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+          />
+          <TextField
+            label={t('auth.password')}
+            value={password}
+            onChangeText={setPassword}
+            hint={t('auth.passwordHint')}
+            secureToggle
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="newPassword"
+          />
+
+          {error && <Text style={styles.error}>{error}</Text>}
+        </View>
+
+        <View style={styles.foot}>
+          <PrimaryButton
+            title={t('auth.registerButton')}
+            onPress={handleRegister}
+            loading={loading}
+            disabled={!canSubmit}
+          />
+          <Text style={styles.terms}>{t('auth.terms')}</Text>
+          <Pressable hitSlop={8} onPress={() => navigation.navigate('Login')} style={styles.footLink}>
+            <Text style={styles.footText}>
+              {t('auth.haveAccount')} <Text style={styles.footAccent}>{t('auth.loginButton')}</Text>
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    container: {
+    flex: {
       flex: 1,
       backgroundColor: c.background,
+    },
+    content: {
+      flexGrow: 1,
       padding: spacing.lg,
-      paddingTop: spacing.xl,
+    },
+    hero: {
+      paddingTop: spacing.md,
+    },
+    title: {
+      ...typography.title,
+      color: c.text,
+    },
+    subtitle: {
+      ...typography.caption,
+      color: c.textMuted,
+      marginTop: spacing.xs,
+    },
+    form: {
+      marginTop: spacing.lg,
     },
     error: {
+      ...typography.caption,
       color: c.danger,
+      backgroundColor: c.dangerSoft,
+      borderRadius: radius.md,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
       marginBottom: spacing.md,
+    },
+    foot: {
+      marginTop: 'auto',
+      paddingTop: spacing.lg,
+    },
+    terms: {
+      ...typography.micro,
+      color: c.textMuted,
+      textAlign: 'center',
+      marginTop: spacing.md,
+      lineHeight: 17,
+    },
+    footLink: {
+      marginTop: spacing.md,
+      alignItems: 'center',
+    },
+    footText: {
+      ...typography.label,
+      color: c.textMuted,
+    },
+    footAccent: {
+      ...typography.labelStrong,
+      color: c.primary,
     },
   });
