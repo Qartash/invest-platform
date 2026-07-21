@@ -3,22 +3,47 @@
 
 $root = $PSScriptRoot
 
-# 1. Postgres (служба Windows)
-$pg = Get-Service | Where-Object { $_.Name -like 'postgresql*' } | Select-Object -First 1
-if ($null -eq $pg) {
-    Write-Host "Служба PostgreSQL не найдена! Установите PostgreSQL." -ForegroundColor Red
+# 1. Postgres (контейнер из docker-compose.yml)
+if ($null -eq (Get-Command docker -ErrorAction SilentlyContinue)) {
+    Write-Host "Docker не найден! Установите Docker Desktop." -ForegroundColor Red
     exit 1
 }
-if ($pg.Status -ne 'Running') {
-    Write-Host "Запускаю службу $($pg.Name)..." -ForegroundColor Yellow
-    try {
-        Start-Service $pg.Name -ErrorAction Stop
-    } catch {
-        Write-Host "Не удалось запустить Postgres (нужны права администратора?): $_" -ForegroundColor Red
+
+Write-Host "Проверяю Docker..." -ForegroundColor Cyan
+docker info *> $null
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Docker Desktop не запущен — запускаю и жду..." -ForegroundColor Yellow
+    Start-Process 'com.docker.docker://' -ErrorAction SilentlyContinue
+    foreach ($i in 1..60) {
+        Start-Sleep -Seconds 2
+        docker info *> $null
+        if ($LASTEXITCODE -eq 0) { break }
+    }
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Docker так и не поднялся за 2 минуты — запустите Docker Desktop вручную." -ForegroundColor Red
         exit 1
     }
 }
-Write-Host "PostgreSQL: OK ($($pg.Name))" -ForegroundColor Green
+
+Write-Host "Поднимаю Postgres (docker compose up -d)..." -ForegroundColor Cyan
+docker compose -f "$root\docker-compose.yml" up -d postgres
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Не удалось поднять контейнер Postgres." -ForegroundColor Red
+    exit 1
+}
+
+# Контейнер стартовал — ждём, пока сама база начнёт принимать подключения
+$dbUp = $false
+foreach ($i in 1..30) {
+    docker compose -f "$root\docker-compose.yml" exec -T postgres pg_isready -U postgres -d invest_platform *> $null
+    if ($LASTEXITCODE -eq 0) { $dbUp = $true; break }
+    Start-Sleep -Seconds 2
+}
+if (-not $dbUp) {
+    Write-Host "Postgres не ответил за минуту — смотрите 'docker compose logs postgres'." -ForegroundColor Red
+    exit 1
+}
+Write-Host "PostgreSQL: OK (docker, localhost:5432)" -ForegroundColor Green
 
 # 2. Backend на :3000 (пропускаем, если уже запущен)
 if (Test-NetConnection localhost -Port 3000 -InformationLevel Quiet -WarningAction SilentlyContinue) {

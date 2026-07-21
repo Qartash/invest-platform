@@ -13,6 +13,13 @@
       "runtimeArgs": ["--prefix", "mobile", "run", "web", "--", "--port", "80"],
       "port": 80,
       "autoPort": false
+    },
+    {
+      "name": "mobile-web-clean",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "mobile", "run", "web", "--", "--clear"],
+      "port": 8081,
+      "autoPort": true
     }
   ]
 }
