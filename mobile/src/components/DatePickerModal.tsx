@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { spacing, ThemeColors, useThemeStyles } from '../theme';
+import { formatMonth, usesArmenianFallback } from '../utils/date';
 
 interface Props {
   visible: boolean;
@@ -11,6 +12,11 @@ interface Props {
 }
 
 const LOCALE_MAP: Record<string, string> = { hy: 'hy-AM', ru: 'ru-RU', en: 'en-US' };
+
+// Monday-first, matching the calendar grid below. Spelled out for the same reason as the
+// month names in utils/date.ts: where Armenian is absent from the runtime's ICU data,
+// `hy-AM` resolves to `ru` and the calendar would be headed with Russian weekdays.
+const HY_WEEKDAYS_SHORT = ['երկ', 'երք', 'չրք', 'հնգ', 'ուրբ', 'շբթ', 'կիր'];
 
 function toIso(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -31,6 +37,7 @@ export function DatePickerModal({ visible, value, onClose, onSelect }: Props) {
   const selected = value ?? null;
 
   const weekdayLabels = useMemo(() => {
+    if (usesArmenianFallback(i18n.language)) return HY_WEEKDAYS_SHORT;
     // Monday-first week; take short weekday names from the active locale.
     const base = new Date(2023, 0, 2); // a Monday
     return Array.from({ length: 7 }, (_, i) => {
@@ -38,12 +45,12 @@ export function DatePickerModal({ visible, value, onClose, onSelect }: Props) {
       d.setDate(base.getDate() + i);
       return d.toLocaleDateString(locale, { weekday: 'short' });
     });
-  }, [locale]);
+  }, [locale, i18n.language]);
 
-  const monthTitle = new Date(viewYear, viewMonth, 1).toLocaleDateString(locale, {
-    month: 'long',
-    year: 'numeric',
-  });
+  const monthTitle = formatMonth(
+    `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`,
+    i18n.language,
+  );
 
   const cells = useMemo(() => {
     const firstDay = new Date(viewYear, viewMonth, 1);
