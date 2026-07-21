@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { radius, shadow, spacing, ThemeColors, ColorSchemeName, useTheme, useThemeStyles } from '../theme';
+import { shadow, spacing, ThemeColors, ColorSchemeName, useTheme, useThemeStyles } from '../theme';
 
 /**
  * The bottom tab bar, drawn as a floating dock instead of a full-width strip.
@@ -91,6 +91,15 @@ function DockTab({ focused, label, icon, onPress, onLongPress }: DockTabProps) {
   );
 }
 
+// The dock is sized from these rather than from its children: leaving the height to be
+// inferred collapsed the bar to its own padding on Android, so the icons overhung a
+// sliver of a pill. Both radii are half a real height too — Android hands `borderRadius`
+// to the elevation outline, and a nominal 999 makes it draw the shadow against a shape
+// that isn't there.
+const TAB_HEIGHT = 72;
+const DOCK_PADDING = 9;
+const DOCK_HEIGHT = TAB_HEIGHT + DOCK_PADDING * 2;
+
 const createStyles = (c: ThemeColors, scheme: ColorSchemeName) =>
   StyleSheet.create({
     // Matches the screens' background so the dock reads as floating over the page rather
@@ -102,19 +111,19 @@ const createStyles = (c: ThemeColors, scheme: ColorSchemeName) =>
     },
     dock: {
       flexDirection: 'row',
+      height: DOCK_HEIGHT,
       backgroundColor: c.surface,
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: c.border,
-      borderRadius: radius.pill,
-      padding: 9,
+      borderRadius: DOCK_HEIGHT / 2,
+      padding: DOCK_PADDING,
       ...shadow(scheme),
     },
     tab: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      height: 72,
-      borderRadius: radius.pill,
+      borderRadius: TAB_HEIGHT / 2,
     },
     tabSelected: {
       backgroundColor: c.primary,
