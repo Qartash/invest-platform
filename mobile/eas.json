@@ -10,12 +10,15 @@
         "gradleCommand": ":app:assembleRelease -PreactNativeArchitectures=arm64-v8a"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://10.64.58.76:3000/api"
+        "EXPO_PUBLIC_API_URL": "https://invest-platform-api-7msz.onrender.com/api"
       },
       "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://invest-platform-api-7msz.onrender.com/api"
+      },
       "channel": "production"
     }
   }
