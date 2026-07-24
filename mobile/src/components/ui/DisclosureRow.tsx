@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { spacing, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
+import { focusRing, PressableState, spacing, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
 import { Icon, IconName } from './Icon';
 
 interface Props {
@@ -25,7 +25,11 @@ export function DisclosureRow({ label, icon, expanded, onToggle, tone = 'muted',
     <View style={styles.wrap}>
       <Pressable
         onPress={onToggle}
-        style={({ pressed }) => [styles.row, pressed && styles.pressed]}
+        style={({ pressed, hovered, focused }: PressableState) => [
+          styles.row,
+          (pressed || hovered) && styles.pressed,
+          focused && styles.focused,
+        ]}
         hitSlop={6}
       >
         {icon && <Icon name={icon} size={14} color={color} />}
@@ -55,6 +59,7 @@ const createStyles = (c: ThemeColors) =>
     pressed: {
       opacity: 0.6,
     },
+    focused: focusRing(c),
     label: {
       ...typography.micro,
       flex: 1,

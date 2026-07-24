@@ -1,7 +1,8 @@
 import React from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { spacing, ThemeColors, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
 import { PrimaryButton } from './PrimaryButton';
 import { Avatar } from './Avatar';
 
@@ -26,9 +27,8 @@ export function InvestorsListModal({ visible, investors, onClose, onSelect }: Pr
   const { t } = useTranslation();
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+    <Dialog visible={visible} onClose={onClose}>
+      <View style={styles.card}>
           <Text style={styles.title}>{t('project.investorsListTitle')}</Text>
           <FlatList
             data={investors}
@@ -50,24 +50,19 @@ export function InvestorsListModal({ visible, investors, onClose, onSelect }: Pr
           />
           <View style={{ height: spacing.sm }} />
           <PrimaryButton title={t('common.close')} variant="outline" onPress={onClose} />
-        </View>
       </View>
-    </Modal>
+    </Dialog>
   );
 }
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      justifyContent: 'center',
-      padding: spacing.lg,
-    },
     card: {
       backgroundColor: c.surface,
       borderRadius: 14,
       padding: spacing.lg,
+      // The dialog already caps at the window; this keeps the list from filling it entirely
+      // so the card still reads as a card rather than a takeover.
       maxHeight: '75%',
     },
     title: {

@@ -10,9 +10,17 @@ import { AuthUser, Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { priorityColors } from '../../utils/priority';
 import { Avatar } from '../../components/Avatar';
-import { Icon, IconName } from '../../components/ui';
+import { Icon, IconName, PageContainer, useGrid } from '../../components/ui';
 import { formatDate } from '../../utils/date';
-import { spacing, ThemeColors, typography, useThemeStyles, useTheme } from '../../theme';
+import {
+  maxWidth,
+  spacing,
+  ThemeColors,
+  typography,
+  useBreakpoint,
+  useThemeStyles,
+  useTheme,
+} from '../../theme';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
 import { LogsScreen } from './LogsScreen';
 import { ModerationReleasesScreen } from './ModerationReleasesScreen';
@@ -61,6 +69,7 @@ export function ModerationScreen({ navigation }: Props) {
   const PRIORITY_COLORS = useMemo(() => priorityColors(colors), [colors]);
   const STATUS_COLORS = useMemo(() => statusColors(colors), [colors]);
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [tab, setTab] = useState<Tab>('pending');
   const [projects, setProjects] = useState<Project[]>([]);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -122,8 +131,17 @@ export function ModerationScreen({ navigation }: Props) {
 
   const activeTab = TABS.find((item) => item.key === tab) ?? TABS[0];
 
+  // Both lists are computed above the early returns below, because the grids they feed are
+  // built by a hook and a hook cannot sit behind a conditional return.
+  const isAllTab = tab === 'all';
+  const listData = isAllTab ? filteredAll : projects;
+  // Two columns, not three: these rows are a thumbnail beside a stack of badges, and the
+  // badges start wrapping onto extra lines as soon as the row gets narrower than this.
+  const { columns, data: projectCells, isGrid } = useGrid(listData, { medium: 2, wide: 2 });
+  const { columns: userColumns, data: userCells, isGrid: usersGrid } = useGrid(users, { medium: 2, wide: 2 });
+
   const tabSwitcher = (
-    <View style={styles.tabBlock}>
+    <View style={styles.tabBlock} key="tabs">
       <View style={styles.tabRow}>
         {TABS.map((item) => {
           const active = item.key === tab;
@@ -146,11 +164,19 @@ export function ModerationScreen({ navigation }: Props) {
     </View>
   );
 
+  // Every tab below repeats the same title and switcher; capping them once here keeps the
+  // six destinations from drifting apart from each other in a wide window.
+  const head = (
+    <PageContainer maxWidth={maxWidth.page}>
+      <Text style={styles.header}>{t('founder.moderation')}</Text>
+      {tabSwitcher}
+    </PageContainer>
+  );
+
   if (tab === 'logs') {
     return (
       <View style={styles.container}>
-        <Text style={styles.header}>{t('founder.moderation')}</Text>
-        {tabSwitcher}
+        {head}
         <LogsScreen />
       </View>
     );
@@ -159,8 +185,7 @@ export function ModerationScreen({ navigation }: Props) {
   if (tab === 'releases') {
     return (
       <View style={styles.container}>
-        <Text style={styles.header}>{t('founder.moderation')}</Text>
-        {tabSwitcher}
+        {head}
         <ModerationReleasesScreen />
       </View>
     );
@@ -169,49 +194,58 @@ export function ModerationScreen({ navigation }: Props) {
   if (tab === 'disputes') {
     return (
       <View style={styles.container}>
-        <Text style={styles.header}>{t('founder.moderation')}</Text>
-        {tabSwitcher}
+        {head}
         <ModerationDisputesScreen />
       </View>
     );
   }
 
+  // Both renderers hand back the bare card in one column and wrap it in an equal-share cell
+  // in a grid — the wrapper exists only to divide a row, so a phone never grows one.
+  const renderUserCard = ({ item }: { item: AuthUser | null }) => {
+    if (!item) return <View style={styles.cell} />;
+    const card = (
+      <Pressable style={styles.card} onPress={() => navigation.navigate('ModerationUser', { userId: item.id })}>
+        <Avatar avatarUrl={item.avatarUrl} avatarEmoji={item.avatarEmoji} size={44} />
+        <View style={[styles.cardText, styles.userCardText]}>
+          <View style={styles.badgeRow}>
+            <View style={styles.editBadge}>
+              <Text style={styles.editBadgeText}>{t(`moderation.users.roles.${item.role}`)}</Text>
+            </View>
+            {item.bannedAt && (
+              <View style={styles.deletionBadge}>
+                <Text style={styles.deletionBadgeText}>{t('moderation.users.bannedBadge')}</Text>
+              </View>
+            )}
+            {item.deletedAt && (
+              <View style={styles.deletionBadge}>
+                <Text style={styles.deletionBadgeText}>{t('project.status.deleted')}</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.title}>{item.fullName || item.username || '—'}</Text>
+          <Text style={styles.meta}>
+            {item.username ? `@${item.username}` : ''}
+            {item.createdAt ? ` · ${formatDate(item.createdAt, i18n.language)}` : ''}
+          </Text>
+        </View>
+      </Pressable>
+    );
+    return usersGrid ? <View style={styles.cell}>{card}</View> : card;
+  };
+
   if (tab === 'users') {
     return (
       <View style={styles.container}>
-        <Text style={styles.header}>{t('founder.moderation')}</Text>
-        {tabSwitcher}
+        {head}
         <FlatList
-          data={users}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <Pressable style={styles.card} onPress={() => navigation.navigate('ModerationUser', { userId: item.id })}>
-              <Avatar avatarUrl={item.avatarUrl} avatarEmoji={item.avatarEmoji} size={44} />
-              <View style={[styles.cardText, styles.userCardText]}>
-                <View style={styles.badgeRow}>
-                  <View style={styles.editBadge}>
-                    <Text style={styles.editBadgeText}>{t(`moderation.users.roles.${item.role}`)}</Text>
-                  </View>
-                  {item.bannedAt && (
-                    <View style={styles.deletionBadge}>
-                      <Text style={styles.deletionBadgeText}>{t('moderation.users.bannedBadge')}</Text>
-                    </View>
-                  )}
-                  {item.deletedAt && (
-                    <View style={styles.deletionBadge}>
-                      <Text style={styles.deletionBadgeText}>{t('project.status.deleted')}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.title}>{item.fullName || item.username || '—'}</Text>
-                <Text style={styles.meta}>
-                  {item.username ? `@${item.username}` : ''}
-                  {item.createdAt ? ` · ${formatDate(item.createdAt, i18n.language)}` : ''}
-                </Text>
-              </View>
-            </Pressable>
-          )}
+          key={userColumns}
+          numColumns={userColumns}
+          columnWrapperStyle={usersGrid ? styles.row : undefined}
+          data={userCells}
+          keyExtractor={(item, index) => item?.id ?? `filler-${index}`}
+          contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
+          renderItem={renderUserCard}
           ListEmptyComponent={
             !loading ? (
               <Text style={styles.empty}>{loadFailed ? t('common.error') : t('reports.noData')}</Text>
@@ -222,12 +256,10 @@ export function ModerationScreen({ navigation }: Props) {
     );
   }
 
-  const isAllTab = tab === 'all';
-  const listData = isAllTab ? filteredAll : projects;
-
-  const renderCard = ({ item }: { item: Project }) => {
+  const renderCard = ({ item }: { item: Project | null }) => {
+    if (!item) return <View style={styles.cell} />;
     const status = displayStatus(item);
-    return (
+    const card = (
       <Pressable style={styles.card} onPress={() => navigation.navigate('ModerationDetail', { projectId: item.id })}>
         {item.coverImageUrl ? (
           <Image source={{ uri: resolveMediaUrl(item.coverImageUrl) }} style={styles.cover} />
@@ -271,34 +303,39 @@ export function ModerationScreen({ navigation }: Props) {
         </View>
       </Pressable>
     );
+    return isGrid ? <View style={styles.cell}>{card}</View> : card;
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>{t('founder.moderation')}</Text>
-      {tabSwitcher}
+      {head}
       {isAllTab && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterRowContent}>
-          {STATUS_FILTERS.map((status) => {
-            const active = statusFilter === status;
-            return (
-              <Pressable
-                key={status}
-                style={[styles.filterChip, active && styles.filterChipActive]}
-                onPress={() => setStatusFilter(status)}
-              >
-                <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
-                  {status === 'all' ? t('moderation.filterAll') : t(`project.status.${status}`)}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        <PageContainer maxWidth={maxWidth.page}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow} contentContainerStyle={styles.filterRowContent}>
+            {STATUS_FILTERS.map((status) => {
+              const active = statusFilter === status;
+              return (
+                <Pressable
+                  key={status}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  onPress={() => setStatusFilter(status)}
+                >
+                  <Text style={[styles.filterChipText, active && styles.filterChipTextActive]}>
+                    {status === 'all' ? t('moderation.filterAll') : t(`project.status.${status}`)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </PageContainer>
       )}
       <FlatList
-        data={listData}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        key={columns}
+        numColumns={columns}
+        columnWrapperStyle={isGrid ? styles.row : undefined}
+        data={projectCells}
+        keyExtractor={(item, index) => item?.id ?? `filler-${index}`}
+        contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
         renderItem={renderCard}
         ListEmptyComponent={
           !loading ? (
@@ -395,6 +432,17 @@ const createStyles = (c: ThemeColors) =>
     list: {
       paddingHorizontal: spacing.lg,
       paddingBottom: spacing.lg,
+    },
+    listWide: {
+      maxWidth: maxWidth.page,
+      width: '100%',
+      alignSelf: 'center',
+    },
+    row: {
+      gap: spacing.sm,
+    },
+    cell: {
+      flex: 1,
     },
     card: {
       flexDirection: 'row',

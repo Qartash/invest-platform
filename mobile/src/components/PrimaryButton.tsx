@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import { focusRing, PressableState, spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { logEvent } from '../utils/logger';
 
 interface Props {
@@ -28,12 +28,16 @@ export function PrimaryButton({ title, onPress, loading, disabled, variant = 'pr
     <Pressable
       onPress={handlePress}
       disabled={disabled || loading}
-      style={({ pressed }) => [
+      style={({ pressed, hovered, focused }: PressableState) => [
         styles.base,
         isSmall && styles.small,
         isOutline ? styles.outline : styles.filled,
         (disabled || loading) && styles.disabled,
+        // Hover deepens the surface a touch so the button reacts to the cursor before it is
+        // clicked; on a phone `hovered` never fires, so the mobile look is unchanged.
+        hovered && !pressed && (isOutline ? styles.outlineHovered : styles.filledHovered),
         pressed && styles.pressed,
+        focused && styles.focused,
       ]}
     >
       {loading ? (
@@ -70,9 +74,16 @@ const createStyles = (c: ThemeColors) =>
     disabled: {
       opacity: 0.5,
     },
+    filledHovered: {
+      backgroundColor: c.primaryDark,
+    },
+    outlineHovered: {
+      backgroundColor: c.primarySoft,
+    },
     pressed: {
       opacity: 0.85,
     },
+    focused: focusRing(c),
     text: {
       color: c.textOnAccent,
       fontSize: 16,

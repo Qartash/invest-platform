@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { fetchInvestorProfile } from '../api/users';
 import { getLocalizedText } from '../utils/localized';
 import { formatDate } from '../utils/date';
 import { InvestorProfile } from '../types';
 import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
 import { PrimaryButton } from './PrimaryButton';
 import { Avatar } from './Avatar';
 import { RichTextView } from './RichTextView';
@@ -47,9 +48,8 @@ export function InvestorProfileModal({
   const otherProjects = (profile?.projects ?? []).filter((p) => p.id !== excludeProjectId);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+    <Dialog visible={visible} onClose={onClose}>
+      <View style={styles.card}>
           {loading || !profile ? (
             <ActivityIndicator color={colors.primary} />
           ) : (
@@ -116,9 +116,8 @@ export function InvestorProfileModal({
               <PrimaryButton title={t('common.close')} onPress={onClose} />
             </ScrollView>
           )}
-        </View>
       </View>
-    </Modal>
+    </Dialog>
   );
 }
 
@@ -128,12 +127,6 @@ function capitalize(value: string) {
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      justifyContent: 'center',
-      padding: spacing.lg,
-    },
     card: {
       backgroundColor: c.surface,
       borderRadius: 14,

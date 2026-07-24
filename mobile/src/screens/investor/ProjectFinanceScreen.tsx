@@ -8,7 +8,7 @@ import { fetchProjectFinancialReports } from '../../api/projectFinance';
 import { Project, ProjectFinancialReport, ProjectPurchase } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { useAuthStore } from '../../store/authStore';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
 import { ProjectFinancePanel } from '../../components/ProjectFinancePanel';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
 
@@ -19,6 +19,7 @@ export function ProjectFinanceScreen({ route }: Props) {
   const { colors } = useTheme();
   const { projectId } = route.params;
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const currentUserId = useAuthStore((s) => s.user?.id);
   const [project, setProject] = useState<Project | null>(null);
   const [purchases, setPurchases] = useState<ProjectPurchase[]>([]);
@@ -42,7 +43,7 @@ export function ProjectFinanceScreen({ route }: Props) {
   const myDividendsTotal = reports.reduce((sum, report) => sum + (report.myDividend ?? 0), 0);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}>
       {project && <Text style={styles.title}>{getLocalizedText(project.title, i18n.language)}</Text>}
 
       {myTicketQuantity > 0 && (
@@ -92,6 +93,11 @@ const createStyles = (c: ThemeColors) =>
     },
     content: {
       padding: spacing.lg,
+    },
+    contentWide: {
+      maxWidth: maxWidth.column,
+      width: '100%',
+      alignSelf: 'center',
     },
     title: {
       fontSize: 18,

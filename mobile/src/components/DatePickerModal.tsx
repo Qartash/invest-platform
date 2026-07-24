@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { spacing, ThemeColors, useThemeStyles } from '../theme';
+import { maxWidth, spacing, ThemeColors, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
 import { formatMonth, usesArmenianFallback } from '../utils/date';
 
 interface Props {
@@ -71,9 +72,8 @@ export function DatePickerModal({ visible, value, onClose, onSelect }: Props) {
   const isFuture = (day: number) => new Date(viewYear, viewMonth, day) > today;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+    <Dialog visible={visible} onClose={onClose} maxWidth={maxWidth.dialogSm}>
+      <View style={styles.card}>
           <View style={styles.headerRow}>
             <Pressable onPress={() => shiftMonth(-1)} hitSlop={10} style={styles.navButton}>
               <Text style={styles.navText}>‹</Text>
@@ -133,27 +133,17 @@ export function DatePickerModal({ visible, value, onClose, onSelect }: Props) {
               );
             })}
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+      </View>
+    </Dialog>
   );
 }
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'center',
-      padding: spacing.lg,
-    },
     card: {
       backgroundColor: c.surface,
       borderRadius: 16,
       padding: spacing.md,
-      width: '100%',
-      maxWidth: 360,
-      alignSelf: 'center',
     },
     headerRow: {
       flexDirection: 'row',

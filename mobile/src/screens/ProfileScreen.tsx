@@ -5,12 +5,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
+  maxWidth,
   radius,
   spacing,
   tabularNums,
   ThemeColors,
   ThemePreference,
   typography,
+  useBreakpoint,
   useTheme,
   useThemeStyles,
 } from '../theme';
@@ -18,7 +20,7 @@ import { useAuthStore } from '../store/authStore';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Avatar } from '../components/Avatar';
 import { RichTextView } from '../components/RichTextView';
-import { Card, ListGroup, ListRow, Pill, SectionHeader, SegmentedTabs } from '../components/ui';
+import { Card, ListGroup, ListRow, PageContainer, Pill, SectionHeader, SegmentedTabs } from '../components/ui';
 import { formatDate } from '../utils/date';
 import { showAlert } from '../utils/alert';
 import { fetchWallet } from '../api/wallet';
@@ -33,6 +35,7 @@ export function ProfileScreen({ navigation }: Props) {
   const styles = useThemeStyles(createStyles);
   const { colors, preference, setPreference } = useTheme();
   const insets = useSafeAreaInsets();
+  const { isCompact } = useBreakpoint();
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -79,6 +82,10 @@ export function ProfileScreen({ navigation }: Props) {
       style={styles.container}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.md }]}
     >
+      {/* The page is one readable column on a phone and two on a desktop window. The identity
+          card and the section columns share one `page` cap so they stay the same width as
+          each other; the split into two columns happens only below `md`. */}
+      <PageContainer maxWidth={maxWidth.page}>
       <Text style={styles.header}>{t('profile.title')}</Text>
 
       <Card style={styles.identityCard}>
@@ -116,6 +123,8 @@ export function ProfileScreen({ navigation }: Props) {
         )}
       </Card>
 
+      <View style={[styles.columns, !isCompact && styles.columnsWide]}>
+        <View style={styles.column}>
       <SectionHeader title={t('profile.financeSection')} spaced />
       <ListGroup>
         <ListRow
@@ -182,7 +191,9 @@ export function ProfileScreen({ navigation }: Props) {
       <Text style={styles.note}>
         {user?.kycStatus === 'approved' ? t('profile.kycExplainVerified') : t('profile.kycExplain')}
       </Text>
+        </View>
 
+        <View style={styles.column}>
       {hasContacts && (
         <>
           <SectionHeader title={t('profile.contactsSection')} spaced />
@@ -217,6 +228,9 @@ export function ProfileScreen({ navigation }: Props) {
       <Pressable style={styles.logout} onPress={handleLogout} hitSlop={8}>
         <Text style={styles.logoutText}>{t('profile.logout')}</Text>
       </Pressable>
+        </View>
+      </View>
+      </PageContainer>
     </ScrollView>
   );
 }
@@ -235,6 +249,20 @@ const createStyles = (c: ThemeColors) =>
       ...typography.display,
       color: c.text,
       marginBottom: spacing.md,
+    },
+
+    // On a phone the two "columns" are just the normal top-to-bottom flow. On a wide window
+    // they sit side by side and share the row evenly, so the account details and the
+    // appearance settings fill the height the identity card left rather than trailing far
+    // below it.
+    columns: {},
+    columnsWide: {
+      flexDirection: 'row',
+      gap: spacing.lg,
+      alignItems: 'flex-start',
+    },
+    column: {
+      flex: 1,
     },
 
     identityCard: {

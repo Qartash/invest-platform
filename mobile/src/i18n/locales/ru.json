@@ -694,6 +694,12 @@
         "error": "Ошибки",
         "database": "БД",
         "console": "Консоль"
+      },
+      "columns": {
+        "source": "Источник",
+        "time": "Время",
+        "category": "Категория",
+        "message": "Сообщение"
       }
     },
     "tabAll": "Все проекты",

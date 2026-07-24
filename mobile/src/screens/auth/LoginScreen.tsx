@@ -8,7 +8,18 @@ import { LanguageSwitcher } from '../../components/LanguageSwitcher';
 import { BrandMark } from '../../components/BrandMark';
 import { OrDivider } from '../../components/OrDivider';
 import { GoogleSignInButton, isGoogleSignInConfigured } from '../../components/GoogleSignInButton';
-import { radius, spacing, ThemeColors, typography, useThemeStyles } from '../../theme';
+import { PageContainer } from '../../components/ui';
+import {
+  ColorSchemeName,
+  maxWidth,
+  radius,
+  shadow,
+  spacing,
+  ThemeColors,
+  typography,
+  useBreakpoint,
+  useThemeStyles,
+} from '../../theme';
 import { login } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
@@ -18,6 +29,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 export function LoginScreen({ navigation }: Props) {
   const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const setSession = useAuthStore((s) => s.setSession);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -41,73 +53,79 @@ export function LoginScreen({ navigation }: Props) {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         style={styles.flex}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.hero}>
-          <BrandMark />
-          <Text style={styles.title}>{t('auth.loginTitle')}</Text>
-          <Text style={styles.subtitle}>{t('auth.loginSubtitle')}</Text>
-        </View>
+        {/* On a phone the form owns the whole screen and needs no frame around it. In a
+            desktop window that same layout leaves two fields stretched across a metre of
+            glass, so the form collapses into a card the width of what it actually asks
+            for and sits in the middle of the window. */}
+        <PageContainer maxWidth={maxWidth.form} style={styles.card}>
+          <View style={[styles.hero, !isCompact && styles.heroWide]}>
+            <BrandMark />
+            <Text style={styles.title}>{t('auth.loginTitle')}</Text>
+            <Text style={styles.subtitle}>{t('auth.loginSubtitle')}</Text>
+          </View>
 
-        <View style={styles.form}>
-          <TextField
-            label={t('auth.identifier')}
-            value={identifier}
-            onChangeText={setIdentifier}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            textContentType="username"
-          />
-          <TextField
-            label={t('auth.password')}
-            value={password}
-            onChangeText={setPassword}
-            secureToggle
-            autoCapitalize="none"
-            autoCorrect={false}
-            textContentType="password"
-            onSubmitEditing={identifier && password ? handleLogin : undefined}
-            returnKeyType="go"
-          />
+          <View style={styles.form}>
+            <TextField
+              label={t('auth.identifier')}
+              value={identifier}
+              onChangeText={setIdentifier}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="username"
+            />
+            <TextField
+              label={t('auth.password')}
+              value={password}
+              onChangeText={setPassword}
+              secureToggle
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="password"
+              onSubmitEditing={identifier && password ? handleLogin : undefined}
+              returnKeyType="go"
+            />
 
-          <Pressable hitSlop={8} style={styles.forgotRow}>
-            <Text style={styles.forgotText}>{t('auth.forgotPassword')}</Text>
-          </Pressable>
+            <Pressable hitSlop={8} style={styles.forgotRow}>
+              <Text style={styles.forgotText}>{t('auth.forgotPassword')}</Text>
+            </Pressable>
 
-          {error && <Text style={styles.error}>{error}</Text>}
+            {error && <Text style={styles.error}>{error}</Text>}
 
-          <PrimaryButton
-            title={t('auth.loginButton')}
-            onPress={handleLogin}
-            loading={loading}
-            disabled={!identifier || !password}
-          />
+            <PrimaryButton
+              title={t('auth.loginButton')}
+              onPress={handleLogin}
+              loading={loading}
+              disabled={!identifier || !password}
+            />
 
-          {isGoogleSignInConfigured && (
-            <>
-              <OrDivider label={t('auth.or')} />
-              <GoogleSignInButton label={t('auth.continueWithGoogle')} />
-            </>
-          )}
-        </View>
+            {isGoogleSignInConfigured && (
+              <>
+                <OrDivider label={t('auth.or')} />
+                <GoogleSignInButton label={t('auth.continueWithGoogle')} />
+              </>
+            )}
+          </View>
 
-        <View style={styles.foot}>
-          <LanguageSwitcher />
-          <Pressable hitSlop={8} onPress={() => navigation.navigate('Register')} style={styles.footLink}>
-            <Text style={styles.footText}>
-              {t('auth.noAccount')} <Text style={styles.footAccent}>{t('auth.registerButton')}</Text>
-            </Text>
-          </Pressable>
-        </View>
+          <View style={styles.foot}>
+            <LanguageSwitcher />
+            <Pressable hitSlop={8} onPress={() => navigation.navigate('Register')} style={styles.footLink}>
+              <Text style={styles.footText}>
+                {t('auth.noAccount')} <Text style={styles.footAccent}>{t('auth.registerButton')}</Text>
+              </Text>
+            </Pressable>
+          </View>
+        </PageContainer>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const createStyles = (c: ThemeColors) =>
+const createStyles = (c: ThemeColors, scheme: ColorSchemeName) =>
   StyleSheet.create({
     flex: {
       flex: 1,
@@ -119,9 +137,29 @@ const createStyles = (c: ThemeColors) =>
       flexGrow: 1,
       padding: spacing.lg,
     },
+    // The same free space that pushes the footer down on a phone is what centres the card
+    // in a desktop window — `justifyContent` only has anything to distribute because
+    // `flexGrow` above claimed the height.
+    contentWide: {
+      justifyContent: 'center',
+      padding: spacing.xl,
+    },
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      padding: spacing.xl,
+      ...shadow(scheme),
+    },
     hero: {
       alignItems: 'center',
       paddingTop: spacing.xl,
+    },
+    // The card's own padding already separates the mark from the top edge; the phone
+    // layout's extra breathing room would only make the card top-heavy.
+    heroWide: {
+      paddingTop: 0,
     },
     title: {
       ...typography.title,

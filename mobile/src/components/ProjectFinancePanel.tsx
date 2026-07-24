@@ -26,7 +26,7 @@ import { requestRelease } from '../api/projectFunding';
 import { fetchWallet } from '../api/wallet';
 import { formatDate, formatMonth } from '../utils/date';
 import { showAlert } from '../utils/alert';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import { maxWidth, spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 import { TextField } from './TextField';
 import { MonthFinanceChart, MonthFinancePoint } from './MonthFinanceChart';
@@ -1401,7 +1401,7 @@ const createStyles = (c: ThemeColors) =>
       padding: spacing.lg,
       maxHeight: '85%',
       width: '100%',
-      maxWidth: 480,
+      maxWidth: maxWidth.dialogMd,
       alignSelf: 'center',
     },
     modalTitle: {

@@ -6,15 +6,18 @@ import { decideRelease, fetchPendingReleases } from '../../api/projectFunding';
 import { PendingReleaseRequest } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
+import { useGrid } from '../../components/ui';
 
 export function ModerationReleasesScreen() {
   const styles = useThemeStyles(createStyles);
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [requests, setRequests] = useState<PendingReleaseRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
+  const { columns, data, isGrid } = useGrid(requests, { medium: 2, wide: 2 });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,12 +50,16 @@ export function ModerationReleasesScreen() {
 
   return (
     <FlatList
-      data={requests}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
+      key={columns}
+      numColumns={columns}
+      columnWrapperStyle={isGrid ? styles.row : undefined}
+      data={data}
+      keyExtractor={(item, index) => item?.id ?? `filler-${index}`}
+      contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
       renderItem={({ item }) => {
+        if (!item) return <View style={styles.cell} />;
         const enough = item.treasuryBalance >= item.amount;
-        return (
+        const card = (
           <View style={styles.card}>
             <Text style={styles.project}>{getLocalizedText(item.projectTitle, i18n.language)}</Text>
             <Text style={styles.stage}>{item.stageTitle}</Text>
@@ -79,6 +86,7 @@ export function ModerationReleasesScreen() {
             </View>
           </View>
         );
+        return isGrid ? <View style={styles.cell}>{card}</View> : card;
       }}
       ListEmptyComponent={!loading ? <Text style={styles.empty}>{t('moderation.releases.none')}</Text> : null}
     />
@@ -88,6 +96,9 @@ export function ModerationReleasesScreen() {
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
     list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+    listWide: { maxWidth: maxWidth.page, width: '100%', alignSelf: 'center' },
+    row: { gap: spacing.sm },
+    cell: { flex: 1 },
     card: {
       backgroundColor: c.surface,
       borderWidth: 1,

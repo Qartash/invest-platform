@@ -6,7 +6,15 @@ import { clearLogs, fetchLogs, fetchLogSettings, updateLogSettings } from '../..
 import { LogSettings, LogSource, SystemLog } from '../../types';
 import { formatDateTime } from '../../utils/date';
 import { showAlert } from '../../utils/alert';
-import { spacing, ThemeColors, useThemeStyles, useTheme } from '../../theme';
+import {
+  maxWidth,
+  spacing,
+  ThemeColors,
+  typography,
+  useBreakpoint,
+  useThemeStyles,
+  useTheme,
+} from '../../theme';
 import { PrimaryButton } from '../../components/PrimaryButton';
 
 // 'console' isn't a source of its own (console output is filed under the frontend/backend
@@ -28,6 +36,7 @@ export function LogsScreen() {
   const { colors } = useTheme();
   const SOURCE_COLORS = useMemo(() => sourceColors(colors), [colors]);
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [settings, setSettings] = useState<LogSettings | null>(null);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [total, setTotal] = useState(0);
@@ -155,11 +164,57 @@ export function LogsScreen() {
       <FlatList
         data={logs}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
+        // The column headings only mean anything while their columns are on screen, so they
+        // ride along with the scroll instead of sitting above it.
+        ListHeaderComponent={
+          isCompact ? null : (
+            <View style={styles.headRow}>
+              <Text style={[styles.headCell, styles.colSource]}>{t('moderation.logs.columns.source')}</Text>
+              <Text style={[styles.headCell, styles.colTime]}>{t('moderation.logs.columns.time')}</Text>
+              <Text style={[styles.headCell, styles.colCategory]}>{t('moderation.logs.columns.category')}</Text>
+              <Text style={[styles.headCell, styles.colMessage]}>{t('moderation.logs.columns.message')}</Text>
+            </View>
+          )
+        }
+        stickyHeaderIndices={isCompact ? undefined : [0]}
         renderItem={({ item }) => {
           const isExpanded = expandedId === item.id;
+
+          // A phone has room for one field per line, so the log is a small stacked card.
+          // A desktop window has room for all four side by side, which is the shape the
+          // data was in all along — one record, four fields — and reading down a column
+          // is what makes a hundred of them scannable.
+          if (!isCompact) {
+            return (
+              <Pressable style={styles.tableRow} onPress={() => setExpandedId(isExpanded ? null : item.id)}>
+                <View style={styles.tableRowLine}>
+                  <View style={styles.colSource}>
+                    <View style={[styles.sourceBadge, styles.sourceBadgeCell, { borderColor: SOURCE_COLORS[item.source] }]}>
+                      <Text style={[styles.sourceBadgeText, { color: SOURCE_COLORS[item.source] }]}>{item.source}</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.cell, styles.cellMuted, styles.colTime]} numberOfLines={1}>
+                    {formatDateTime(item.createdAt, i18n.language)}
+                  </Text>
+                  <Text style={[styles.cell, styles.cellMuted, styles.colCategory]} numberOfLines={1}>
+                    {item.category}
+                  </Text>
+                  <Text style={[styles.cell, styles.colMessage]} numberOfLines={isExpanded ? undefined : 1}>
+                    {item.message}
+                  </Text>
+                </View>
+                {isExpanded && item.metadata && (
+                  <Text selectable style={styles.logMetadata}>
+                    {JSON.stringify(item.metadata, null, 2)}
+                  </Text>
+                )}
+              </Pressable>
+            );
+          }
+
           return (
             <Pressable style={styles.logRow} onPress={() => setExpandedId(isExpanded ? null : item.id)}>
               <View style={styles.logHeaderRow}>
@@ -254,6 +309,62 @@ const createStyles = (c: ThemeColors) =>
       paddingHorizontal: spacing.lg,
       paddingBottom: spacing.lg,
     },
+    listWide: {
+      maxWidth: maxWidth.page,
+      width: '100%',
+      alignSelf: 'center',
+    },
+
+    // table (wide only)
+    headRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      // Opaque: the rows scroll underneath this.
+      backgroundColor: c.background,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    headCell: {
+      ...typography.eyebrow,
+      color: c.textMuted,
+    },
+    tableRow: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
+      paddingVertical: spacing.sm,
+    },
+    tableRowLine: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      alignItems: 'center',
+    },
+    cell: {
+      ...typography.caption,
+      color: c.text,
+    },
+    cellMuted: {
+      color: c.textMuted,
+    },
+    // Column widths are fixed so the values line up down the page — that alignment is the
+    // whole reason to use a table rather than four labelled fields.
+    colSource: {
+      width: 84,
+    },
+    colTime: {
+      width: 148,
+    },
+    colCategory: {
+      width: 160,
+    },
+    colMessage: {
+      flex: 1,
+    },
+    // The badge sizes itself to its text; inside a fixed column it must not stretch to fill.
+    sourceBadgeCell: {
+      alignSelf: 'flex-start',
+    },
+
     logRow: {
       backgroundColor: c.surface,
       borderRadius: 10,

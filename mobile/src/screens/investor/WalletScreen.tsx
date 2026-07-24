@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { deposit, fetchTransactions, fetchWallet, Transaction, withdraw } from '../../api/wallet';
 import { Wallet } from '../../types';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
 import { formatDateTime } from '../../utils/date';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
@@ -30,6 +30,7 @@ export function WalletScreen() {
   const styles = useThemeStyles(createStyles);
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [amount, setAmount] = useState('');
@@ -87,7 +88,7 @@ export function WalletScreen() {
         data={transactions}
         keyExtractor={(item) => item.id}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
         ListHeaderComponent={
           <View>
             <View style={styles.balanceCard}>
@@ -163,6 +164,11 @@ const createStyles = (c: ThemeColors) =>
     list: {
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.lg,
+    },
+    listWide: {
+      maxWidth: maxWidth.column,
+      width: '100%',
+      alignSelf: 'center',
     },
     balanceCard: {
       backgroundColor: c.primary,

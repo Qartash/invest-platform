@@ -1,6 +1,16 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
+import {
+  focusRing,
+  PressableState,
+  radius,
+  spacing,
+  tabularNums,
+  ThemeColors,
+  typography,
+  useTheme,
+  useThemeStyles,
+} from '../../theme';
 import { Icon, IconName } from './Icon';
 
 interface RowProps {
@@ -64,7 +74,15 @@ export function ListRow({ label, sublabel, value, right, icon, onPress, onHintPr
   if (!tappable) return <View style={styles.row}>{body}</View>;
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed, hovered, focused }: PressableState) => [
+        styles.row,
+        hovered && styles.hovered,
+        pressed && styles.pressed,
+        focused && styles.focused,
+      ]}
+    >
       {body}
     </Pressable>
   );
@@ -105,9 +123,16 @@ const createStyles = (c: ThemeColors) =>
       paddingVertical: 12,
       paddingHorizontal: spacing.md,
     },
+    // Same tinted fill as the pressed state but it is the resting hover — the row lights up
+    // under the cursor the way a web list is expected to.
+    hovered: {
+      backgroundColor: c.primarySoft,
+    },
     pressed: {
       backgroundColor: c.primarySoft,
     },
+    // Inset so the ring isn't clipped by the group's `overflow: hidden`.
+    focused: { ...focusRing(c), outlineOffset: -2 },
     plaque: {
       width: 32,
       height: 32,

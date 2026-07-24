@@ -45,7 +45,17 @@ import {
 import { formatDate, formatDateTime } from '../../utils/date';
 import { showAlert } from '../../utils/alert';
 import { useAuthStore } from '../../store/authStore';
-import { radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
+import {
+  maxWidth,
+  radius,
+  spacing,
+  tabularNums,
+  ThemeColors,
+  typography,
+  useBreakpoint,
+  useTheme,
+  useThemeStyles,
+} from '../../theme';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { TicketPriceChart } from '../../components/TicketPriceChart';
 import { RiskLevelModal } from '../../components/RiskLevelModal';
@@ -110,6 +120,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   const { colors } = useTheme();
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
+  const { isCompact } = useBreakpoint();
   const currentUserId = useAuthStore((s) => s.user?.id);
   const [project, setProject] = useState<Project | null>(null);
   const [purchases, setPurchases] = useState<ProjectPurchase[]>([]);
@@ -656,7 +667,11 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
         style={styles.container}
         // The buy block is the last thing on the page now, so the content itself has to clear
         // the home indicator — there is no pinned bar below it doing that any more.
-        contentContainerStyle={[styles.content, { paddingBottom: spacing.lg + insets.bottom }]}
+        contentContainerStyle={[
+          styles.content,
+          !isCompact && styles.contentWide,
+          { paddingBottom: spacing.lg + insets.bottom },
+        ]}
         stickyHeaderIndices={[STICKY_TABS_INDEX]}
       >
         <View style={styles.hero}>
@@ -934,6 +949,14 @@ const createStyles = (c: ThemeColors) =>
     },
     content: {
       flexGrow: 1,
+    },
+    // Capped on the content container rather than by wrapping the children: the tab strip
+    // is sticky, and `stickyHeaderIndices` counts direct children of the ScrollView — a
+    // wrapper would put the strip out of reach and it would scroll away.
+    contentWide: {
+      maxWidth: maxWidth.column,
+      width: '100%',
+      alignSelf: 'center',
     },
 
     // hero

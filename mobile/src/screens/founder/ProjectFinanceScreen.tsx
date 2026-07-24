@@ -6,7 +6,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchProject } from '../../api/projects';
 import { Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
-import { spacing, ThemeColors, useThemeStyles } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../../theme';
 import { ProjectFinancePanel } from '../../components/ProjectFinancePanel';
 import { FounderStackParamList } from '../../navigation/FounderNavigator';
 
@@ -16,6 +16,7 @@ export function ProjectFinanceScreen({ route }: Props) {
   const styles = useThemeStyles(createStyles);
   const { projectId } = route.params;
   const { i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [project, setProject] = useState<Project | null>(null);
 
   useFocusEffect(
@@ -25,7 +26,7 @@ export function ProjectFinanceScreen({ route }: Props) {
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}>
       {project && <Text style={styles.title}>{getLocalizedText(project.title, i18n.language)}</Text>}
       <View style={styles.panel}>
         <ProjectFinancePanel
@@ -47,6 +48,14 @@ const createStyles = (c: ThemeColors) =>
     },
     content: {
       padding: spacing.lg,
+    },
+    // Wider than the investor's read-only view of the same panel: this is the screen the
+    // founder enters months of income and expenses on, and the entry rows are what the
+    // extra width buys.
+    contentWide: {
+      maxWidth: maxWidth.page,
+      width: '100%',
+      alignSelf: 'center',
     },
     title: {
       fontSize: 18,

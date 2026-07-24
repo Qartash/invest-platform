@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { Project } from '../types';
 import { formatDateTime } from '../utils/date';
 import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
 import { PrimaryButton } from './PrimaryButton';
 import { InvestorProfileModal } from './InvestorProfileModal';
 import { RichTextView } from './RichTextView';
@@ -21,8 +22,8 @@ export function RiskLevelModal({ visible, project, onClose }: Props) {
   const [showModeratorProfile, setShowModeratorProfile] = useState(false);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
+    <>
+      <Dialog visible={visible} onClose={onClose}>
         <View style={styles.card}>
           <Text style={styles.title}>{t('project.riskInfoTitle')}</Text>
           <Text style={styles.badge}>{t(`project.risk.${project.riskLevel}`)}</Text>
@@ -45,25 +46,19 @@ export function RiskLevelModal({ visible, project, onClose }: Props) {
           <View style={{ height: spacing.md }} />
           <PrimaryButton title={t('common.close')} onPress={onClose} />
         </View>
-      </View>
+      </Dialog>
 
       <InvestorProfileModal
         visible={showModeratorProfile}
         investorId={project.riskSetByUserId ?? null}
         onClose={() => setShowModeratorProfile(false)}
       />
-    </Modal>
+    </>
   );
 }
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      justifyContent: 'center',
-      padding: spacing.lg,
-    },
     card: {
       backgroundColor: c.surface,
       borderRadius: 14,
