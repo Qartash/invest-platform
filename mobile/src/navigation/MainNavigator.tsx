@@ -9,6 +9,8 @@ import { useAuthStore } from '../store/authStore';
 import { logEvent } from '../utils/logger';
 import { TabBarIcon, TabIconName } from '../components/TabBarIcon';
 import { BottomDock } from '../components/BottomDock';
+import { SideRail } from '../components/SideRail';
+import { useBreakpoint } from '../theme';
 
 const Tab = createBottomTabNavigator();
 
@@ -24,13 +26,19 @@ function tabOptions(title: string, icon: TabIconName) {
 export function MainNavigator() {
   const { t } = useTranslation();
   const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
+  // Which bar to draw is decided here rather than inside the bar itself: `tabBarPosition`
+  // is what turns the navigator's own container from a column into a row, and only the
+  // navigator can set it. Splitting the decision across two files would let the rail be
+  // rendered into a bottom slot, or the dock into a left one.
+  const { isWide } = useBreakpoint();
 
   return (
     <Tab.Navigator
-      // The dock owns its own colours and selected state, so the tint/label/bar options
-      // above it no longer apply — `title` survives only as the accessible tab name.
-      tabBar={(props) => <BottomDock {...props} />}
-      screenOptions={{ headerShown: false }}
+      // Both bars own their colours and selected state, so the tint/label/bar options above
+      // them no longer apply — `title` survives as the accessible tab name, and as the
+      // visible label once the rail has room for it.
+      tabBar={(props) => (isWide ? <SideRail {...props} /> : <BottomDock {...props} />)}
+      screenOptions={{ headerShown: false, tabBarPosition: isWide ? 'left' : 'bottom' }}
       screenListeners={{
         focus: (e) => logEvent('navigation', 'Tab focus', { tab: e.target?.split('-')[0] }),
       }}

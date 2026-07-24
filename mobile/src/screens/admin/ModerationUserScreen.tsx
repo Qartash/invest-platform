@@ -10,7 +10,7 @@ import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { showAlert } from '../../utils/alert';
 import { formatDate } from '../../utils/date';
-import { spacing, ThemeColors, useThemeStyles } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../../theme';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
 
 type Props = NativeStackScreenProps<ModerationStackParamList, 'ModerationUser'>;
@@ -22,6 +22,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
   const styles = useThemeStyles(createStyles);
   const { userId } = route.params;
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
@@ -113,7 +114,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
   if (!user) return null;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}>
       <View style={styles.headerRow}>
         <Avatar avatarUrl={user.avatarUrl} avatarEmoji={user.avatarEmoji} size={56} />
         <View style={styles.headerText}>
@@ -218,6 +219,11 @@ const createStyles = (c: ThemeColors) =>
     content: {
       padding: spacing.lg,
       paddingBottom: spacing.xl,
+    },
+    contentWide: {
+      maxWidth: maxWidth.column,
+      width: '100%',
+      alignSelf: 'center',
     },
     headerRow: {
       flexDirection: 'row',

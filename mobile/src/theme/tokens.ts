@@ -73,6 +73,31 @@ export const spacing = {
   xl: 32,
 };
 
+// Window widths at which a different layout starts being worth having. Deliberately not
+// device classes: the app runs natively, in a phone browser and in a desktop browser, and
+// the first two are indistinguishable by platform — `Platform.OS` is 'web' for both. Width
+// is the only honest signal, so layout branches on these and never on the platform.
+export const breakpoints = {
+  sm: 600,
+  md: 900,
+  lg: 1280,
+};
+
+// Ceilings for content that would otherwise stretch across a desktop window. `dialog*` are
+// the widths the overlays already used, named so they stop being retyped per file.
+export const maxWidth = {
+  dialogSm: 360,
+  dialogMd: 480,
+  // A single-column form standing on its own — sign-in, sign-up. Past this width the eye
+  // has to travel further than the field is worth.
+  form: 440,
+  // One column of rows or prose — a statement, a transaction history, a project page. Wider
+  // than this and a label on the left stops belonging to the figure on the right.
+  column: 720,
+  // A grid of cards. Narrower than `lg` so there are still gutters at that width.
+  page: 1120,
+};
+
 export const radius = {
   sm: 8,
   md: 10,
@@ -102,6 +127,30 @@ export const typography = {
 
 // Numbers that sit in columns (money, counts, dates) must not jitter as they change.
 export const tabularNums: TextStyle = { fontVariant: ['tabular-nums'] };
+
+// react-native-web hands the Pressable `style` callback two extra flags the React Native
+// types don't declare — `hovered` and `focused`. Annotating the callback argument with this
+// widened, all-optional shape lets a component read them without a cast; the optionality
+// keeps it assignable to the stock `{ pressed }` the types expect, and on native the two
+// extra flags simply never arrive.
+export interface PressableState {
+  pressed: boolean;
+  hovered?: boolean;
+  focused?: boolean;
+}
+
+// A keyboard-focus ring for the web build. The `outline*` props are web-only and ignored on
+// native, so a component can spread this behind a `focused &&` guard with no platform check —
+// on a phone the flag never turns true. Drawn with `outline` rather than a border so it sits
+// outside the element and never nudges the layout when it appears.
+export function focusRing(c: ThemeColors) {
+  return {
+    outlineColor: c.primary,
+    outlineStyle: 'solid',
+    outlineWidth: 2,
+    outlineOffset: 2,
+  } as const;
+}
 
 export function shadow(colorScheme: 'light' | 'dark') {
   return {

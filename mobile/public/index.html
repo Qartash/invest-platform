@@ -11,6 +11,23 @@
     />
     <title>Invest Platform</title>
 
+    <!-- Static crawl/share metadata. React Navigation rewrites the <title> per route at
+         runtime (see linking.ts documentTitle), but a link unfurled in a chat or a search
+         crawler reads the markup as served, before any script runs — so the description and
+         the Open Graph pair are declared here rather than in JS. -->
+    <meta
+      name="description"
+      content="Инвестиционная платформа: проекты, доли, вторичный рынок тикетов и выплаты."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Invest Platform" />
+    <meta
+      property="og:description"
+      content="Инвестиционная платформа: проекты, доли, вторичный рынок тикетов и выплаты."
+    />
+    <meta property="og:image" content="/icon.png" />
+    <meta name="twitter:card" content="summary" />
+
     <!-- iOS has no installable-PWA prompt: Safari only honours these tags, and only from
          "Add to Home Screen". They are what buys an app icon and a chromeless window on
          iPhone, which is the whole reason the web build exists. -->

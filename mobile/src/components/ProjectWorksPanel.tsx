@@ -25,7 +25,7 @@ import {
 import { fetchProjectBudgetItems } from '../api/projects';
 import { useAuthStore } from '../store/authStore';
 import { showAlert } from '../utils/alert';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import { maxWidth, spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { Avatar } from './Avatar';
 import { InvestorProfileModal } from './InvestorProfileModal';
 import { PrimaryButton } from './PrimaryButton';
@@ -944,7 +944,7 @@ const createStyles = (c: ThemeColors) =>
       padding: spacing.lg,
       maxHeight: '85%',
       width: '100%',
-      maxWidth: 480,
+      maxWidth: maxWidth.dialogMd,
       alignSelf: 'center',
     },
     modalTitle: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: spacing.md },

@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { fetchProjectHistory } from '../api/projects';
 import { ProjectReviewLogEntry } from '../types';
 import { formatDateTime } from '../utils/date';
 import { DIFF_FIELD_LABEL_KEYS } from '../utils/projectDiff';
 import { priorityColors, ProjectPriority } from '../utils/priority';
-import { radius, spacing, ThemeColors, typography, useTheme, useThemeStyles } from '../theme';
-import { Icon, IconName } from './ui';
+import { maxWidth, radius, spacing, ThemeColors, typography, useBreakpoint, useTheme, useThemeStyles } from '../theme';
+import { Dialog, Icon, IconName } from './ui';
 import { RichTextView } from './RichTextView';
 
 // Built per palette rather than at module load, so the action colours follow the theme.
@@ -61,6 +61,7 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
   const PRIORITY_COLORS = useMemo(() => priorityColors(colors), [colors]);
   const ACTION_STYLES = useMemo(() => actionStyles(colors), [colors]);
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [entries, setEntries] = useState<ProjectReviewLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,10 +84,9 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
   }, [visible, load]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
-          <View style={styles.grabber} />
+    <Dialog visible={visible} onClose={onClose} sheet maxWidth={maxWidth.dialogMd}>
+      <View style={[styles.card, !isCompact && styles.cardWide]}>
+          {isCompact && <View style={styles.grabber} />}
           <View style={styles.headerRow}>
             <Text style={styles.title}>{t('founder.historyTitle')}</Text>
             <Pressable onPress={onClose} hitSlop={10} style={({ pressed }) => pressed && styles.pressed}>
@@ -179,19 +179,13 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
               })}
             </ScrollView>
           )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+      </View>
+    </Dialog>
   );
 }
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'flex-end',
-    },
     card: {
       backgroundColor: c.surface,
       borderTopLeftRadius: radius.xl + 4,
@@ -200,6 +194,13 @@ const createStyles = (c: ThemeColors) =>
       paddingTop: spacing.sm,
       paddingBottom: spacing.lg,
       maxHeight: '82%',
+    },
+    // Centred on a desktop window: rounded all round, and free to use more of the height
+    // than the phone sheet's 82% since it isn't anchored to the bottom edge.
+    cardWide: {
+      borderRadius: radius.xl,
+      paddingTop: spacing.md,
+      maxHeight: '90%',
     },
     grabber: {
       alignSelf: 'center',

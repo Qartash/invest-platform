@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, View, ViewStyle } from 'react-native';
-import { radius, spacing, ThemeColors, useThemeStyles } from '../../theme';
+import { focusRing, PressableState, radius, spacing, ThemeColors, useThemeStyles } from '../../theme';
 
 interface Props {
   children: React.ReactNode;
@@ -19,7 +19,15 @@ export function Card({ children, onPress, accented, flush, style }: Props) {
   if (!onPress) return <View style={content}>{children}</View>;
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [...content, pressed && styles.pressed]}>
+    <Pressable
+      onPress={onPress}
+      style={({ pressed, hovered, focused }: PressableState) => [
+        ...content,
+        hovered && !pressed && styles.hovered,
+        pressed && styles.pressed,
+        focused && styles.focused,
+      ]}
+    >
       {children}
     </Pressable>
   );
@@ -41,7 +49,13 @@ const createStyles = (c: ThemeColors) =>
       padding: 0,
       overflow: 'hidden',
     },
+    // A hovered card lifts by taking the accent border, the same cue as a selected card —
+    // it reads as "this whole surface is a button" without moving anything.
+    hovered: {
+      borderColor: c.primary,
+    },
     pressed: {
       opacity: 0.75,
     },
+    focused: focusRing(c),
   });

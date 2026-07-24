@@ -1,7 +1,8 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { spacing, ThemeColors, useThemeStyles } from '../theme';
+import { maxWidth, spacing, ThemeColors, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
 
 interface Props {
   hint: { title: string; description: string } | null;
@@ -13,31 +14,23 @@ export function HintModal({ hint, onClose }: Props) {
   const { t } = useTranslation();
 
   return (
-    <Modal visible={!!hint} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
-          <View style={styles.iconBadge}>
-            <Text style={styles.iconText}>ⓘ</Text>
-          </View>
-          <Text style={styles.title}>{hint?.title}</Text>
-          <Text style={styles.description}>{hint?.description}</Text>
-          <Pressable style={styles.closeButton} onPress={onClose}>
-            <Text style={styles.closeText}>{t('common.close')}</Text>
-          </Pressable>
+    <Dialog visible={!!hint} onClose={onClose} maxWidth={maxWidth.dialogSm}>
+      <View style={styles.card}>
+        <View style={styles.iconBadge}>
+          <Text style={styles.iconText}>ⓘ</Text>
+        </View>
+        <Text style={styles.title}>{hint?.title}</Text>
+        <Text style={styles.description}>{hint?.description}</Text>
+        <Pressable style={styles.closeButton} onPress={onClose}>
+          <Text style={styles.closeText}>{t('common.close')}</Text>
         </Pressable>
-      </Pressable>
-    </Modal>
+      </View>
+    </Dialog>
   );
 }
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      justifyContent: 'center',
-      padding: spacing.lg,
-    },
     card: {
       backgroundColor: c.surface,
       borderRadius: 16,

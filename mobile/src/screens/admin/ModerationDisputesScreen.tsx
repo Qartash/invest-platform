@@ -6,14 +6,17 @@ import { fetchDisputedWorks, resolveDispute } from '../../api/projectWorks';
 import { DisputedWork } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
-import { spacing, ThemeColors, useThemeStyles } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../../theme';
+import { useGrid } from '../../components/ui';
 
 export function ModerationDisputesScreen() {
   const styles = useThemeStyles(createStyles);
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [works, setWorks] = useState<DisputedWork[]>([]);
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
+  const { columns, data, isGrid } = useGrid(works, { medium: 2, wide: 2 });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,10 +49,15 @@ export function ModerationDisputesScreen() {
 
   return (
     <FlatList
-      data={works}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
-      renderItem={({ item }) => (
+      key={columns}
+      numColumns={columns}
+      columnWrapperStyle={isGrid ? styles.row : undefined}
+      data={data}
+      keyExtractor={(item, index) => item?.id ?? `filler-${index}`}
+      contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
+      renderItem={({ item }) => {
+        if (!item) return <View style={styles.cell} />;
+        const card = (
         <View style={styles.card}>
           <Text style={styles.project}>{getLocalizedText(item.projectTitle, i18n.language)}</Text>
           <Text style={styles.title}>{item.title}</Text>
@@ -75,7 +83,9 @@ export function ModerationDisputesScreen() {
             </Pressable>
           </View>
         </View>
-      )}
+        );
+        return isGrid ? <View style={styles.cell}>{card}</View> : card;
+      }}
       ListEmptyComponent={!loading ? <Text style={styles.empty}>{t('works.noDisputes')}</Text> : null}
     />
   );
@@ -84,6 +94,9 @@ export function ModerationDisputesScreen() {
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
     list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+    listWide: { maxWidth: maxWidth.page, width: '100%', alignSelf: 'center' },
+    row: { gap: spacing.sm },
+    cell: { flex: 1 },
     card: {
       backgroundColor: c.surface,
       borderWidth: 1,

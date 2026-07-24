@@ -30,7 +30,7 @@ import { RichTextEditor } from '../../components/RichTextEditor';
 import { isRichTextEmpty } from '../../utils/richText';
 import { PRIORITY_LEVELS, priorityColors } from '../../utils/priority';
 import { LANGUAGE_LABELS } from '../../i18n';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
 import { Icon } from '../../components/ui';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { TicketPriceChart } from '../../components/TicketPriceChart';
@@ -55,6 +55,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
   const PRIORITY_COLORS = useMemo(() => priorityColors(colors), [colors]);
   const { projectId } = route.params;
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [project, setProject] = useState<Project | null>(null);
   const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
   const [riskLevel, setRiskLevel] = useState<'low' | 'medium' | 'high' | null>(null);
@@ -155,7 +156,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
   const chartPoints = pricing.tiers.map((tier) => ({ unitPrice: tier.price }));
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}>
       {project.coverImageUrl ? (
         <Image source={{ uri: resolveMediaUrl(project.coverImageUrl) }} style={styles.cover} />
       ) : null}
@@ -486,6 +487,13 @@ const createStyles = (c: ThemeColors) =>
     },
     content: {
       padding: spacing.lg,
+    },
+    // A review page: the moderator reads a description and a diff top to bottom, and prose
+    // is what suffers first from a full-window measure.
+    contentWide: {
+      maxWidth: maxWidth.column,
+      width: '100%',
+      alignSelf: 'center',
     },
     diffBox: {
       backgroundColor: c.surface,

@@ -694,6 +694,12 @@
         "error": "Errors",
         "database": "Database",
         "console": "Console"
+      },
+      "columns": {
+        "source": "Source",
+        "time": "Time",
+        "category": "Category",
+        "message": "Message"
       }
     },
     "tabAll": "All projects",

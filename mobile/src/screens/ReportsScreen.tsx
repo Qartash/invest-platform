@@ -23,7 +23,7 @@ import { Avatar } from '../components/Avatar';
 import { InvestorProfileModal } from '../components/InvestorProfileModal';
 import { TrendChart } from '../components/TrendChart';
 import { formatDate, formatDateTime } from '../utils/date';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../theme';
 
 type Tab = 'users' | 'money';
 
@@ -211,7 +211,16 @@ export function ReportsScreen() {
   const [series, setSeries] = useState<StatsSeries | null>(null);
 
   const { width: screenWidth } = useWindowDimensions();
-  const chartWidth = screenWidth - spacing.lg * 2 - spacing.md * 2;
+  const { isCompact } = useBreakpoint();
+  // The charts are drawn at an explicit pixel width, so the number has to match the column
+  // they sit in. Deriving it from the window is wrong on a wide screen — the side rail eats
+  // a slice the window doesn't know about — so the real content width is measured once it
+  // has laid out, and the window is only the first-frame guess before that lands.
+  // `chartArea` is the width of the content minus its outer gutters — measured, not derived,
+  // because the side rail on a wide window takes a slice the window dimensions don't reflect.
+  const [chartArea, setChartArea] = useState(Math.min(screenWidth, maxWidth.page) - spacing.lg * 2);
+  // The charts sit one card-padding in from that on each side.
+  const chartWidth = chartArea - spacing.md * 2;
 
   const load = useCallback(() => {
     setLoadFailed(false);
@@ -254,8 +263,16 @@ export function ReportsScreen() {
   const currency = t('common.currency');
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.tabRow}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}>
+      {/* The tab row spans the full inner width of the content, so its measured width is
+          exactly the room the cards below it have to work with. */}
+      <View
+        style={styles.tabRow}
+        onLayout={(e) => {
+          const w = e.nativeEvent.layout.width;
+          if (Math.abs(w - chartArea) > 1) setChartArea(w);
+        }}
+      >
         {(['users', 'money'] as Tab[]).map((key) => (
           <Pressable key={key} style={[styles.tab, tab === key && styles.tabActive]} onPress={() => setTab(key)}>
             <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>
@@ -375,6 +392,13 @@ const createStyles = (c: ThemeColors) =>
     },
     content: {
       padding: spacing.lg,
+    },
+    // A single reading column: the charts are sized to `page` above, and the rows below
+    // them are label-and-figure pairs that don't want to be any wider.
+    contentWide: {
+      maxWidth: maxWidth.page,
+      width: '100%',
+      alignSelf: 'center',
     },
     tabRow: {
       flexDirection: 'row',

@@ -5,7 +5,17 @@ import { Project } from '../types';
 import { getLocalizedText } from '../utils/localized';
 import { formatDate } from '../utils/date';
 import { resolveMediaUrl } from '../api/client';
-import { radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../theme';
+import {
+  focusRing,
+  PressableState,
+  radius,
+  spacing,
+  tabularNums,
+  ThemeColors,
+  typography,
+  useTheme,
+  useThemeStyles,
+} from '../theme';
 import { HeroScrim, Icon, Pill } from './ui';
 
 interface Props {
@@ -30,7 +40,15 @@ export function ProjectCard({ project, onPress, onResalePress, onWorksPress }: P
   const showsDeadline = project.deadline && typeof project.daysLeft === 'number';
 
   return (
-    <Pressable style={({ pressed }) => [styles.card, pressed && styles.pressed]} onPress={onPress}>
+    <Pressable
+      style={({ pressed, hovered, focused }: PressableState) => [
+        styles.card,
+        hovered && !pressed && styles.hovered,
+        pressed && styles.pressed,
+        focused && styles.focused,
+      ]}
+      onPress={onPress}
+    >
       <View style={styles.cover}>
         {project.coverImageUrl ? (
           <Image source={{ uri: resolveMediaUrl(project.coverImageUrl) }} style={StyleSheet.absoluteFill} />
@@ -133,6 +151,13 @@ const createStyles = (c: ThemeColors) =>
     pressed: {
       opacity: 0.75,
     },
+    // The card is `overflow: hidden` (the cover bleeds to its rounded corners), so a border
+    // colour change is the hover cue that survives the clip; the ring insets for the same
+    // reason.
+    hovered: {
+      borderColor: c.primary,
+    },
+    focused: { ...focusRing(c), outlineOffset: -2 },
     cover: {
       height: 150,
       justifyContent: 'flex-end',

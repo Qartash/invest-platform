@@ -10,7 +10,7 @@ import { DatePickerModal } from '../components/DatePickerModal';
 import { RichTextEditor } from '../components/RichTextEditor';
 import { isRichTextEmpty } from '../utils/richText';
 import { formatDate } from '../utils/date';
-import { spacing, ThemeColors, useThemeStyles } from '../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../theme';
 import { updateMe } from '../api/users';
 import { fetchMyProjects } from '../api/projects';
 import { useAuthStore } from '../store/authStore';
@@ -23,6 +23,7 @@ const GENDERS: Gender[] = ['male', 'female', 'other'];
 
 export function EditProfileScreen({ navigation }: Props) {
   const styles = useThemeStyles(createStyles);
+  const { isCompact } = useBreakpoint();
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
@@ -79,7 +80,7 @@ export function EditProfileScreen({ navigation }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}>
       <View style={styles.avatarRow}>
         <View style={styles.avatarWrap}>
           <Avatar avatarUrl={user?.avatarUrl} avatarEmoji={user?.avatarEmoji} size={88} />
@@ -184,6 +185,11 @@ const createStyles = (c: ThemeColors) =>
     },
     content: {
       padding: spacing.lg,
+    },
+    contentWide: {
+      maxWidth: maxWidth.form,
+      width: '100%',
+      alignSelf: 'center',
     },
     avatarRow: {
       alignItems: 'center',

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { TicketListing } from '../types';
 import { spacing, ThemeColors, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
 import { PrimaryButton } from './PrimaryButton';
 import { TextField } from './TextField';
 
@@ -30,9 +31,8 @@ export function BuyListingModal({ listing, submitting, onClose, onConfirm }: Pro
   const totalPrice = listing ? Math.round(listing.unitPrice * parsedQuantity * 100) / 100 : 0;
 
   return (
-    <Modal visible={!!listing} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.modalCard}>
+    <Dialog visible={!!listing} onClose={onClose}>
+      <View style={styles.modalCard}>
           <Text style={styles.modalTitle}>{t('project.buyListing')}</Text>
           {maxQuantity > 1 && (
             <TextField
@@ -60,19 +60,12 @@ export function BuyListingModal({ listing, submitting, onClose, onConfirm }: Pro
           <View style={{ height: spacing.sm }} />
           <PrimaryButton title={t('common.close')} variant="outline" onPress={onClose} />
         </View>
-      </View>
-    </Modal>
+    </Dialog>
   );
 }
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      justifyContent: 'center',
-      padding: spacing.lg,
-    },
     modalCard: {
       backgroundColor: c.surface,
       borderRadius: 14,

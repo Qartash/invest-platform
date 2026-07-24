@@ -7,13 +7,23 @@ import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { HintModal } from '../../components/HintModal';
 import { RichTextEditor } from '../../components/RichTextEditor';
-import { SectionHeader, SegmentedTabs, StepRail, StepState } from '../../components/ui';
+import { PageContainer, SectionHeader, SegmentedTabs, StepRail, StepState } from '../../components/ui';
 import { BudgetMeter } from './createProject/BudgetMeter';
 import { EconomicsCard } from './createProject/EconomicsCard';
 import { EquityCard } from './createProject/EquityCard';
 import { ProjectPreview } from './createProject/ProjectPreview';
 import { ChecklistRow, ReviewChecklist } from './createProject/ReviewChecklist';
-import { radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
+import {
+  maxWidth,
+  radius,
+  spacing,
+  tabularNums,
+  ThemeColors,
+  typography,
+  useBreakpoint,
+  useTheme,
+  useThemeStyles,
+} from '../../theme';
 import {
   addProjectBudgetItems,
   createProject,
@@ -150,6 +160,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
   const webDateInputStyle = useMemo(() => webDateInput(colors), [colors]);
   const PRIORITY_COLORS = useMemo(() => priorityColors(colors), [colors]);
   const { t } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const projectId = route.params?.projectId;
   const isEditing = !!projectId;
   const isAdminEdit = !!route.params?.adminEdit;
@@ -1238,42 +1249,55 @@ export function CreateProjectScreen({ route, navigation }: Props) {
 
   return (
     <View style={styles.root}>
+      {/* The wizard is four stacked bands, two of which paint a full-width surface. The
+          bars keep spanning the window — a rail that stopped mid-screen would read as a
+          card — and it is their contents that get capped, so all four line up. */}
       <View style={styles.railWrap}>
-        <StepRail
-          states={STEP_KEYS.map((_, index) => stepState(index))}
-          active={step}
-          onSelect={goToStep}
-          labels={STEP_KEYS.map((key) => t(`founder.wizard.${key}Name`))}
-        />
+        <PageContainer maxWidth={maxWidth.column}>
+          <StepRail
+            states={STEP_KEYS.map((_, index) => stepState(index))}
+            active={step}
+            onSelect={goToStep}
+            labels={STEP_KEYS.map((key) => t(`founder.wizard.${key}Name`))}
+          />
+        </PageContainer>
       </View>
 
-      <View style={styles.stepHead}>
-        <View style={styles.stepHeadRow}>
-          <Text style={styles.stepName}>{t(`founder.wizard.${STEP_KEYS[step]}Name`)}</Text>
-          <Text style={styles.stepCount}>
-            {t('founder.wizard.stepOf', { current: step + 1, total: STEP_KEYS.length })}
-          </Text>
+      <PageContainer maxWidth={maxWidth.column}>
+        <View style={styles.stepHead}>
+          <View style={styles.stepHeadRow}>
+            <Text style={styles.stepName}>{t(`founder.wizard.${STEP_KEYS[step]}Name`)}</Text>
+            <Text style={styles.stepCount}>
+              {t('founder.wizard.stepOf', { current: step + 1, total: STEP_KEYS.length })}
+            </Text>
+          </View>
+          <Text style={styles.stepHint}>{t(`founder.wizard.${STEP_KEYS[step]}Hint`)}</Text>
         </View>
-        <Text style={styles.stepHint}>{t(`founder.wizard.${STEP_KEYS[step]}Hint`)}</Text>
-      </View>
+      </PageContainer>
 
       <ScrollView
         ref={scrollRef}
         style={styles.container}
-        contentContainerStyle={[styles.content, step === STEP.preview && styles.contentBleed]}
+        contentContainerStyle={[
+          styles.content,
+          !isCompact && styles.contentWide,
+          step === STEP.preview && styles.contentBleed,
+        ]}
       >
         {renderStep()}
       </ScrollView>
 
-      <View style={styles.foot}>
-        {step > 0 && (
-          <View style={styles.footBack}>
-            <PrimaryButton title={t('founder.wizard.back')} variant="outline" onPress={() => goToStep(step - 1)} />
+      <View style={[styles.foot, !isCompact && styles.footWide]}>
+        <PageContainer maxWidth={maxWidth.column} style={styles.footRow}>
+          {step > 0 && (
+            <View style={styles.footBack}>
+              <PrimaryButton title={t('founder.wizard.back')} variant="outline" onPress={() => goToStep(step - 1)} />
+            </View>
+          )}
+          <View style={styles.footPrimary}>
+            <PrimaryButton title={primaryLabel} onPress={handlePrimaryPress} loading={submitting} />
           </View>
-        )}
-        <View style={styles.footPrimary}>
-          <PrimaryButton title={primaryLabel} onPress={handlePrimaryPress} loading={submitting} />
-        </View>
+        </PageContainer>
       </View>
 
       <HintModal hint={hint} onClose={() => setHint(null)} />
@@ -1294,8 +1318,14 @@ const createStyles = (c: ThemeColors) =>
       padding: spacing.lg,
       paddingTop: spacing.md,
     },
+    contentWide: {
+      maxWidth: maxWidth.column,
+      width: '100%',
+      alignSelf: 'center',
+    },
     // The preview step is the project page, not a picture of it — so it runs edge to edge
-    // and its own footer note re-applies the horizontal padding.
+    // and its own footer note re-applies the horizontal padding. Listed after `contentWide`
+    // so it still wins the padding on a wide window; the cap is what it bleeds to there.
     contentBleed: {
       paddingHorizontal: 0,
       paddingTop: 0,
@@ -1341,6 +1371,15 @@ const createStyles = (c: ThemeColors) =>
       borderTopColor: c.border,
       paddingHorizontal: spacing.md,
       paddingVertical: spacing.sm + 4,
+    },
+    // `foot` is itself a row, so its cross axis is vertical and `alignSelf` on the capped
+    // child would centre it the wrong way. Centring has to come from the main axis here.
+    footWide: {
+      justifyContent: 'center',
+    },
+    footRow: {
+      flexDirection: 'row',
+      gap: spacing.sm + 2,
     },
     footBack: {
       width: 110,

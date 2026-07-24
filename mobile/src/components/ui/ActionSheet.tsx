@@ -1,7 +1,17 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { radius, spacing, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
+import {
+  maxWidth,
+  radius,
+  spacing,
+  ThemeColors,
+  typography,
+  useBreakpoint,
+  useTheme,
+  useThemeStyles,
+} from '../../theme';
+import { Dialog } from './Dialog';
 import { Icon, IconName } from './Icon';
 import { logEvent } from '../../utils/logger';
 
@@ -29,6 +39,7 @@ export function ActionSheet({ visible, title, items, onClose }: Props) {
   const styles = useThemeStyles(createStyles);
   const { colors } = useTheme();
   const { t } = useTranslation();
+  const { isCompact } = useBreakpoint();
 
   const run = (item: ActionSheetItem) => {
     if (item.disabled) return;
@@ -38,10 +49,11 @@ export function ActionSheet({ visible, title, items, onClose }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
-          <View style={styles.grabber} />
+    <Dialog visible={visible} onClose={onClose} sheet maxWidth={maxWidth.dialogSm}>
+      <View style={[styles.sheet, !isCompact && styles.sheetWide]}>
+          {/* The drag handle is a phone-sheet affordance; a centred desktop dialog has no
+              edge to drag from, so it only appears in the sheet posture. */}
+          {isCompact && <View style={styles.grabber} />}
           {!!title && (
             <Text style={styles.title} numberOfLines={1}>
               {title}
@@ -73,19 +85,13 @@ export function ActionSheet({ visible, title, items, onClose }: Props) {
           <Pressable style={({ pressed }) => [styles.cancel, pressed && styles.rowPressed]} onPress={onClose}>
             <Text style={styles.cancelLabel}>{t('common.cancel')}</Text>
           </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
+      </View>
+    </Dialog>
   );
 }
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'flex-end',
-    },
     sheet: {
       backgroundColor: c.surface,
       borderTopLeftRadius: radius.xl + 4,
@@ -93,6 +99,13 @@ const createStyles = (c: ThemeColors) =>
       paddingHorizontal: spacing.md,
       paddingTop: spacing.sm,
       paddingBottom: spacing.xl,
+    },
+    // Off the bottom edge and centred, the card is rounded on all four corners and drops the
+    // sheet's extra bottom padding that used to clear the home indicator.
+    sheetWide: {
+      borderRadius: radius.xl,
+      paddingTop: spacing.md,
+      paddingBottom: spacing.md,
     },
     grabber: {
       alignSelf: 'center',

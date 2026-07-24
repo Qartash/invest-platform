@@ -15,8 +15,17 @@ import { cancelTicketListing, listTicketForSale } from '../../api/tickets';
 import { Holding, PortfolioSummary, Project } from '../../types';
 import { showAlert } from '../../utils/alert';
 import { useAuthStore } from '../../store/authStore';
-import { radius, spacing, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
-import { Icon, SegmentedTabs } from '../../components/ui';
+import {
+  maxWidth,
+  radius,
+  spacing,
+  ThemeColors,
+  typography,
+  useBreakpoint,
+  useTheme,
+  useThemeStyles,
+} from '../../theme';
+import { Icon, PageContainer, SegmentedTabs, useGrid } from '../../components/ui';
 import { ProjectHistoryModal } from '../../components/ProjectHistoryModal';
 import { OwnedProjectCard } from '../../components/OwnedProjectCard';
 import { HoldingCard } from '../../components/HoldingCard';
@@ -33,6 +42,7 @@ export function MyProjectsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
+  const { isCompact } = useBreakpoint();
   const [tab, setTab] = useState<Tab>('owned');
   const [projects, setProjects] = useState<Project[]>([]);
   const [holdings, setHoldings] = useState<Holding[]>([]);
@@ -43,6 +53,9 @@ export function MyProjectsScreen({ navigation }: Props) {
   const [listingHolding, setListingHolding] = useState<Holding | null>(null);
   const [listingSubmitting, setListingSubmitting] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  // Two abreast even at the widest window: an owned card carries a status, figures and up
+  // to six actions, and a third column starts stacking those actions vertically.
+  const { columns, data: ownedCells, isGrid } = useGrid(projects, { medium: 2, wide: 2 });
 
   // With no owned projects the "Invested" tab is the useful one, so default to
   // it (and show it first) — but only until the user taps a tab themselves.
@@ -146,40 +159,70 @@ export function MyProjectsScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.head}>
-        <Text style={styles.header}>{t('founder.myProjects')}</Text>
-        <SegmentedTabs
-          active={tab}
-          onChange={selectTab}
-          variant="track"
-          tabs={tabOrder.map((key) => ({
-            key,
-            label: t(key === 'owned' ? 'founder.tabOwned' : 'founder.tabInvested'),
-            count: tabCount(key),
-          }))}
-        />
-      </View>
+      {/* The head is capped to whatever the tab below it is capped to, so the title never
+          hangs off the left edge of its own list. */}
+      <PageContainer maxWidth={tab === 'owned' ? maxWidth.page : maxWidth.column}>
+        <View style={styles.head}>
+          <Text style={styles.header}>{t('founder.myProjects')}</Text>
+          <SegmentedTabs
+            active={tab}
+            onChange={selectTab}
+            variant="track"
+            tabs={tabOrder.map((key) => ({
+              key,
+              label: t(key === 'owned' ? 'founder.tabOwned' : 'founder.tabInvested'),
+              count: tabCount(key),
+            }))}
+          />
+        </View>
+      </PageContainer>
 
       {tab === 'owned' && (
         <FlatList
-          data={projects}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <OwnedProjectCard
-              project={item}
-              busy={actingId === item.id}
-              onOpenFinance={() => navigation.navigate('ProjectFinance', { projectId: item.id })}
-              onOpenWorks={() => navigation.navigate('ProjectWorks', { projectId: item.id })}
-              onOpenHistory={() => setHistoryProjectId(item.id)}
-              onEdit={() => navigation.navigate('CreateProject', { projectId: item.id })}
-              onPreview={() => openAsInvestor(item.id)}
-              onDelete={() => handleDeleteProject(item)}
-              onCancelReview={() => runAction(item.id, () => cancelProjectReview(item.id))}
-              onCancelDeletion={() => runAction(item.id, () => cancelProjectDeletion(item.id))}
-              onRestore={() => runAction(item.id, () => restoreProject(item.id))}
-            />
-          )}
+          key={columns}
+          numColumns={columns}
+          columnWrapperStyle={isGrid ? styles.row : undefined}
+          data={ownedCells}
+          keyExtractor={(item, index) => item?.id ?? `filler-${index}`}
+          contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
+          renderItem={({ item }) => {
+            if (isGrid) {
+              return (
+                <View style={styles.cell}>
+                  {item && (
+                    <OwnedProjectCard
+                      project={item}
+                      busy={actingId === item.id}
+                      onOpenFinance={() => navigation.navigate('ProjectFinance', { projectId: item.id })}
+                      onOpenWorks={() => navigation.navigate('ProjectWorks', { projectId: item.id })}
+                      onOpenHistory={() => setHistoryProjectId(item.id)}
+                      onEdit={() => navigation.navigate('CreateProject', { projectId: item.id })}
+                      onPreview={() => openAsInvestor(item.id)}
+                      onDelete={() => handleDeleteProject(item)}
+                      onCancelReview={() => runAction(item.id, () => cancelProjectReview(item.id))}
+                      onCancelDeletion={() => runAction(item.id, () => cancelProjectDeletion(item.id))}
+                      onRestore={() => runAction(item.id, () => restoreProject(item.id))}
+                    />
+                  )}
+                </View>
+              );
+            }
+            return item ? (
+              <OwnedProjectCard
+                project={item}
+                busy={actingId === item.id}
+                onOpenFinance={() => navigation.navigate('ProjectFinance', { projectId: item.id })}
+                onOpenWorks={() => navigation.navigate('ProjectWorks', { projectId: item.id })}
+                onOpenHistory={() => setHistoryProjectId(item.id)}
+                onEdit={() => navigation.navigate('CreateProject', { projectId: item.id })}
+                onPreview={() => openAsInvestor(item.id)}
+                onDelete={() => handleDeleteProject(item)}
+                onCancelReview={() => runAction(item.id, () => cancelProjectReview(item.id))}
+                onCancelDeletion={() => runAction(item.id, () => cancelProjectDeletion(item.id))}
+                onRestore={() => runAction(item.id, () => restoreProject(item.id))}
+              />
+            ) : null;
+          }}
           ListFooterComponent={
             <Pressable
               onPress={handleCreateProject}
@@ -199,7 +242,7 @@ export function MyProjectsScreen({ navigation }: Props) {
         <FlatList
           data={holdings}
           keyExtractor={(item) => item.ticketId}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, !isCompact && styles.investedWide]}
           ListHeaderComponent={summary && holdings.length > 0 ? <PortfolioSummaryCard summary={summary} /> : null}
           renderItem={({ item }) => (
             <HoldingCard
@@ -253,6 +296,24 @@ const createStyles = (c: ThemeColors) =>
     },
     list: {
       padding: spacing.md,
+    },
+    listWide: {
+      maxWidth: maxWidth.page,
+      width: '100%',
+      alignSelf: 'center',
+    },
+    // Holdings stay a single column for the same reason as on the portfolio screen: each
+    // row is a label paired with a figure, and width is what breaks the pairing.
+    investedWide: {
+      maxWidth: maxWidth.column,
+      width: '100%',
+      alignSelf: 'center',
+    },
+    row: {
+      gap: spacing.md,
+    },
+    cell: {
+      flex: 1,
     },
     pressed: {
       opacity: 0.7,

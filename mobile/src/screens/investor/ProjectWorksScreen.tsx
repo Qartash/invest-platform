@@ -7,7 +7,7 @@ import { fetchProject } from '../../api/projects';
 import { Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { useAuthStore } from '../../store/authStore';
-import { spacing, ThemeColors, useThemeStyles } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../../theme';
 import { ProjectWorksPanel } from '../../components/ProjectWorksPanel';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
 
@@ -17,6 +17,7 @@ export function ProjectWorksScreen({ route }: Props) {
   const styles = useThemeStyles(createStyles);
   const { projectId } = route.params;
   const { i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const currentUserId = useAuthStore((s) => s.user?.id);
   const [project, setProject] = useState<Project | null>(null);
 
@@ -29,7 +30,7 @@ export function ProjectWorksScreen({ route }: Props) {
   const isFounder = !!project && project.founderId === currentUserId;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}>
       {project && <Text style={styles.title}>{getLocalizedText(project.title, i18n.language)}</Text>}
       <View style={styles.panel}>
         <ProjectWorksPanel
@@ -52,6 +53,7 @@ const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: c.background },
     content: { padding: spacing.lg },
+    contentWide: { maxWidth: maxWidth.column, width: '100%', alignSelf: 'center' },
     title: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: spacing.md },
     panel: {
       backgroundColor: c.surface,

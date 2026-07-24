@@ -6,7 +6,7 @@ import { fetchPortfolio } from '../../api/portfolio';
 import { listTicketForSale, cancelTicketListing } from '../../api/tickets';
 import { Holding, Portfolio } from '../../types';
 import { showAlert } from '../../utils/alert';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
 import { HoldingCard } from '../../components/HoldingCard';
 import { SellTicketModal } from '../../components/SellTicketModal';
 
@@ -26,6 +26,7 @@ function ReturnText({ value }: { value: number }) {
 export function PortfolioScreen() {
   const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(true);
   const [listingHolding, setListingHolding] = useState<Holding | null>(null);
@@ -82,7 +83,7 @@ export function PortfolioScreen() {
         data={portfolio?.holdings ?? []}
         keyExtractor={(item) => item.ticketId}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
         ListHeaderComponent={
           summary ? (
             <View style={styles.summaryCard}>
@@ -149,6 +150,13 @@ const createStyles = (c: ThemeColors) =>
     list: {
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.lg,
+    },
+    // Kept to one column rather than gridded: every row here is a label on the left and a
+    // figure on the right, and that pairing is what breaks first when the row gets wide.
+    listWide: {
+      maxWidth: maxWidth.column,
+      width: '100%',
+      alignSelf: 'center',
     },
     summaryCard: {
       backgroundColor: c.surface,

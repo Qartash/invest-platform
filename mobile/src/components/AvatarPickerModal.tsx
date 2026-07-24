@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { updateMe, uploadAvatar } from '../api/users';
 import { showAlert } from '../utils/alert';
 import { spacing, ThemeColors, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
 import { PrimaryButton } from './PrimaryButton';
 import { Avatar } from './Avatar';
 import { AuthUser } from '../types';
@@ -60,9 +61,8 @@ export function AvatarPickerModal({ visible, onClose, onUpdated }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+    <Dialog visible={visible} onClose={onClose}>
+      <View style={styles.card}>
           <Text style={styles.title}>{t('profile.chooseAvatarTitle')}</Text>
 
           <PrimaryButton title={t('profile.uploadPhoto')} onPress={handlePickPhoto} loading={busy} />
@@ -78,20 +78,13 @@ export function AvatarPickerModal({ visible, onClose, onUpdated }: Props) {
 
           <View style={{ height: spacing.sm }} />
           <PrimaryButton title={t('common.close')} variant="outline" onPress={onClose} />
-        </View>
       </View>
-    </Modal>
+    </Dialog>
   );
 }
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    backdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.4)',
-      justifyContent: 'center',
-      padding: spacing.lg,
-    },
     card: {
       backgroundColor: c.surface,
       borderRadius: 14,
