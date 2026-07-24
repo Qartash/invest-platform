@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import {
   BudgetItemStatus,
@@ -26,7 +26,8 @@ import { requestRelease } from '../api/projectFunding';
 import { fetchWallet } from '../api/wallet';
 import { formatDate, formatMonth } from '../utils/date';
 import { showAlert } from '../utils/alert';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import { maxWidth, spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
 import { PrimaryButton } from './PrimaryButton';
 import { TextField } from './TextField';
 import { MonthFinanceChart, MonthFinancePoint } from './MonthFinanceChart';
@@ -766,169 +767,158 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
       )}
 
       {/* Add entry modal */}
-      <Modal visible={entryModalVisible} transparent animationType="fade" onRequestClose={() => setEntryModalVisible(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>{t('project.finance.addEntry')}</Text>
-              <View style={styles.kindRow}>
-                {(['expense', 'income'] as const).map((kind) => (
+      <Dialog visible={entryModalVisible} onClose={() => setEntryModalVisible(false)} maxWidth={maxWidth.dialogMd}>
+        <View style={styles.modalCard}>
+          <ScrollView keyboardShouldPersistTaps="handled">
+            <Text style={styles.modalTitle}>{t('project.finance.addEntry')}</Text>
+            <View style={styles.kindRow}>
+              {(['expense', 'income'] as const).map((kind) => (
+                <Pressable
+                  key={kind}
+                  style={[styles.kindChip, entryKind === kind && styles.kindChipActive]}
+                  onPress={() => setEntryKind(kind)}
+                >
+                  <Text style={[styles.kindChipText, entryKind === kind && styles.kindChipTextActive]}>
+                    {t(kind === 'expense' ? 'project.finance.expensesTab' : 'project.finance.incomesTab')}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <TextField
+              label={t('project.finance.amountLabel')}
+              value={entryAmount}
+              onChangeText={setEntryAmount}
+              format="decimal"
+              keyboardType="decimal-pad"
+            />
+            {entryKind === 'expense' && (
+              <View style={styles.categoryRow}>
+                {EXPENSE_CATEGORIES.map((category) => (
                   <Pressable
-                    key={kind}
-                    style={[styles.kindChip, entryKind === kind && styles.kindChipActive]}
-                    onPress={() => setEntryKind(kind)}
+                    key={category}
+                    style={[styles.categoryChip, entryCategory === category && styles.categoryChipActive]}
+                    onPress={() => setEntryCategory(category)}
                   >
-                    <Text style={[styles.kindChipText, entryKind === kind && styles.kindChipTextActive]}>
-                      {t(kind === 'expense' ? 'project.finance.expensesTab' : 'project.finance.incomesTab')}
+                    <Text style={[styles.categoryChipText, entryCategory === category && styles.categoryChipTextActive]}>
+                      {t(`project.finance.category.${category}`)}
                     </Text>
                   </Pressable>
                 ))}
               </View>
-              <TextField
-                label={t('project.finance.amountLabel')}
-                value={entryAmount}
-                onChangeText={setEntryAmount}
-                format="decimal"
-                keyboardType="decimal-pad"
-              />
-              {entryKind === 'expense' && (
-                <View style={styles.categoryRow}>
-                  {EXPENSE_CATEGORIES.map((category) => (
-                    <Pressable
-                      key={category}
-                      style={[styles.categoryChip, entryCategory === category && styles.categoryChipActive]}
-                      onPress={() => setEntryCategory(category)}
-                    >
-                      <Text style={[styles.categoryChipText, entryCategory === category && styles.categoryChipTextActive]}>
-                        {t(`project.finance.category.${category}`)}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-              <TextField
-                label={t('project.finance.descriptionLabel')}
-                value={entryDescription}
-                onChangeText={setEntryDescription}
-              />
-              <TextField
-                label={t('project.finance.dateLabel')}
-                value={entryDate}
-                onChangeText={setEntryDate}
-                format="date"
-                placeholder="YYYY-MM-DD"
-              />
-              <PrimaryButton title={t('common.save')} onPress={handleSaveEntry} loading={submitting} />
-              <Pressable style={styles.modalCancel} onPress={() => setEntryModalVisible(false)}>
-                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
-              </Pressable>
-            </ScrollView>
-          </View>
+            )}
+            <TextField
+              label={t('project.finance.descriptionLabel')}
+              value={entryDescription}
+              onChangeText={setEntryDescription}
+            />
+            <TextField
+              label={t('project.finance.dateLabel')}
+              value={entryDate}
+              onChangeText={setEntryDate}
+              format="date"
+              placeholder="YYYY-MM-DD"
+            />
+            <PrimaryButton title={t('common.save')} onPress={handleSaveEntry} loading={submitting} />
+            <Pressable style={styles.modalCancel} onPress={() => setEntryModalVisible(false)}>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+            </Pressable>
+          </ScrollView>
         </View>
-      </Modal>
+      </Dialog>
 
       {/* Close month modal */}
-      <Modal visible={closeModalVisible} transparent animationType="fade" onRequestClose={() => setCloseModalVisible(false)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              {t('project.finance.closeMonth')} · {formatMonth(selectedMonth, i18n.language)}
+      <Dialog visible={closeModalVisible} onClose={() => setCloseModalVisible(false)} maxWidth={maxWidth.dialogMd}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>
+            {t('project.finance.closeMonth')} · {formatMonth(selectedMonth, i18n.language)}
+          </Text>
+          {isCurrentMonth && <Text style={styles.warningNote}>{t('project.finance.closeMonthCurrentWarning')}</Text>}
+          <View style={styles.reportLine}>
+            <Text style={styles.reportLineLabel}>{t('project.finance.incomesTab')}</Text>
+            <Text style={styles.reportLineValue}>
+              {monthIncome.toLocaleString()} {t('common.currency')}
             </Text>
-            {isCurrentMonth && <Text style={styles.warningNote}>{t('project.finance.closeMonthCurrentWarning')}</Text>}
-            <View style={styles.reportLine}>
-              <Text style={styles.reportLineLabel}>{t('project.finance.incomesTab')}</Text>
-              <Text style={styles.reportLineValue}>
-                {monthIncome.toLocaleString()} {t('common.currency')}
-              </Text>
-            </View>
-            <View style={styles.reportLine}>
-              <Text style={styles.reportLineLabel}>{t('project.finance.expensesTab')}</Text>
-              <Text style={styles.reportLineValue}>
-                {monthExpenses.toLocaleString()} {t('common.currency')}
-              </Text>
-            </View>
-            <View style={styles.reportLine}>
-              <Text style={[styles.reportLineLabel, styles.reportNetLabel]}>{t('project.finance.netProfitLabel')}</Text>
-              <Text style={[styles.reportLineValue, { color: monthNet >= 0 ? colors.success : colors.danger }]}>
-                {monthNet.toLocaleString()} {t('common.currency')}
-              </Text>
-            </View>
-            {monthNet > 0 && (
-              <>
-                <View style={styles.reportLine}>
-                  <Text style={styles.reportLineLabel}>{t('project.finance.toInvestors')}</Text>
-                  <Text style={styles.reportLineValue}>
-                    ≈{investorPoolEstimate.toLocaleString(undefined, { maximumFractionDigits: 0 })} {t('common.currency')}
-                  </Text>
-                </View>
-                <View style={styles.reportLine}>
-                  <Text style={styles.reportLineLabel}>{t('project.finance.founderKeeps')}</Text>
-                  <Text style={styles.reportLineValue}>
-                    ≈{(monthNet - investorPoolEstimate).toLocaleString(undefined, { maximumFractionDigits: 0 })}{' '}
-                    {t('common.currency')}
-                  </Text>
-                </View>
-                {walletBalance !== null && (
-                  <View style={styles.reportLine}>
-                    <Text style={styles.reportLineLabel}>{t('project.finance.walletBalance')}</Text>
-                    <Text
-                      style={[
-                        styles.reportLineValue,
-                        { color: walletBalance >= investorPoolEstimate ? colors.success : colors.danger },
-                      ]}
-                    >
-                      {walletBalance.toLocaleString()} {t('common.currency')}
-                    </Text>
-                  </View>
-                )}
-              </>
-            )}
-            <Text style={styles.closeMonthNote}>{t('project.finance.closeMonthNote')}</Text>
-            <PrimaryButton title={t('project.finance.publishReport')} onPress={handlePublishReport} loading={submitting} />
-            <Pressable style={styles.modalCancel} onPress={() => setCloseModalVisible(false)}>
-              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
-            </Pressable>
           </View>
+          <View style={styles.reportLine}>
+            <Text style={styles.reportLineLabel}>{t('project.finance.expensesTab')}</Text>
+            <Text style={styles.reportLineValue}>
+              {monthExpenses.toLocaleString()} {t('common.currency')}
+            </Text>
+          </View>
+          <View style={styles.reportLine}>
+            <Text style={[styles.reportLineLabel, styles.reportNetLabel]}>{t('project.finance.netProfitLabel')}</Text>
+            <Text style={[styles.reportLineValue, { color: monthNet >= 0 ? colors.success : colors.danger }]}>
+              {monthNet.toLocaleString()} {t('common.currency')}
+            </Text>
+          </View>
+          {monthNet > 0 && (
+            <>
+              <View style={styles.reportLine}>
+                <Text style={styles.reportLineLabel}>{t('project.finance.toInvestors')}</Text>
+                <Text style={styles.reportLineValue}>
+                  ≈{investorPoolEstimate.toLocaleString(undefined, { maximumFractionDigits: 0 })} {t('common.currency')}
+                </Text>
+              </View>
+              <View style={styles.reportLine}>
+                <Text style={styles.reportLineLabel}>{t('project.finance.founderKeeps')}</Text>
+                <Text style={styles.reportLineValue}>
+                  ≈{(monthNet - investorPoolEstimate).toLocaleString(undefined, { maximumFractionDigits: 0 })}{' '}
+                  {t('common.currency')}
+                </Text>
+              </View>
+              {walletBalance !== null && (
+                <View style={styles.reportLine}>
+                  <Text style={styles.reportLineLabel}>{t('project.finance.walletBalance')}</Text>
+                  <Text
+                    style={[
+                      styles.reportLineValue,
+                      { color: walletBalance >= investorPoolEstimate ? colors.success : colors.danger },
+                    ]}
+                  >
+                    {walletBalance.toLocaleString()} {t('common.currency')}
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+          <Text style={styles.closeMonthNote}>{t('project.finance.closeMonthNote')}</Text>
+          <PrimaryButton title={t('project.finance.publishReport')} onPress={handlePublishReport} loading={submitting} />
+          <Pressable style={styles.modalCancel} onPress={() => setCloseModalVisible(false)}>
+            <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+          </Pressable>
         </View>
-      </Modal>
+      </Dialog>
 
       {/* Delete entry (with reason) modal */}
-      <Modal
-        visible={deleteTarget !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setDeleteTarget(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t('project.finance.deleteEntryTitle')}</Text>
-            {deleteTarget && (
-              <View style={styles.deleteSummary}>
-                <Text
-                  style={[
-                    styles.rowAmount,
-                    { color: deleteTarget.kind === 'income' ? colors.success : colors.danger },
-                  ]}
-                >
-                  {deleteTarget.kind === 'income' ? '+' : '−'}
-                  {deleteTarget.amount.toLocaleString()} {t('common.currency')}
-                </Text>
-                <Text style={styles.rowDescription}>{deleteTarget.description}</Text>
-              </View>
-            )}
-            <Text style={styles.deleteNote}>{t('project.finance.deleteEntryNote')}</Text>
-            <TextField
-              label={t('project.finance.deletedReasonLabel')}
-              value={deleteReason}
-              onChangeText={setDeleteReason}
-            />
-            <PrimaryButton title={t('common.delete')} onPress={handleConfirmDeleteEntry} loading={submitting} />
-            <Pressable style={styles.modalCancel} onPress={() => setDeleteTarget(null)}>
-              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
-            </Pressable>
-          </View>
+      <Dialog visible={deleteTarget !== null} onClose={() => setDeleteTarget(null)} maxWidth={maxWidth.dialogMd}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>{t('project.finance.deleteEntryTitle')}</Text>
+          {deleteTarget && (
+            <View style={styles.deleteSummary}>
+              <Text
+                style={[
+                  styles.rowAmount,
+                  { color: deleteTarget.kind === 'income' ? colors.success : colors.danger },
+                ]}
+              >
+                {deleteTarget.kind === 'income' ? '+' : '−'}
+                {deleteTarget.amount.toLocaleString()} {t('common.currency')}
+              </Text>
+              <Text style={styles.rowDescription}>{deleteTarget.description}</Text>
+            </View>
+          )}
+          <Text style={styles.deleteNote}>{t('project.finance.deleteEntryNote')}</Text>
+          <TextField
+            label={t('project.finance.deletedReasonLabel')}
+            value={deleteReason}
+            onChangeText={setDeleteReason}
+          />
+          <PrimaryButton title={t('common.delete')} onPress={handleConfirmDeleteEntry} loading={submitting} />
+          <Pressable style={styles.modalCancel} onPress={() => setDeleteTarget(null)}>
+            <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+          </Pressable>
         </View>
-      </Modal>
+      </Dialog>
     </View>
   );
 }
@@ -1389,19 +1379,14 @@ const createStyles = (c: ThemeColors) =>
     categoryChipTextActive: {
       color: c.textOnAccent,
     },
-    modalBackdrop: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.45)',
-      justifyContent: 'center',
-      padding: spacing.lg,
-    },
     modalCard: {
       backgroundColor: c.surface,
       borderRadius: 16,
       padding: spacing.lg,
-      maxHeight: '85%',
       width: '100%',
-      maxWidth: 480,
+      // Dialog caps the height; without this the card would keep its full content height
+      // and spill past that cap instead of letting its ScrollView take over.
+      flexShrink: 1,
       alignSelf: 'center',
     },
     modalTitle: {

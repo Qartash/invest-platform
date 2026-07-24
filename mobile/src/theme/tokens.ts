@@ -81,6 +81,13 @@ export const radius = {
   pill: 999,
 };
 
+// Caps on how wide a centred surface may grow. A phone never reaches them; a desktop
+// browser would otherwise stretch a dialog across the whole window.
+export const maxWidth = {
+  dialogSm: 360,
+  dialogMd: 480,
+};
+
 // Replaces the 17 ad-hoc font sizes that had accumulated across the app. Every size
 // below is a rung on one scale — reach for the nearest role, don't add a new number.
 export const typography = {

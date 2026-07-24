@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ProjectBudgetItem, ProjectWork, WorkApplication, WorkMilestone, WorkPaymentType } from '../types';
 import {
@@ -25,7 +25,8 @@ import {
 import { fetchProjectBudgetItems } from '../api/projects';
 import { useAuthStore } from '../store/authStore';
 import { showAlert } from '../utils/alert';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import { maxWidth, spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
 import { Avatar } from './Avatar';
 import { InvestorProfileModal } from './InvestorProfileModal';
 import { PrimaryButton } from './PrimaryButton';
@@ -583,96 +584,93 @@ export function ProjectWorksPanel({
       })}
 
       {/* Create work modal */}
-      <Modal visible={createVisible} transparent animationType="fade" onRequestClose={() => setCreateVisible(false)}>
-        <View style={styles.backdrop}>
-          <View style={styles.modalCard}>
-            <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>{editWorkId ? t('works.editWork') : t('works.createWork')}</Text>
-              <TextField label={t('works.titleLabel')} value={title} onChangeText={setTitle} />
-              <TextField label={t('works.briefLabel')} value={brief} onChangeText={setBrief} multiline />
-              <TextField label={t('works.priceLabel')} value={price} onChangeText={setPrice} format="decimal" keyboardType="decimal-pad" />
+      <Dialog visible={createVisible} onClose={() => setCreateVisible(false)} maxWidth={maxWidth.dialogMd}>
+        <View style={styles.modalCard}>
+          <ScrollView keyboardShouldPersistTaps="handled">
+            <Text style={styles.modalTitle}>{editWorkId ? t('works.editWork') : t('works.createWork')}</Text>
+            <TextField label={t('works.titleLabel')} value={title} onChangeText={setTitle} />
+            <TextField label={t('works.briefLabel')} value={brief} onChangeText={setBrief} multiline />
+            <TextField label={t('works.priceLabel')} value={price} onChangeText={setPrice} format="decimal" keyboardType="decimal-pad" />
 
-              <Text style={styles.pickerLabel}>{t('works.paymentTypeLabel')}</Text>
-              <View style={styles.chipRow}>
-                {(['cash', 'tickets', 'either'] as WorkPaymentType[]).map((pt) => (
-                  <Pressable
-                    key={pt}
-                    style={[styles.chip, paymentType === pt && styles.chipActive]}
-                    onPress={() => setPaymentType(pt)}
-                  >
-                    <Text style={[styles.chipText, paymentType === pt && styles.chipTextActive]}>
-                      {t(`works.payment.${pt}`)}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              {paymentType !== 'cash' && (
+            <Text style={styles.pickerLabel}>{t('works.paymentTypeLabel')}</Text>
+            <View style={styles.chipRow}>
+              {(['cash', 'tickets', 'either'] as WorkPaymentType[]).map((pt) => (
+                <Pressable
+                  key={pt}
+                  style={[styles.chip, paymentType === pt && styles.chipActive]}
+                  onPress={() => setPaymentType(pt)}
+                >
+                  <Text style={[styles.chipText, paymentType === pt && styles.chipTextActive]}>
+                    {t(`works.payment.${pt}`)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {paymentType !== 'cash' && (
+              <TextField
+                label={t('works.premiumLabel')}
+                value={premium}
+                onChangeText={setPremium}
+                format="decimal"
+                keyboardType="decimal-pad"
+                hint={t('works.premiumHint')}
+              />
+            )}
+
+            {budgetItems.length > 0 && (
+              <>
+                <Text style={styles.pickerLabel}>{t('works.stageLabel')}</Text>
+                <View style={styles.chipRow}>
+                  {budgetItems.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      style={[styles.chip, budgetItemId === item.id && styles.chipActive]}
+                      onPress={() => setBudgetItemId(budgetItemId === item.id ? null : item.id)}
+                    >
+                      <Text style={[styles.chipText, budgetItemId === item.id && styles.chipTextActive]}>{item.title}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
+            <View style={styles.switchRow}>
+              <Text style={styles.switchLabel}>{t('works.allowCounterOffers')}</Text>
+              <Switch value={allowCounter} onValueChange={setAllowCounter} />
+            </View>
+
+            <Text style={styles.pickerLabel}>{t('works.milestonesLabel')}</Text>
+            {milestoneRows.map((row, i) => (
+              <View key={i}>
                 <TextField
-                  label={t('works.premiumLabel')}
-                  value={premium}
-                  onChangeText={setPremium}
+                  label={t('works.milestoneTitle')}
+                  value={row.title}
+                  onChangeText={(v) => setMilestoneRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, title: v } : r)))}
+                />
+                <TextField
+                  label={t('works.priceLabel')}
+                  value={row.amount}
+                  onChangeText={(v) => setMilestoneRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, amount: v } : r)))}
                   format="decimal"
                   keyboardType="decimal-pad"
-                  hint={t('works.premiumHint')}
                 />
-              )}
-
-              {budgetItems.length > 0 && (
-                <>
-                  <Text style={styles.pickerLabel}>{t('works.stageLabel')}</Text>
-                  <View style={styles.chipRow}>
-                    {budgetItems.map((item) => (
-                      <Pressable
-                        key={item.id}
-                        style={[styles.chip, budgetItemId === item.id && styles.chipActive]}
-                        onPress={() => setBudgetItemId(budgetItemId === item.id ? null : item.id)}
-                      >
-                        <Text style={[styles.chipText, budgetItemId === item.id && styles.chipTextActive]}>{item.title}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </>
-              )}
-              <View style={styles.switchRow}>
-                <Text style={styles.switchLabel}>{t('works.allowCounterOffers')}</Text>
-                <Switch value={allowCounter} onValueChange={setAllowCounter} />
               </View>
+            ))}
+            <Pressable onPress={() => setMilestoneRows((rows) => [...rows, { title: '', amount: '' }])}>
+              <Text style={styles.addRowText}>+ {t('works.addMilestone')}</Text>
+            </Pressable>
 
-              <Text style={styles.pickerLabel}>{t('works.milestonesLabel')}</Text>
-              {milestoneRows.map((row, i) => (
-                <View key={i}>
-                  <TextField
-                    label={t('works.milestoneTitle')}
-                    value={row.title}
-                    onChangeText={(v) => setMilestoneRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, title: v } : r)))}
-                  />
-                  <TextField
-                    label={t('works.priceLabel')}
-                    value={row.amount}
-                    onChangeText={(v) => setMilestoneRows((rows) => rows.map((r, idx) => (idx === i ? { ...r, amount: v } : r)))}
-                    format="decimal"
-                    keyboardType="decimal-pad"
-                  />
-                </View>
-              ))}
-              <Pressable onPress={() => setMilestoneRows((rows) => [...rows, { title: '', amount: '' }])}>
-                <Text style={styles.addRowText}>+ {t('works.addMilestone')}</Text>
-              </Pressable>
-
-              <PrimaryButton title={t('common.save')} onPress={handleCreate} loading={submitting} />
-              <Pressable style={styles.modalCancel} onPress={() => setCreateVisible(false)}>
-                <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
-              </Pressable>
-            </ScrollView>
-          </View>
+            <PrimaryButton title={t('common.save')} onPress={handleCreate} loading={submitting} />
+            <Pressable style={styles.modalCancel} onPress={() => setCreateVisible(false)}>
+              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+            </Pressable>
+          </ScrollView>
         </View>
-      </Modal>
+      </Dialog>
 
       {/* Apply modal */}
-      <Modal visible={!!applyWork} transparent animationType="fade" onRequestClose={() => setApplyWork(null)}>
-        <View style={styles.backdrop}>
-          <View style={styles.modalCard}>
-            <ScrollView keyboardShouldPersistTaps="handled">
+      <Dialog visible={!!applyWork} onClose={() => setApplyWork(null)} maxWidth={maxWidth.dialogMd}>
+        <View style={styles.modalCard}>
+          <ScrollView keyboardShouldPersistTaps="handled">
             <Text style={styles.modalTitle}>{applyWork?.title}</Text>
             <Text style={styles.applyPrice}>
               {t('works.basePriceLine', { price: fmtNum(applyBase), currency })}
@@ -734,141 +732,132 @@ export function ProjectWorksPanel({
             <Pressable style={styles.modalCancel} onPress={() => setApplyWork(null)}>
               <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
             </Pressable>
-            </ScrollView>
-          </View>
+          </ScrollView>
         </View>
-      </Modal>
+      </Dialog>
 
       {/* Applications modal */}
-      <Modal visible={!!appsWork} transparent animationType="fade" onRequestClose={() => setAppsWork(null)}>
-        <View style={styles.backdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t('works.applicationsTitle')}</Text>
-            <ScrollView>
-              {applications.length === 0 && <Text style={styles.empty}>{t('works.noApplications')}</Text>}
-              {applications.map((app) => {
-                const base = appsWork?.price ?? 0;
-                const offered = app.offeredPrice ?? base;
-                const diff = offered - base;
-                return (
-                <View key={app.id} style={styles.appRow}>
-                  <Pressable style={styles.appText} onPress={() => setProfileUserId(app.applicantId)}>
-                    <View style={styles.appNameRow}>
-                      <Avatar avatarUrl={app.avatarUrl} avatarEmoji={app.avatarEmoji} size={36} />
-                      <View style={styles.appNameText}>
-                        <Text style={styles.appName}>{app.fullName || app.username || '—'}</Text>
-                        <Text style={styles.viewProfileLink}>{t('works.viewProfile')} ›</Text>
-                      </View>
+      <Dialog visible={!!appsWork} onClose={() => setAppsWork(null)} maxWidth={maxWidth.dialogMd}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>{t('works.applicationsTitle')}</Text>
+          <ScrollView>
+            {applications.length === 0 && <Text style={styles.empty}>{t('works.noApplications')}</Text>}
+            {applications.map((app) => {
+              const base = appsWork?.price ?? 0;
+              const offered = app.offeredPrice ?? base;
+              const diff = offered - base;
+              return (
+              <View key={app.id} style={styles.appRow}>
+                <Pressable style={styles.appText} onPress={() => setProfileUserId(app.applicantId)}>
+                  <View style={styles.appNameRow}>
+                    <Avatar avatarUrl={app.avatarUrl} avatarEmoji={app.avatarEmoji} size={36} />
+                    <View style={styles.appNameText}>
+                      <Text style={styles.appName}>{app.fullName || app.username || '—'}</Text>
+                      <Text style={styles.viewProfileLink}>{t('works.viewProfile')} ›</Text>
                     </View>
-                    {!!app.coverLetter && <Text style={styles.appCover}>{app.coverLetter}</Text>}
-                    <Text style={styles.appPrice}>
-                      {fmtNum(offered)} {currency}
-                      {diff !== 0 && (
-                        <Text style={diff > 0 ? styles.priceUp : styles.priceDown}>
-                          {'  '}
-                          {diff > 0 ? '▲' : '▼'} {fmtNum(Math.abs(diff))} · {t('works.wasPrice', { price: fmtNum(base) })}
-                        </Text>
-                      )}
-                    </Text>
-                  </Pressable>
-                  {app.status === 'selected' ? (
-                    <Text style={styles.selectedTag}>{t('works.status.assigned')}</Text>
-                  ) : app.status === 'rejected' ? (
-                    <Text style={styles.rejectedTag}>{t('works.appStatus.rejected')}</Text>
-                  ) : (
-                    <View style={styles.appActions}>
-                      <Pressable style={styles.selectBtn} onPress={() => openSelect(app)} disabled={submitting}>
-                        <Text style={styles.selectBtnText}>{t('works.select')}</Text>
-                      </Pressable>
-                      <Pressable onPress={() => setRejectApp(app)} disabled={submitting}>
-                        <Text style={styles.rejectLink}>{t('works.reject')}</Text>
-                      </Pressable>
-                    </View>
-                  )}
-                </View>
-                );
-              })}
-            </ScrollView>
-            <Pressable style={styles.modalCancel} onPress={() => setAppsWork(null)}>
-              <Text style={styles.modalCancelText}>{t('common.close')}</Text>
-            </Pressable>
-          </View>
+                  </View>
+                  {!!app.coverLetter && <Text style={styles.appCover}>{app.coverLetter}</Text>}
+                  <Text style={styles.appPrice}>
+                    {fmtNum(offered)} {currency}
+                    {diff !== 0 && (
+                      <Text style={diff > 0 ? styles.priceUp : styles.priceDown}>
+                        {'  '}
+                        {diff > 0 ? '▲' : '▼'} {fmtNum(Math.abs(diff))} · {t('works.wasPrice', { price: fmtNum(base) })}
+                      </Text>
+                    )}
+                  </Text>
+                </Pressable>
+                {app.status === 'selected' ? (
+                  <Text style={styles.selectedTag}>{t('works.status.assigned')}</Text>
+                ) : app.status === 'rejected' ? (
+                  <Text style={styles.rejectedTag}>{t('works.appStatus.rejected')}</Text>
+                ) : (
+                  <View style={styles.appActions}>
+                    <Pressable style={styles.selectBtn} onPress={() => openSelect(app)} disabled={submitting}>
+                      <Text style={styles.selectBtnText}>{t('works.select')}</Text>
+                    </Pressable>
+                    <Pressable onPress={() => setRejectApp(app)} disabled={submitting}>
+                      <Text style={styles.rejectLink}>{t('works.reject')}</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+              );
+            })}
+          </ScrollView>
+          <Pressable style={styles.modalCancel} onPress={() => setAppsWork(null)}>
+            <Text style={styles.modalCancelText}>{t('common.close')}</Text>
+          </Pressable>
         </View>
-      </Modal>
+      </Dialog>
 
       {/* Select applicant — confirm the amount to freeze */}
-      <Modal visible={!!selectApp} transparent animationType="fade" onRequestClose={() => setSelectApp(null)}>
-        <View style={styles.backdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              {t('works.selectAmountTitle')} · {selectApp?.fullName || selectApp?.username || '—'}
+      <Dialog visible={!!selectApp} onClose={() => setSelectApp(null)} maxWidth={maxWidth.dialogMd}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>
+            {t('works.selectAmountTitle')} · {selectApp?.fullName || selectApp?.username || '—'}
+          </Text>
+          <TextField
+            label={t('works.selectAmountLabel')}
+            value={selectAmount}
+            onChangeText={setSelectAmount}
+            format="decimal"
+            keyboardType="decimal-pad"
+            hint={t('works.selectAmountHint')}
+          />
+          <Text style={styles.selectFrozen}>
+            {t('works.selectFrozen')}: {selectFrozen.toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency}
+            {selectPayment === 'tickets' && appsWork && appsWork.ticketPremiumPercent > 0
+              ? ` (+${appsWork.ticketPremiumPercent}%)`
+              : ''}
+          </Text>
+          {spendableBalance !== undefined && (
+            <Text style={styles.selectAvail}>
+              {t('works.treasuryAvailable')}: {spendableBalance.toLocaleString()} {currency}
             </Text>
-            <TextField
-              label={t('works.selectAmountLabel')}
-              value={selectAmount}
-              onChangeText={setSelectAmount}
-              format="decimal"
-              keyboardType="decimal-pad"
-              hint={t('works.selectAmountHint')}
-            />
-            <Text style={styles.selectFrozen}>
-              {t('works.selectFrozen')}: {selectFrozen.toLocaleString(undefined, { maximumFractionDigits: 2 })} {currency}
-              {selectPayment === 'tickets' && appsWork && appsWork.ticketPremiumPercent > 0
-                ? ` (+${appsWork.ticketPremiumPercent}%)`
-                : ''}
-            </Text>
-            {spendableBalance !== undefined && (
-              <Text style={styles.selectAvail}>
-                {t('works.treasuryAvailable')}: {spendableBalance.toLocaleString()} {currency}
-              </Text>
-            )}
-            <PrimaryButton title={t('works.select')} onPress={confirmSelect} loading={submitting} />
-            <Pressable style={styles.modalCancel} onPress={() => setSelectApp(null)}>
-              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
-            </Pressable>
-          </View>
+          )}
+          <PrimaryButton title={t('works.select')} onPress={confirmSelect} loading={submitting} />
+          <Pressable style={styles.modalCancel} onPress={() => setSelectApp(null)}>
+            <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+          </Pressable>
         </View>
-      </Modal>
+      </Dialog>
 
       {/* Rating modal */}
-      <Modal visible={!!rateWork} transparent animationType="fade" onRequestClose={() => setRateWork(null)}>
-        <View style={styles.backdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{rateWork?.review ? t('works.editRating') : t('works.rateWorker')}</Text>
-            <View style={styles.starsRow}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <Pressable key={n} onPress={() => setRatingValue(n)}>
-                  <Text style={[styles.star, n <= ratingValue && styles.starActive]}>★</Text>
-                </Pressable>
-              ))}
-            </View>
-            <TextField label={t('works.ratingComment')} value={ratingComment} onChangeText={setRatingComment} multiline />
-            <PrimaryButton title={t('common.save')} onPress={handleRate} loading={submitting} />
-            <Pressable style={styles.modalCancel} onPress={() => setRateWork(null)}>
-              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
-            </Pressable>
+      <Dialog visible={!!rateWork} onClose={() => setRateWork(null)} maxWidth={maxWidth.dialogMd}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>{rateWork?.review ? t('works.editRating') : t('works.rateWorker')}</Text>
+          <View style={styles.starsRow}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Pressable key={n} onPress={() => setRatingValue(n)}>
+                <Text style={[styles.star, n <= ratingValue && styles.starActive]}>★</Text>
+              </Pressable>
+            ))}
           </View>
+          <TextField label={t('works.ratingComment')} value={ratingComment} onChangeText={setRatingComment} multiline />
+          <PrimaryButton title={t('common.save')} onPress={handleRate} loading={submitting} />
+          <Pressable style={styles.modalCancel} onPress={() => setRateWork(null)}>
+            <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+          </Pressable>
         </View>
-      </Modal>
+      </Dialog>
 
       {/* Reject application modal */}
-      <Modal visible={!!rejectApp} transparent animationType="fade" onRequestClose={() => setRejectApp(null)}>
-        <View style={styles.backdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>{t('works.rejectTitle')}</Text>
-            <TextField
-              label={t('works.rejectReason')}
-              value={rejectReason}
-              onChangeText={setRejectReason}
-              multiline
-            />
-            <PrimaryButton title={t('works.reject')} onPress={confirmReject} loading={submitting} />
-            <Pressable style={styles.modalCancel} onPress={() => setRejectApp(null)}>
-              <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
-            </Pressable>
-          </View>
+      <Dialog visible={!!rejectApp} onClose={() => setRejectApp(null)} maxWidth={maxWidth.dialogMd}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>{t('works.rejectTitle')}</Text>
+          <TextField
+            label={t('works.rejectReason')}
+            value={rejectReason}
+            onChangeText={setRejectReason}
+            multiline
+          />
+          <PrimaryButton title={t('works.reject')} onPress={confirmReject} loading={submitting} />
+          <Pressable style={styles.modalCancel} onPress={() => setRejectApp(null)}>
+            <Text style={styles.modalCancelText}>{t('common.cancel')}</Text>
+          </Pressable>
         </View>
-      </Modal>
+      </Dialog>
 
       {/* Applicant profile */}
       <InvestorProfileModal
@@ -937,14 +926,14 @@ const createStyles = (c: ThemeColors) =>
     rejectedTag: { fontSize: 11, fontWeight: '700', color: c.danger },
     rejectLink: { fontSize: 12, fontWeight: '600', color: c.danger, marginLeft: spacing.md },
     flex1: { flex: 1, marginRight: spacing.sm },
-    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: spacing.lg },
     modalCard: {
       backgroundColor: c.surface,
       borderRadius: 16,
       padding: spacing.lg,
-      maxHeight: '85%',
       width: '100%',
-      maxWidth: 480,
+      // Dialog caps the height; without this the card would keep its full content height
+      // and spill past that cap instead of letting its ScrollView take over.
+      flexShrink: 1,
       alignSelf: 'center',
     },
     modalTitle: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: spacing.md },

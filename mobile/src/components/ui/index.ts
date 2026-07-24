@@ -1,6 +1,7 @@
 export { ActionSheet } from './ActionSheet';
 export type { ActionSheetItem } from './ActionSheet';
 export { Card } from './Card';
+export { Dialog } from './Dialog';
 export { DisclosureRow } from './DisclosureRow';
 export { HeroScrim } from './HeroScrim';
 export { Icon } from './Icon';
