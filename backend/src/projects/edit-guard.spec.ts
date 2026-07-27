@@ -40,7 +40,6 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     deadline: null,
     pendingChanges: null,
     pendingChangeReason: null,
-    statusBeforeReview: null,
     deletedAt: null,
     deletionRequestedAt: null,
     ...overrides,
@@ -158,8 +157,7 @@ describe('editing a project that has sold tickets', () => {
       ticketsSold: 95,
       totalTickets: 100,
       pendingChanges: { totalTickets: 90 },
-      status: ProjectStatus.PENDING_REVIEW,
-      statusBeforeReview: ProjectStatus.ACTIVE,
+      status: ProjectStatus.ACTIVE,
     });
     const { service, saved } = makeService(project);
 
@@ -174,8 +172,7 @@ describe('editing a project that has sold tickets', () => {
   // the queue rather than protected it.
   it('approves a change that is still valid', async () => {
     const project = makeProject({
-      status: ProjectStatus.PENDING_REVIEW,
-      statusBeforeReview: ProjectStatus.FUNDED,
+      status: ProjectStatus.FUNDED,
       pendingChanges: { title: 'Coffee roastery, Yerevan' },
     });
     const { service } = makeService(project);

@@ -72,8 +72,20 @@ export class ProjectsService {
     return this.findByStatus(ProjectStatus.ACTIVE);
   }
 
+  // The moderation queue holds two different things, and they are not the same
+  // question. A project *in* PENDING_REVIEW has never been live and is waiting for
+  // the gate that lets it out. A live project with `pendingChanges` is already out
+  // — it keeps running, keeps selling, keeps its own status — and only an edit to
+  // it is waiting. Both belong in the queue; only the first is a status.
   findPendingReview(): Promise<Project[]> {
-    return this.findByStatus(ProjectStatus.PENDING_REVIEW);
+    return this.projectsRepository.find({
+      where: [
+        { status: ProjectStatus.PENDING_REVIEW, deletedAt: IsNull() },
+        { pendingChanges: Not(IsNull()), deletedAt: IsNull() },
+      ],
+      relations: { founder: true },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   findPendingDeletions(): Promise<Project[]> {
@@ -394,7 +406,9 @@ export class ProjectsService {
     if (project.founderId !== founderId) {
       throw new ForbiddenException('Not your project');
     }
-    if (project.status === ProjectStatus.PENDING_REVIEW) {
+    // One edit in flight at a time, whichever shape the wait takes: a project
+    // sitting in PENDING_REVIEW, or a live one carrying pendingChanges.
+    if (project.status === ProjectStatus.PENDING_REVIEW || project.pendingChanges) {
       throw new BadRequestException(
         'This project already has changes pending review. Wait for the moderator to approve or reject it first.',
       );
@@ -432,9 +446,16 @@ export class ProjectsService {
 
     project.pendingChanges = changes;
     project.pendingChangeReason = dto.changeReason?.trim() || null;
-    project.statusBeforeReview =
-      project.status === ProjectStatus.ACTIVE || project.status === ProjectStatus.FUNDED ? project.status : null;
-    project.status = ProjectStatus.PENDING_REVIEW;
+    // A live project keeps its status while its edit waits. It used to drop to
+    // PENDING_REVIEW and be restored afterwards from statusBeforeReview, which was
+    // worst on a funded one: the raise is over, there is nothing left to pause, and
+    // yet a typo fix parked 5 000 000 ֏ of finished project two rungs down the
+    // ladder, in the queue beside unreviewed drafts. A project that has never been
+    // live still goes to PENDING_REVIEW below — for it the review is the gate, not
+    // an interruption.
+    if (project.status === ProjectStatus.DRAFT || project.status === ProjectStatus.REJECTED) {
+      project.status = ProjectStatus.PENDING_REVIEW;
+    }
     const saved = await this.projectsRepository.save(project);
     await this.logReview(saved.id, ProjectReviewAction.SUBMITTED, { changes, comment: project.pendingChangeReason });
     return saved;
@@ -483,13 +504,16 @@ export class ProjectsService {
     if (project.founderId !== founderId) {
       throw new ForbiddenException('Not your project');
     }
-    if (project.status !== ProjectStatus.PENDING_REVIEW) {
+    if (project.status !== ProjectStatus.PENDING_REVIEW && !project.pendingChanges) {
       throw new BadRequestException('This project is not currently pending review');
     }
-    // Withdraw the request: an edit-in-progress project goes back to how it was live;
-    // a project that has never been reviewed yet goes back to draft.
-    project.status = project.statusBeforeReview ?? ProjectStatus.DRAFT;
-    project.statusBeforeReview = null;
+    // Withdraw the request. A live project never left its status, so there is
+    // nothing to restore — dropping the proposed changes is the whole undo. Only a
+    // project that went *into* PENDING_REVIEW has to come back out, and it came
+    // from draft.
+    if (project.status === ProjectStatus.PENDING_REVIEW) {
+      project.status = ProjectStatus.DRAFT;
+    }
     project.pendingChanges = null;
     project.pendingChangeReason = null;
     const saved = await this.projectsRepository.save(project);
@@ -660,8 +684,12 @@ export class ProjectsService {
       this.assertChangesApplicable(project, project.pendingChanges, { enforceStakePolicy: true });
       Object.assign(project, project.pendingChanges);
     }
-    project.status = project.statusBeforeReview ?? ProjectStatus.ACTIVE;
-    project.statusBeforeReview = null;
+    // Only a project waiting at the gate changes status on approval. A live one
+    // was never moved, so approving its edit must leave FUNDED as FUNDED — the old
+    // code sent it to statusBeforeReview, and to ACTIVE if that had been lost.
+    if (project.status === ProjectStatus.PENDING_REVIEW) {
+      project.status = ProjectStatus.ACTIVE;
+    }
     project.pendingChanges = null;
     project.pendingChangeReason = null;
     project.reviewComment = comment;
@@ -672,10 +700,13 @@ export class ProjectsService {
 
   async reject(id: string, comment: string, moderatorId: string, moderatorName: string): Promise<Project> {
     const project = await this.findOne(id);
-    // If this was a re-review of an edit to an already-live project, discard the
-    // proposed changes and restore it to whatever state it was live in before.
-    project.status = project.statusBeforeReview ?? ProjectStatus.REJECTED;
-    project.statusBeforeReview = null;
+    // Rejecting an edit to a live project discards the proposal and nothing else:
+    // the project is still live, still selling, and REJECTED would be a verdict on
+    // the project rather than on the edit. Only a project that has never passed the
+    // gate is rejected as such.
+    if (project.status === ProjectStatus.PENDING_REVIEW) {
+      project.status = ProjectStatus.REJECTED;
+    }
     project.pendingChanges = null;
     project.pendingChangeReason = null;
     project.reviewComment = comment;

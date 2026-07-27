@@ -219,7 +219,11 @@ export function CreateProjectScreen({ route, navigation }: Props) {
   useEffect(() => {
     if (!projectId) return;
     fetchProject(projectId).then((project) => {
-      if (project.status === 'pending_review' && !isAdminEdit) {
+      // A live project with an edit awaiting a decision keeps its own status now,
+      // so "already under review" has to be read off pendingChanges as well —
+      // otherwise the founder can open the form and queue a second edit on top of
+      // the first, which the backend then refuses on save.
+      if ((project.status === 'pending_review' || project.pendingChanges) && !isAdminEdit) {
         showAlert(t('founder.reviewPendingNotice'));
         navigation.goBack();
         return;

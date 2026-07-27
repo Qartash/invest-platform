@@ -126,6 +126,13 @@ export function ModerationScreen({ navigation }: Props) {
 
   const filteredAll = useMemo(() => {
     if (statusFilter === 'all') return allProjects;
+    // The "pending review" chip means "waiting on me", not "carries this status".
+    // A live project with a proposed edit keeps its own status — funded stays
+    // funded — but the decision is still the moderator's to make, so it belongs
+    // under this chip too.
+    if (statusFilter === 'pending_review') {
+      return allProjects.filter((p) => !p.deletedAt && (p.status === 'pending_review' || p.pendingChanges));
+    }
     return allProjects.filter((p) => displayStatus(p) === statusFilter);
   }, [allProjects, statusFilter]);
 

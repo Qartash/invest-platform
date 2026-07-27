@@ -102,9 +102,6 @@ export class Project {
   @Column({ type: 'text', nullable: true, name: 'pending_change_reason' })
   pendingChangeReason: string | null;
 
-  @Column({ type: 'enum', enum: ProjectStatus, nullable: true, name: 'status_before_review' })
-  statusBeforeReview: ProjectStatus | null;
-
   @Column({ type: 'timestamptz', nullable: true, name: 'deletion_requested_at' })
   deletionRequestedAt: Date | null;
 

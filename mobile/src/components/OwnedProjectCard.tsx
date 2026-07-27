@@ -193,7 +193,10 @@ export function OwnedProjectCard(props: Props) {
       );
     }
 
-    if (project.status !== 'pending_review') return null;
+    // Two ways to be waiting on a moderator: sitting in pending_review before ever
+    // going live, or live and carrying a proposed edit. The second no longer shows
+    // up as a status, so the notice and the withdraw button hang off pendingChanges.
+    if (project.status !== 'pending_review' && !project.pendingChanges) return null;
 
     return (
       <View style={styles.stateBlock}>

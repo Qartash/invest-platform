@@ -103,7 +103,6 @@ export interface Project {
   priority: 'low' | 'medium' | 'high';
   pendingChanges?: Record<string, any> | null;
   pendingChangeReason?: string | null;
-  statusBeforeReview?: ProjectStatus | null;
   deletionRequestedAt?: string | null;
   deletedAt?: string | null;
   coverImageUrl?: string;
