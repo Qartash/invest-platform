@@ -25,18 +25,20 @@ import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
 import { LogsScreen } from './LogsScreen';
 import { ModerationReleasesScreen } from './ModerationReleasesScreen';
 import { ModerationDisputesScreen } from './ModerationDisputesScreen';
+import { ModerationPartnersScreen } from './ModerationPartnersScreen';
 
 type Props = NativeStackScreenProps<ModerationStackParamList, 'ModerationList'>;
 
-type Tab = 'pending' | 'all' | 'users' | 'releases' | 'disputes' | 'logs';
+type Tab = 'pending' | 'all' | 'users' | 'partners' | 'releases' | 'disputes' | 'logs';
 
-// Six destinations do not fit as text on a phone — the labels used to overlap each other.
-// The row is icons only, with the active one's name spelled out underneath so the screen
-// still says where you are.
+// Seven destinations do not fit as text on a phone — the labels used to overlap each
+// other. The row is icons only, with the active one's name spelled out underneath so
+// the screen still says where you are.
 const TABS: Array<{ key: Tab; icon: IconName; labelKey: string }> = [
   { key: 'pending', icon: 'clock', labelKey: 'moderation.tabPending' },
   { key: 'all', icon: 'layers', labelKey: 'moderation.tabAll' },
   { key: 'users', icon: 'users', labelKey: 'moderation.users.title' },
+  { key: 'partners', icon: 'star', labelKey: 'partners.admin.tab' },
   { key: 'releases', icon: 'unlock', labelKey: 'moderation.releases.tab' },
   { key: 'disputes', icon: 'flag', labelKey: 'works.disputesTab' },
   { key: 'logs', icon: 'history', labelKey: 'moderation.logs.title' },
@@ -203,6 +205,15 @@ export function ModerationScreen({ navigation }: Props) {
       <View style={styles.container}>
         {head}
         <ModerationDisputesScreen />
+      </View>
+    );
+  }
+
+  if (tab === 'partners') {
+    return (
+      <View style={styles.container}>
+        {head}
+        <ModerationPartnersScreen />
       </View>
     );
   }

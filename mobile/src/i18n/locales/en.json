@@ -6,6 +6,7 @@
     "continue": "Continue",
     "back": "Back",
     "error": "Something went wrong",
+    "loadFailed": "Could not load this. Check your connection and try again.",
     "retry": "Retry",
     "close": "Close",
     "confirm": "Confirm",
@@ -768,6 +769,24 @@
     }
   },
   "partners": {
+    "admin": {
+      "tab": "Partners",
+      "tabApplications": "Applications",
+      "tabPayouts": "Owed",
+      "approve": "Approve",
+      "requestChanges": "Ask for changes",
+      "reject": "Reject",
+      "noteRequired": "Write a note first — the applicant has to know what to do next.",
+      "notePlaceholder": "What the applicant should know",
+      "memberSince": "With us since {{date}}",
+      "appliedOn": "applied {{date}}",
+      "noApplications": "No applications waiting",
+      "noPayouts": "Nothing owed to partners right now",
+      "earningCount": "{{count}} matured earning(s)",
+      "markPaid": "Mark as paid",
+      "markPaidHint": "Records that you already sent the transfer. Moves no money.",
+      "settled": "{{count}} earning(s) marked as paid"
+    },
     "title": "Partnership",
     "heroTitle": "Partner programme",
     "heroText": "If you run a blog, channel or community, the terms differ from ordinary invites. Paid in real money to a card.",

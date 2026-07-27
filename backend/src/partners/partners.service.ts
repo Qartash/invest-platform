@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { PartnerApplication } from './entities/partner-application.entity';
 import { User } from '../users/entities/user.entity';
 import { PartnerApplicationStatus } from '../common/enums';
@@ -128,8 +128,27 @@ export class PartnersService {
 
   // What the platform owes partners right now, and the call that records a
   // transfer once it has been made.
-  duePayouts() {
-    return this.earningsService.duePartnerPayouts();
+  //
+  // The ledger only knows beneficiary ids — it has no reason to. Whoever is about
+  // to send money to a card needs to read a name, so the names are attached here
+  // rather than leaving a screen full of uuids.
+  async duePayouts() {
+    const due = await this.earningsService.duePartnerPayouts();
+    if (due.length === 0) return [];
+
+    const users = await this.usersRepository.find({
+      where: { id: In(due.map((row) => row.beneficiaryId)) },
+    });
+    const nameById = new Map(users.map((u) => [u.id, u.fullName || u.username]));
+
+    return due.map((row) => ({
+      userId: row.beneficiaryId,
+      // A partner who has since been deleted still shows up owed money, and that
+      // is worth seeing rather than hiding behind a blank.
+      name: nameById.get(row.beneficiaryId) ?? row.beneficiaryId,
+      amount: row.amount,
+      earningIds: row.earningIds,
+    }));
   }
 
   settle(earningIds: string[]) {

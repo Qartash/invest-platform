@@ -29,6 +29,7 @@ export type IconName =
   | 'trendUp'
   | 'clock'
   | 'users'
+  | 'star'
   | 'unlock';
 
 interface Props {
@@ -243,6 +244,10 @@ function renderPaths(name: IconName, common: any, color: string) {
           <Path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.4-1.3" {...common} />
         </>
       );
+    // Partners: the one tab about singling someone out rather than about a queue
+    // of work, which is why it is a star and not another document shape.
+    case 'star':
+      return <Path d="M12 3.6l2.6 5.6 6 .8-4.4 4.2 1.1 6-5.3-3-5.3 3 1.1-6L3.4 10l6-.8L12 3.6Z" {...common} />;
     default:
       return null;
   }
