@@ -1,0 +1,1747 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Приглашения, задания и дерево — прототип</title>
+<style>
+  /* Токены 1:1 из mobile/src/theme/tokens.ts */
+  :root {
+    --primary:#2E6F45; --primary-dark:#1F4E30; --primary-soft:rgba(46,111,69,.10);
+    --bg:#F6F8F7; --surface:#FFFFFF; --surface-sunken:#F1F4F2;
+    --text:#16201A; --text-muted:#6B7A70;
+    --on-accent:#FFFFFF; --on-accent-muted:rgba(255,255,255,.82);
+    --border:#E2E7E3;
+    --success:#22A559; --success-soft:rgba(34,165,89,.12);
+    --danger:#DC2626;  --danger-soft:rgba(220,38,38,.10);
+    --warning:#D97706; --warning-soft:rgba(217,119,6,.14);
+    --chart:#2563EB;
+    --shadow: 0 6px 16px rgba(0,0,0,.08);
+
+    --xs:4px; --sm:8px; --md:16px; --lg:24px; --xl:32px;
+    --r-sm:8px; --r-md:10px; --r-lg:13px; --r-xl:16px; --r-pill:999px;
+  }
+  [data-theme="dark"] {
+    --primary:#63B37F; --primary-dark:#4C9366; --primary-soft:rgba(99,179,127,.14);
+    --bg:#171C18; --surface:#1F2620; --surface-sunken:#161B17;
+    --text:#E9EFEA; --text-muted:#93A398;
+    --on-accent:#0E1710; --on-accent-muted:rgba(14,23,16,.72);
+    --border:#2C352E;
+    --success:#4ECB7D; --success-soft:rgba(78,203,125,.14);
+    --danger:#F87171;  --danger-soft:rgba(248,113,113,.12);
+    --warning:#FBBF24; --warning-soft:rgba(251,191,36,.14);
+    --chart:#60A5FA;
+    --shadow: 0 6px 16px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    background:#0d100e; color:var(--text);
+    min-height:100vh; padding:28px 16px 60px;
+    display:flex; flex-direction:column; align-items:center; gap:22px;
+  }
+
+  /* ---- панель прототипа (не часть приложения) ---- */
+  .harness { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center; color:#8b968f; font-size:13px; max-width:960px; }
+  .harness-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .harness-title { color:#6b746e; font-size:11px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; width:100%; text-align:center; margin-top:8px; }
+  .harness button {
+    font:inherit; font-size:12px; font-weight:600; cursor:pointer;
+    background:#1e2420; color:#cfd8d2; border:1px solid #2f3833;
+    border-radius:999px; padding:7px 14px;
+    transition:background 140ms cubic-bezier(.23,1,.32,1), transform 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .harness button:hover { background:#28302b; }
+  .harness button:active { transform:scale(.97); }
+  .harness button[aria-pressed="true"] { background:#2E6F45; border-color:#3d8a58; color:#fff; }
+
+  .stage { display:flex; gap:26px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+  .slot { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .slot-caption { color:#8b968f; font-size:12px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+  .slot-note { color:#6b746e; font-size:11px; max-width:390px; text-align:center; line-height:1.5; }
+  .slot-note.warn { color:#c99a4e; }
+
+  /* ---- телефон ---- */
+  .phone {
+    width:390px; height:820px; background:var(--bg);
+    border-radius:28px; overflow:hidden;
+    display:flex; flex-direction:column;
+    box-shadow:0 0 0 1px rgba(255,255,255,.08), 0 24px 60px rgba(0,0,0,.5);
+  }
+  .screen { flex:1; display:flex; flex-direction:column; padding:0 var(--lg) var(--lg); overflow-y:auto; }
+  .screen::-webkit-scrollbar { width:0 }
+
+  .status {
+    height:44px; flex:none; display:flex; align-items:center; justify-content:space-between;
+    padding:0 var(--lg); font-size:12px; font-weight:600; color:var(--text);
+    font-variant-numeric:tabular-nums;
+  }
+
+  .navbar { display:flex; align-items:center; gap:var(--sm); height:48px; flex:none; margin-bottom:var(--sm); }
+  .navbar .back { width:32px; height:32px; margin-left:-6px; display:grid; place-items:center; color:var(--text); cursor:pointer; }
+  .navbar h1 { font-size:22px; font-weight:700; letter-spacing:-.4px; flex:1; }
+
+  /* ---- типографика ---- */
+  .t-display  { font-size:26px; font-weight:700; letter-spacing:-.5px; }
+  .t-title    { font-size:22px; font-weight:700; letter-spacing:-.4px; }
+  .t-heading  { font-size:18px; font-weight:700; letter-spacing:-.2px; }
+  .t-sub      { font-size:16px; font-weight:600; }
+  .t-body     { font-size:15px; }
+  .t-body-b   { font-size:15px; font-weight:600; }
+  .t-label    { font-size:14px; }
+  .t-label-b  { font-size:14px; font-weight:600; }
+  .t-caption  { font-size:13px; color:var(--text-muted); line-height:1.5; }
+  .t-caption-b{ font-size:13px; font-weight:600; }
+  .t-micro    { font-size:12px; color:var(--text-muted); line-height:1.5; }
+  .t-eyebrow  { font-size:11px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:var(--text-muted); }
+  .muted { color:var(--text-muted); }
+  .nums { font-variant-numeric:tabular-nums; }
+  .center { text-align:center; }
+  .ok { color:var(--success); }
+  .warn { color:var(--warning); }
+  .bad { color:var(--danger); }
+
+  .stack-xs > * + * { margin-top:var(--xs); }
+  .stack-sm > * + * { margin-top:var(--sm); }
+  .stack-md > * + * { margin-top:var(--md); }
+  .stack-lg > * + * { margin-top:var(--lg); }
+
+  /* ---- карточки ---- */
+  .card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-xl); padding:var(--md);
+  }
+  .card-flush { padding:0; overflow:hidden; }
+  .section-head { display:flex; align-items:baseline; justify-content:space-between; margin:var(--lg) 0 var(--sm); }
+  .section-head:first-child { margin-top:0; }
+  .section-link { font-size:13px; font-weight:600; color:var(--primary); cursor:pointer; }
+
+  /* ---- строки-списки ---- */
+  .row {
+    display:flex; align-items:center; gap:var(--md);
+    padding:14px var(--md); cursor:pointer;
+    transition:background 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .row:hover { background:var(--surface-sunken); }
+  .row + .row { border-top:1px solid var(--border); }
+  .row-plaque {
+    width:38px; height:38px; flex:none; border-radius:var(--r-md);
+    background:var(--primary-soft); color:var(--primary);
+    display:grid; place-items:center;
+  }
+  .row-main { flex:1; min-width:0; }
+  .row-label { font-size:15px; font-weight:600; }
+  .row-sub { font-size:13px; color:var(--text-muted); margin-top:2px; }
+  .chev { color:var(--text-muted); flex:none; }
+
+  /* ---- бейджи ---- */
+  .pill {
+    display:inline-flex; align-items:center; gap:5px;
+    height:24px; padding:0 10px; border-radius:var(--r-pill);
+    font-size:12px; font-weight:700; white-space:nowrap;
+  }
+  .pill-success { background:var(--success-soft); color:var(--success); }
+  .pill-warning { background:var(--warning-soft); color:var(--warning); }
+  .pill-danger  { background:var(--danger-soft);  color:var(--danger); }
+  .pill-muted   { background:var(--surface-sunken); color:var(--text-muted); border:1px solid var(--border); }
+  .pill-primary { background:var(--primary-soft); color:var(--primary); }
+
+  /* ---- кнопки ---- */
+  .btn {
+    width:100%; height:52px; border-radius:var(--r-lg); border:1px solid transparent;
+    font:inherit; font-size:15px; font-weight:600; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:transform 140ms cubic-bezier(.23,1,.32,1), background 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .btn:active { transform:scale(.98); }
+  .btn-primary { background:var(--primary); color:var(--on-accent); }
+  .btn-primary:hover { background:var(--primary-dark); }
+  .btn-outline { background:transparent; color:var(--text); border-color:var(--border); }
+  .btn-outline:hover { background:var(--surface); }
+  .btn-sm { height:42px; font-size:14px; }
+
+  /* ---- код и ссылка ---- */
+  .code-card {
+    background:var(--primary); color:var(--on-accent);
+    border-radius:var(--r-xl); padding:var(--lg) var(--md);
+    display:flex; flex-direction:column; align-items:center; gap:var(--md);
+    box-shadow:var(--shadow);
+  }
+  .code-eyebrow { font-size:11px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:var(--on-accent-muted); }
+  .code-value {
+    font-size:28px; font-weight:700; letter-spacing:2px;
+    font-variant-numeric:tabular-nums;
+    display:flex; align-items:center; gap:12px;
+  }
+  .code-copy {
+    background:rgba(255,255,255,.16); border:none; color:inherit;
+    width:34px; height:34px; border-radius:var(--r-md);
+    display:grid; place-items:center; cursor:pointer;
+    transition:background 140ms cubic-bezier(.23,1,.32,1);
+  }
+  [data-theme="dark"] .code-copy { background:rgba(0,0,0,.14); }
+  .code-copy:hover { background:rgba(255,255,255,.26); }
+  .code-actions { display:flex; gap:var(--sm); width:100%; }
+  .code-actions button {
+    flex:1; height:44px; border-radius:var(--r-lg); cursor:pointer;
+    font:inherit; font-size:14px; font-weight:600;
+    background:rgba(255,255,255,.16); color:var(--on-accent); border:none;
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    transition:background 140ms cubic-bezier(.23,1,.32,1), transform 140ms cubic-bezier(.23,1,.32,1);
+  }
+  [data-theme="dark"] .code-actions button { background:rgba(0,0,0,.14); }
+  .code-actions button:hover { background:rgba(255,255,255,.26); }
+  .code-actions button:active { transform:scale(.97); }
+
+  .link-box {
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface-sunken); border:1px solid var(--border);
+    border-radius:var(--r-lg); padding:12px var(--md);
+  }
+  .link-text { flex:1; min-width:0; font-size:13px; font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .link-copy { background:none; border:none; color:var(--primary); cursor:pointer; display:grid; place-items:center; flex:none; }
+
+  .qr {
+    width:150px; height:150px; margin:0 auto; border-radius:var(--r-lg);
+    background:var(--surface); border:1px solid var(--border); padding:10px;
+    display:grid; grid-template-columns:repeat(11,1fr); grid-template-rows:repeat(11,1fr); gap:2px;
+  }
+  .qr i { background:var(--text); border-radius:1px; }
+  .qr i.off { background:transparent; }
+
+  .share-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--sm); }
+  .share-item { display:flex; flex-direction:column; align-items:center; gap:6px; cursor:pointer; }
+  .share-ico {
+    width:52px; height:52px; border-radius:var(--r-lg);
+    background:var(--surface-sunken); border:1px solid var(--border);
+    display:grid; place-items:center; font-size:22px;
+    transition:transform 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .share-item:hover .share-ico { transform:translateY(-2px); }
+  .share-label { font-size:11px; color:var(--text-muted); }
+
+  /* ---- воронка ссылки ---- */
+  .funnel-row { display:flex; align-items:center; gap:var(--sm); }
+  .funnel-bar { flex:1; height:26px; border-radius:var(--r-sm); background:var(--surface-sunken); overflow:hidden; }
+  .funnel-bar > span { display:block; height:100%; background:var(--primary); opacity:.85; }
+  .funnel-num { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; width:38px; text-align:right; }
+  .funnel-label { font-size:12px; color:var(--text-muted); width:82px; flex:none; }
+
+  /* ---- статистика ---- */
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); border-radius:var(--r-xl); overflow:hidden; border:1px solid var(--border); }
+  .stats-2 { grid-template-columns:repeat(2,1fr); }
+  .stat { background:var(--surface); padding:var(--md) var(--sm); text-align:center; }
+  .stat-value { font-size:24px; font-weight:700; letter-spacing:-.5px; font-variant-numeric:tabular-nums; }
+  .stat-label { font-size:11px; font-weight:600; color:var(--text-muted); margin-top:4px; line-height:1.3; }
+
+  /* ---- баланс бонусов ---- */
+  .balance-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-xl); padding:var(--lg) var(--md);
+    text-align:center;
+  }
+  .balance-value { font-size:34px; font-weight:700; letter-spacing:-1px; font-variant-numeric:tabular-nums; }
+  .balance-split { display:flex; margin-top:var(--md); border-top:1px solid var(--border); padding-top:var(--md); }
+  .balance-part { flex:1; }
+  .balance-part + .balance-part { border-left:1px solid var(--border); }
+  .balance-part-v { font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .balance-part-l { font-size:11px; color:var(--text-muted); margin-top:3px; }
+
+  /* ---- прогресс ---- */
+  .progress { height:8px; border-radius:var(--r-pill); background:var(--surface-sunken); overflow:hidden; }
+  .progress > span { display:block; height:100%; background:var(--primary); border-radius:var(--r-pill); }
+  .progress.thin { height:5px; }
+
+  /* ---- лестница уровней ---- */
+  .ladder-row {
+    display:flex; align-items:center; gap:12px;
+    padding:11px var(--md);
+  }
+  .ladder-row + .ladder-row { border-top:1px solid var(--border); }
+  .ladder-badge {
+    width:30px; height:30px; flex:none; border-radius:var(--r-sm);
+    display:grid; place-items:center; font-size:11px; font-weight:700;
+    background:var(--primary-soft); color:var(--primary);
+  }
+  .ladder-badge.mid { background:var(--warning-soft); color:var(--warning); }
+  .ladder-badge.far { background:var(--surface-sunken); color:var(--text-muted); border:1px solid var(--border); }
+  .ladder-main { flex:1; }
+  .ladder-title { font-size:14px; font-weight:600; }
+  .ladder-sub { font-size:11px; color:var(--text-muted); margin-top:1px; }
+  .ladder-rate { font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+  /* ---- дерево ---- */
+  .tree { padding:var(--sm) 0; }
+  .node { position:relative; }
+  .node-self > .node-row { background:var(--primary-soft); border-radius:var(--r-lg); }
+  .node-row { display:flex; align-items:center; gap:10px; padding:8px 10px; position:relative; }
+  .avatar {
+    width:34px; height:34px; flex:none; border-radius:var(--r-pill);
+    background:var(--surface-sunken); border:1px solid var(--border);
+    display:grid; place-items:center; font-size:16px;
+  }
+  .avatar.self { background:var(--primary); color:var(--on-accent); font-size:13px; font-weight:700; border-color:transparent; }
+  .avatar.dim { opacity:.72; }
+  .node-main { flex:1; min-width:0; }
+  .node-name { font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .node-sub { font-size:11px; color:var(--text-muted); margin-top:1px; }
+  .node-earn { font-size:12px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--success); flex:none; }
+  .node-dot { width:8px; height:8px; border-radius:50%; flex:none; }
+  .dot-active { background:var(--success); }
+  .dot-pending { background:var(--warning); }
+  .dot-idle { background:var(--border); }
+
+  .children { margin-left:17px; padding-left:20px; border-left:1px solid var(--border); }
+  .children > .node > .node-row::before {
+    content:""; position:absolute; left:-20px; top:50%;
+    width:14px; height:1px; background:var(--border);
+  }
+  .children > .node:last-child > .node-row::after {
+    content:""; position:absolute; left:-21px; top:calc(50% + 1px);
+    width:1px; bottom:-8px; background:var(--surface);
+  }
+  .depth-label {
+    font-size:10px; font-weight:700; letter-spacing:.6px; text-transform:uppercase;
+    color:var(--text-muted); margin:var(--sm) 0 2px; padding-left:2px;
+  }
+  .more-line { font-size:12px; color:var(--text-muted); padding:6px 10px; cursor:pointer; }
+  .more-line:hover { color:var(--primary); }
+
+  /* ---- задания ---- */
+  .quest {
+    display:flex; gap:12px; align-items:flex-start;
+    padding:var(--md); cursor:pointer;
+    transition:background 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .quest:hover { background:var(--surface-sunken); }
+  .quest + .quest { border-top:1px solid var(--border); }
+  .quest-ico {
+    width:40px; height:40px; flex:none; border-radius:var(--r-md);
+    display:grid; place-items:center; font-size:19px;
+    background:var(--surface-sunken); border:1px solid var(--border);
+  }
+  .quest-main { flex:1; min-width:0; }
+  .quest-title { font-size:14px; font-weight:600; }
+  .quest-sub { font-size:12px; color:var(--text-muted); margin-top:2px; line-height:1.45; }
+  .quest-pay {
+    font-size:14px; font-weight:700; font-variant-numeric:tabular-nums;
+    color:var(--primary); flex:none; white-space:nowrap;
+  }
+  .quest.done { opacity:.55; }
+  .quest.done .quest-pay { color:var(--success); }
+  .quest-progress { margin-top:8px; }
+  .quest-progress-label { display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-bottom:5px; }
+
+  .streak { display:flex; gap:5px; margin-top:10px; }
+  .streak i {
+    flex:1; height:30px; border-radius:var(--r-sm);
+    background:var(--surface-sunken); border:1px solid var(--border);
+    display:grid; place-items:center; font-size:10px; font-weight:700; color:var(--text-muted);
+  }
+  .streak i.on { background:var(--primary); border-color:transparent; color:var(--on-accent); }
+  .streak i.today { background:var(--primary-soft); border-color:var(--primary); color:var(--primary); }
+
+  .segmented {
+    display:flex; gap:4px; padding:4px;
+    background:var(--surface-sunken); border:1px solid var(--border); border-radius:var(--r-lg);
+  }
+  .segmented button {
+    flex:1; height:34px; border:none; border-radius:var(--r-md); cursor:pointer;
+    font:inherit; font-size:13px; font-weight:600; color:var(--text-muted); background:transparent;
+  }
+  .segmented button[aria-pressed="true"] { background:var(--surface); color:var(--text); box-shadow:var(--shadow); }
+
+  /* ---- история начислений ---- */
+  .tx { display:flex; align-items:center; gap:12px; padding:12px var(--md); }
+  .tx + .tx { border-top:1px solid var(--border); }
+  .tx-ico {
+    width:32px; height:32px; flex:none; border-radius:var(--r-sm);
+    display:grid; place-items:center; font-size:14px;
+    background:var(--primary-soft); color:var(--primary);
+  }
+  .tx-main { flex:1; min-width:0; }
+  .tx-title { font-size:13px; font-weight:600; }
+  .tx-sub { font-size:11px; color:var(--text-muted); margin-top:1px; }
+  .tx-amt { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--success); }
+
+  /* ---- заметки ---- */
+  .note {
+    background:var(--surface-sunken); border:1px solid var(--border);
+    border-radius:var(--r-lg); padding:var(--md);
+    font-size:12px; color:var(--text-muted); line-height:1.6;
+  }
+  .note b { color:var(--text); font-weight:600; }
+  .note-warn { background:var(--warning-soft); border-color:transparent; }
+  .note-warn b { color:var(--warning); }
+  .note-bad { background:var(--danger-soft); border-color:transparent; }
+  .note-bad b { color:var(--danger); }
+
+  .kv { display:flex; justify-content:space-between; align-items:center; gap:var(--md); font-size:13px; }
+  .kv + .kv { margin-top:10px; }
+  .kv > span:last-child { font-weight:600; font-variant-numeric:tabular-nums; }
+  .kv-total { padding-top:10px; margin-top:10px; border-top:1px solid var(--border); }
+
+  .how-step { display:flex; gap:var(--md); }
+  .how-num {
+    width:28px; height:28px; flex:none; border-radius:var(--r-pill);
+    background:var(--primary); color:var(--on-accent);
+    display:grid; place-items:center; font-size:13px; font-weight:700;
+  }
+
+  /* ---- экран экономики (инструмент, не часть приложения) ---- */
+  .econ { width:430px; }
+  .econ .phone { width:430px; height:auto; min-height:820px; border-radius:20px; }
+  .econ .screen { padding:var(--lg); }
+  .slider-row { margin-bottom:var(--md); }
+  .slider-head { display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px; }
+  .slider-head b { font-variant-numeric:tabular-nums; }
+  input[type=range] {
+    width:100%; -webkit-appearance:none; appearance:none;
+    height:6px; border-radius:3px; background:var(--surface-sunken); outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; appearance:none;
+    width:20px; height:20px; border-radius:50%; background:var(--primary); cursor:pointer;
+    border:3px solid var(--surface); box-shadow:0 1px 4px rgba(0,0,0,.3);
+  }
+  .verdict { border-radius:var(--r-xl); padding:var(--md); text-align:center; }
+  .verdict-v { font-size:28px; font-weight:700; letter-spacing:-.6px; font-variant-numeric:tabular-nums; }
+  .verdict-l { font-size:12px; margin-top:4px; opacity:.85; }
+  .verdict.bad-bg { background:var(--danger-soft); color:var(--danger); }
+  .verdict.ok-bg  { background:var(--success-soft); color:var(--success); }
+</style>
+</head>
+<body data-theme="dark">
+
+<div class="harness">
+  <div class="harness-row">
+    <button id="themeBtn">Светлая / тёмная</button>
+    <button data-filter="all" aria-pressed="true">Все</button>
+    <button data-filter="entry">Профиль</button>
+    <button data-filter="main">Приглашения</button>
+    <button data-filter="link">Ссылка и QR</button>
+    <button data-filter="people">Приглашённые</button>
+    <button data-filter="tree">Дерево</button>
+    <button data-filter="earn">Начисления</button>
+  </div>
+  <div class="harness-row">
+    <button data-filter="quests">Задания</button>
+    <button data-filter="quest">Задание · деталь</button>
+    <button data-filter="rules">Правила</button>
+    <button data-filter="econ">⚠ Экономика</button>
+  </div>
+  <div class="harness-title">Регистрация без кода — два варианта, сравни</div>
+  <div class="harness-row">
+    <button data-filter="randomA">А · случайное закрепление</button>
+    <button data-filter="randomB">Б · розыгрыш бонусов</button>
+  </div>
+</div>
+
+<div class="stage">
+
+  <!-- ═══════════ 1. ПРОФИЛЬ ═══════════ -->
+  <div class="slot" data-screen="entry">
+    <div class="slot-caption">1 · Профиль</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar"><h1>Профиль</h1></div>
+
+        <div class="section-head"><div class="t-eyebrow">Финансы</div></div>
+        <div class="card card-flush">
+          <div class="row">
+            <div class="row-plaque">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/></svg>
+            </div>
+            <div class="row-main"><div class="row-label">Кошелёк</div><div class="row-sub">Инвест-кредит: 40 000 ֏</div></div>
+            <div class="t-body-b nums">312 500 ֏</div>
+          </div>
+          <div class="row">
+            <div class="row-plaque">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-7"/><path d="M14 8h6v6"/></svg>
+            </div>
+            <div class="row-main"><div class="row-label">Портфель</div><div class="row-sub">7 проектов</div></div>
+            <div class="t-body-b nums">418 900 ֏</div>
+          </div>
+        </div>
+
+        <div class="section-head"><div class="t-eyebrow">Сообщество и бонусы</div></div>
+        <div class="card card-flush" style="border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-soft)">
+          <div class="row">
+            <div class="row-plaque">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"/><circle cx="5.5" cy="18" r="2.5"/><circle cx="18.5" cy="18" r="2.5"/><path d="M12 7.5v3.5M12 11H5.5v4.5M12 11h6.5v4.5"/></svg>
+            </div>
+            <div class="row-main">
+              <div class="row-label">Приглашения</div>
+              <div class="row-sub">34 в дереве · 4 850 ֏ начислено</div>
+            </div>
+            <span class="pill pill-primary">+2</span>
+            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+          <div class="row">
+            <div class="row-plaque">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l2 2 4-4"/><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4"/></svg>
+            </div>
+            <div class="row-main">
+              <div class="row-label">Задания</div>
+              <div class="row-sub">3 доступно · до 100 ֏ каждое</div>
+            </div>
+            <span class="pill pill-warning">3</span>
+            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+          <div class="row">
+            <div class="row-plaque">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.5 5.5L20 9.5l-4 4 1 6-5-2.8L7 19.5l1-6-4-4 5.5-1z"/></svg>
+            </div>
+            <div class="row-main">
+              <div class="row-label">Кто меня пригласил</div>
+              <div class="row-sub">Нарек А. · 14 марта 2026</div>
+            </div>
+            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+          <div class="row">
+            <div class="row-plaque">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8a3 3 0 1 0-3-3M9 12H4v9h16v-9h-5M9 12a3 3 0 0 1 6 0M9 12v9m6-9v9"/></svg>
+            </div>
+            <div class="row-main">
+              <div class="row-label">Я блогер</div>
+              <div class="row-sub">Партнёрская программа · 500 ֏ на карту</div>
+            </div>
+            <span class="pill pill-primary">Новое</span>
+            <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </div>
+
+        <div class="section-head"><div class="t-eyebrow">Аккаунт</div></div>
+        <div class="card card-flush">
+          <div class="row" style="cursor:default">
+            <div class="row-main"><div class="row-label muted" style="font-weight:400">E-mail</div></div>
+            <div class="t-label-b">artur@example.com</div>
+          </div>
+          <div class="row" style="cursor:default">
+            <div class="row-main"><div class="row-label muted" style="font-weight:400">Статус KYC</div></div>
+            <span class="pill pill-success">✓ Проверен</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Секция «Сообщество и бонусы» собирает три входа: дерево, задания и того, кто привёл тебя.</div>
+  </div>
+
+  <!-- ═══════════ 2. ПРИГЛАШЕНИЯ ═══════════ -->
+  <div class="slot" data-screen="main">
+    <div class="slot-caption">2 · Приглашения</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Приглашения</h1>
+        </div>
+
+        <div class="stack-md">
+          <div class="balance-card">
+            <div class="t-eyebrow">Начислено на инвест-счёт</div>
+            <div class="balance-value" style="margin-top:6px">4 850 ֏</div>
+            <div class="t-micro" style="margin-top:6px">Только на покупку тикетов · вывести нельзя</div>
+            <div class="balance-split">
+              <div class="balance-part">
+                <div class="balance-part-v ok">3 200 ֏</div>
+                <div class="balance-part-l">доступно</div>
+              </div>
+              <div class="balance-part">
+                <div class="balance-part-v warn">1 650 ֏</div>
+                <div class="balance-part-l">приглашения зреют</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="code-card">
+            <div class="code-eyebrow">Твой код</div>
+            <div class="code-value">
+              ARTUR-4K9
+              <button class="code-copy" title="Скопировать">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div>
+            <div class="code-actions">
+              <button>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/><path d="M16 6l-4-4-4 4M12 2v14"/></svg>
+                Поделиться
+              </button>
+              <button>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM19 19h2v2h-2z"/></svg>
+                Ссылка и QR
+              </button>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="stat-value nums">34</div><div class="stat-label">В дереве</div></div>
+            <div class="stat"><div class="stat-value ok nums">21</div><div class="stat-label">Пополнили</div></div>
+            <div class="stat"><div class="stat-value nums">12</div><div class="stat-label">Глубина</div></div>
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">Когда приглашение засчитывается</div></div>
+            <div class="card">
+              <div class="t-caption" style="color:var(--text); margin-bottom:12px">Человек должен сделать одно из двух:</div>
+              <div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:10px">
+                <div class="ladder-badge" style="width:26px; height:26px">💳</div>
+                <div>
+                  <div class="t-label-b">Пополнить счёт</div>
+                  <div class="t-micro">Засчитывается сразу после пополнения</div>
+                </div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:flex-start">
+                <div class="ladder-badge mid" style="width:26px; height:26px">🔥</div>
+                <div>
+                  <div class="t-label-b">Или заходить 7 дней подряд</div>
+                  <div class="t-micro">И выполнять задания каждый из этих дней</div>
+                </div>
+              </div>
+              <div class="t-micro" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border)">
+                Условие одинаковое на всех уровнях — и на первом, и на двадцатом.
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">Сколько платят уровни</div></div>
+            <div class="card card-flush">
+              <div class="ladder-row">
+                <div class="ladder-badge">1–5</div>
+                <div class="ladder-main">
+                  <div class="ladder-title">Ближний круг</div>
+                  <div class="ladder-sub">за каждого, кто выполнил условие</div>
+                </div>
+                <div class="ladder-rate">100 ֏</div>
+              </div>
+              <div class="ladder-row">
+                <div class="ladder-badge mid">6–15</div>
+                <div class="ladder-main">
+                  <div class="ladder-title">Дальний круг</div>
+                  <div class="ladder-sub">10 уровней вглубь</div>
+                </div>
+                <div class="ladder-rate">50 ֏</div>
+              </div>
+              <div class="ladder-row">
+                <div class="ladder-badge far">16+</div>
+                <div class="ladder-main">
+                  <div class="ladder-title">Глубина</div>
+                  <div class="ladder-sub">без ограничения по уровням</div>
+                </div>
+                <div class="ladder-rate">10 ֏</div>
+              </div>
+              <div class="ladder-row" style="background:var(--primary-soft)">
+                <div class="ladder-badge">%</div>
+                <div class="ladder-main">
+                  <div class="ladder-title">С пополнений 1-го уровня</div>
+                  <div class="ladder-sub">разово с первого пополнения</div>
+                </div>
+                <div class="ladder-rate">1%</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card card-flush">
+            <div class="row">
+              <div class="row-plaque">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.5"/><circle cx="5.5" cy="18" r="2.5"/><circle cx="18.5" cy="18" r="2.5"/><path d="M12 7.5v3.5M12 11H5.5v4.5M12 11h6.5v4.5"/></svg>
+              </div>
+              <div class="row-main"><div class="row-label">Дерево сообщества</div><div class="row-sub">34 человека, 12 уровней</div></div>
+              <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+            <div class="row">
+              <div class="row-plaque">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <div class="row-main"><div class="row-label">История начислений</div><div class="row-sub">48 операций</div></div>
+              <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+            <div class="row">
+              <div class="row-plaque">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>
+              </div>
+              <div class="row-main"><div class="row-label">Правила начислений</div><div class="row-sub">Когда засчитывается, когда сгорает</div></div>
+              <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+          </div>
+
+          <div class="card" style="border-color:var(--primary); background:var(--primary-soft)">
+            <div style="display:flex; gap:12px; align-items:flex-start">
+              <div class="row-plaque" style="background:var(--primary); color:var(--on-accent); font-size:18px">📢</div>
+              <div style="flex:1">
+                <div class="t-body-b">У тебя есть аудитория?</div>
+                <div class="t-caption" style="margin-top:4px">Блогерам и авторам каналов — 500 ֏ за человека вместо 100, и деньгами на карту, а не кредитом.</div>
+              </div>
+            </div>
+            <button class="btn btn-primary btn-sm" style="margin-top:var(--md)">Я блогер — подать заявку</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Твоя лестница 100 / 50 / 10 как есть, плюс 1% с первого пополнения. Бонусы разделены на «доступно» и «ждёт подтверждения» — это то, что даёт время отменить накрутку до выплаты.</div>
+  </div>
+
+  <!-- ═══════════ 3. ССЫЛКА И QR ═══════════ -->
+  <div class="slot" data-screen="link">
+    <div class="slot-caption">3 · Ссылка и QR</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Пригласить</h1>
+        </div>
+
+        <div class="stack-md">
+          <div class="card stack-md">
+            <div class="qr" id="qr"></div>
+            <div class="t-micro center">Наведи камеру — код подставится сам</div>
+          </div>
+
+          <div>
+            <div class="t-eyebrow" style="margin-bottom:8px">Персональная ссылка</div>
+            <div class="link-box">
+              <div class="link-text">invest.am/i/ARTUR-4K9</div>
+              <button class="link-copy code-copy" style="background:none; width:auto; height:auto">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              </button>
+            </div>
+            <div class="t-micro" style="margin-top:8px">Ссылка работает и в браузере, и открывает приложение, если оно установлено.</div>
+          </div>
+
+          <div>
+            <div class="t-eyebrow" style="margin-bottom:10px">Поделиться</div>
+            <div class="share-grid">
+              <div class="share-item"><div class="share-ico">✈️</div><div class="share-label">Telegram</div></div>
+              <div class="share-item"><div class="share-ico">💬</div><div class="share-label">WhatsApp</div></div>
+              <div class="share-item"><div class="share-ico">📷</div><div class="share-label">Instagram</div></div>
+              <div class="share-item"><div class="share-ico">•••</div><div class="share-label">Ещё</div></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="t-eyebrow" style="margin-bottom:8px">Ссылка под конкретный проект</div>
+            <div class="card card-flush">
+              <div class="row">
+                <div class="row-plaque">🌱</div>
+                <div class="row-main">
+                  <div class="row-label">Тепличный комплекс Арарат</div>
+                  <div class="row-sub">invest.am/p/ararat?i=ARTUR-4K9</div>
+                </div>
+                <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+              <div class="row">
+                <div class="row-plaque">☕</div>
+                <div class="row-main">
+                  <div class="row-label">Обжарка кофе «Ветер»</div>
+                  <div class="row-sub">invest.am/p/veter?i=ARTUR-4K9</div>
+                </div>
+                <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+            </div>
+            <div class="t-micro" style="margin-top:8px">Человек попадёт сразу на проект, а приглашение всё равно засчитается тебе.</div>
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">Что происходит со ссылкой</div><div class="section-link">30 дней</div></div>
+            <div class="card stack-sm">
+              <div class="funnel-row">
+                <div class="funnel-label">Переходов</div>
+                <div class="funnel-bar"><span style="width:100%"></span></div>
+                <div class="funnel-num">214</div>
+              </div>
+              <div class="funnel-row">
+                <div class="funnel-label">Регистраций</div>
+                <div class="funnel-bar"><span style="width:22%"></span></div>
+                <div class="funnel-num">47</div>
+              </div>
+              <div class="funnel-row">
+                <div class="funnel-label">Пополнили</div>
+                <div class="funnel-bar"><span style="width:10%"></span></div>
+                <div class="funnel-num">21</div>
+              </div>
+              <div class="funnel-row">
+                <div class="funnel-label">Инвестируют</div>
+                <div class="funnel-bar"><span style="width:7%"></span></div>
+                <div class="funnel-num">15</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Ссылка, QR, диплинк, ссылки под конкретный проект и воронка. «Пополнили» — та ступень, на которой начисляются деньги: до неё приглашение ничего не стоит платформе.</div>
+  </div>
+
+  <!-- ═══════════ 3.5 ПРИГЛАШЁННЫЕ ═══════════ -->
+  <div class="slot" data-screen="people">
+    <div class="slot-caption">4 · Приглашённые</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Кого ты привёл</h1>
+        </div>
+
+        <div class="stack-md">
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Ты пригласил 12 человек</div>
+            <div class="kv"><span class="muted">Засчитаны</span><span class="ok">7</span></div>
+            <div class="kv"><span class="muted">Зреют — идёт неделя активности</span><span class="warn">3</span></div>
+            <div class="kv"><span class="muted">Ничего не делают</span><span class="muted">2</span></div>
+            <div class="t-micro" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border)">
+              Чтобы приглашение засчиталось, человек либо пополняет счёт, либо заходит и выполняет задания 7 дней подряд.
+            </div>
+          </div>
+
+          <div class="segmented">
+            <button aria-pressed="true">Все</button>
+            <button>Зреют</button>
+            <button>Засчитаны</button>
+          </div>
+
+          <div class="card">
+            <div style="display:flex; align-items:center; gap:12px">
+              <div class="avatar">🦊</div>
+              <div style="flex:1">
+                <div class="t-body-b">Ани Г.</div>
+                <div class="t-micro">пополнила счёт 2 апреля</div>
+              </div>
+              <span class="pill pill-success">Засчитана</span>
+            </div>
+            <div class="kv" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border)">
+              <span class="muted">Начислено</span><span class="ok">+450 ֏</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="display:flex; align-items:center; gap:12px">
+              <div class="avatar">🦔</div>
+              <div style="flex:1">
+                <div class="t-body-b">Лилит С.</div>
+                <div class="t-micro">идёт неделя активности</div>
+              </div>
+              <span class="pill pill-warning">4 / 7</span>
+            </div>
+            <div class="streak" style="margin-top:12px">
+              <i class="on">1</i><i class="on">2</i><i class="on">3</i><i class="today">4</i><i>5</i><i>6</i><i>7</i>
+            </div>
+            <div class="t-micro" style="margin-top:10px">Ещё 3 дня — и тебе начислится 100 ֏. Если пропустит день, счётчик начнётся заново.</div>
+          </div>
+
+          <div class="card">
+            <div style="display:flex; align-items:center; gap:12px">
+              <div class="avatar">🐻</div>
+              <div style="flex:1">
+                <div class="t-body-b">Ваган М.</div>
+                <div class="t-micro">7 дней подряд · 11 мая</div>
+              </div>
+              <span class="pill pill-success">Засчитан</span>
+            </div>
+            <div class="streak" style="margin-top:12px">
+              <i class="on">1</i><i class="on">2</i><i class="on">3</i><i class="on">4</i><i class="on">5</i><i class="on">6</i><i class="on">7</i>
+            </div>
+            <div class="kv" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border)">
+              <span class="muted">Начислено</span><span class="ok">+100 ֏</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div style="display:flex; align-items:center; gap:12px">
+              <div class="avatar" style="opacity:.5">🐧</div>
+              <div style="flex:1">
+                <div class="t-body-b muted">Гор Т.</div>
+                <div class="t-micro">серия оборвалась на 2-м дне</div>
+              </div>
+              <span class="pill pill-muted">Не активен</span>
+            </div>
+            <div class="streak" style="margin-top:12px">
+              <i class="on">1</i><i class="on">2</i><i>3</i><i>4</i><i>5</i><i>6</i><i>7</i>
+            </div>
+            <div class="t-micro" style="margin-top:10px">Может начать заново в любой день — ограничения по времени нет.</div>
+          </div>
+
+          <div class="note">
+            <b>Напомнить можно, давить — нет.</b> У приглашённых нет обязательств перед тобой. Если человеку платформа не нужна, серая точка в дереве — нормальный итог.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Неделя активности как альтернатива пополнению: она не требует KYC, но стоит времени — семь заходов в разные дни автоматизировать дороже, чем создать почтовый ящик.</div>
+  </div>
+
+  <!-- ═══════════ 4. ДЕРЕВО ═══════════ -->
+  <div class="slot" data-screen="tree">
+    <div class="slot-caption">4 · Дерево</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Дерево</h1>
+        </div>
+
+        <div class="stack-md">
+          <div class="stats">
+            <div class="stat"><div class="stat-value nums">34</div><div class="stat-label">Всего</div></div>
+            <div class="stat"><div class="stat-value nums">12</div><div class="stat-label">Уровней</div></div>
+            <div class="stat"><div class="stat-value ok nums">4 850</div><div class="stat-label">Начислено ֏</div></div>
+          </div>
+
+          <div class="card">
+            <div class="tree">
+              <div class="node node-self">
+                <div class="node-row">
+                  <div class="avatar self">АП</div>
+                  <div class="node-main">
+                    <div class="node-name">Ты</div>
+                    <div class="node-sub">пригласил Нарек А. · март 2026</div>
+                  </div>
+                  <span class="node-dot dot-active"></span>
+                </div>
+
+                <div class="depth-label" style="margin-left:37px">Уровень 1 · 100 ֏ + 1%</div>
+                <div class="children">
+                  <div class="node">
+                    <div class="node-row">
+                      <div class="avatar">🦊</div>
+                      <div class="node-main">
+                        <div class="node-name">Ани Г.</div>
+                        <div class="node-sub">пополнила · привела 4</div>
+                      </div>
+                      <span class="node-earn">+450 ֏</span>
+                    </div>
+
+                    <div class="depth-label" style="margin-left:37px">Уровень 2 · 100 ֏</div>
+                    <div class="children">
+                      <div class="node">
+                        <div class="node-row">
+                          <div class="avatar dim">🐢</div>
+                          <div class="node-main">
+                            <div class="node-name muted">Д•••</div>
+                            <div class="node-sub">пополнил · привёл 2</div>
+                          </div>
+                          <span class="node-earn">+100 ֏</span>
+                        </div>
+                        <div class="children">
+                          <div class="node">
+                            <div class="node-row">
+                              <div class="avatar dim">🐝</div>
+                              <div class="node-main"><div class="node-name muted">М•••</div><div class="node-sub">уровень 3 · пополнил</div></div>
+                              <span class="node-earn">+100 ֏</span>
+                            </div>
+                          </div>
+                          <div class="node">
+                            <div class="node-row">
+                              <div class="avatar dim">🦉</div>
+                              <div class="node-main"><div class="node-name muted">К•••</div><div class="node-sub">уровень 3 · не пополнил</div></div>
+                              <span class="node-dot dot-idle"></span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="node">
+                        <div class="node-row">
+                          <div class="avatar dim">🐬</div>
+                          <div class="node-main"><div class="node-name muted">С•••</div><div class="node-sub">пополнил</div></div>
+                          <span class="node-earn">+100 ֏</span>
+                        </div>
+                      </div>
+                      <div class="node"><div class="more-line">и ещё 2 →</div></div>
+                    </div>
+                  </div>
+
+                  <div class="node">
+                    <div class="node-row">
+                      <div class="avatar">🐻</div>
+                      <div class="node-main">
+                        <div class="node-name">Ваган М.</div>
+                        <div class="node-sub">пополнил · привёл 6</div>
+                      </div>
+                      <span class="node-earn">+280 ֏</span>
+                    </div>
+                    <div class="children">
+                      <div class="node">
+                        <div class="node-row">
+                          <div class="avatar dim">🦌</div>
+                          <div class="node-main"><div class="node-name muted">Р•••</div><div class="node-sub">пополнил · привёл 3</div></div>
+                          <span class="node-earn">+100 ֏</span>
+                        </div>
+                      </div>
+                      <div class="node"><div class="more-line">и ещё 5 →</div></div>
+                    </div>
+                  </div>
+
+                  <div class="node">
+                    <div class="node-row">
+                      <div class="avatar" style="opacity:.5">🐧</div>
+                      <div class="node-main">
+                        <div class="node-name muted">Гор Т.</div>
+                        <div class="node-sub">зарегистрировался, не пополнил</div>
+                      </div>
+                      <span class="node-dot dot-idle"></span>
+                    </div>
+                  </div>
+
+                  <div class="node"><div class="more-line">Показать уровни 4–12 →</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:10px">Начислено по уровням</div>
+            <div class="kv"><span class="muted">Уровни 1–5 · 100 ֏</span><span>2 900 ֏</span></div>
+            <div class="kv"><span class="muted">Уровни 6–15 · 50 ֏</span><span>1 350 ֏</span></div>
+            <div class="kv"><span class="muted">Уровни 16+ · 10 ֏</span><span>140 ֏</span></div>
+            <div class="kv"><span class="muted">1% с пополнений</span><span>460 ֏</span></div>
+            <div class="kv kv-total"><span class="t-caption-b" style="color:var(--text)">Всего</span><span class="ok">4 850 ֏</span></div>
+          </div>
+
+          <div class="note">
+            <b>Имена ниже первого уровня скрыты.</b> Ты видишь форму сообщества и своё начисление, но не личности и не суммы чужих вложений.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Каждый узел показывает своё начисление. Серые узлы — те, кто не пополнил: за них не платится ничего, и это видно сразу.</div>
+  </div>
+
+  <!-- ═══════════ 5. НАЧИСЛЕНИЯ ═══════════ -->
+  <div class="slot" data-screen="earn">
+    <div class="slot-caption">5 · Начисления</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Начисления</h1>
+        </div>
+
+        <div class="stack-md">
+          <div class="balance-card">
+            <div class="t-eyebrow">Доступно на инвест-счёт</div>
+            <div class="balance-value ok" style="margin-top:6px">3 200 ֏</div>
+            <div class="t-micro" style="margin-top:8px">Пойдёт на покупку тикетов. Вывести нельзя.</div>
+            <button class="btn btn-primary btn-sm" style="margin-top:var(--md)">Зачислить на инвест-счёт</button>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Куда попадают деньги</div>
+            <div class="kv">
+              <span class="muted">Основной кошелёк</span>
+              <span class="nums">312 500 ֏</span>
+            </div>
+            <div class="kv">
+              <span class="muted" style="display:flex; align-items:center; gap:6px">Инвест-счёт <span class="pill pill-primary" style="height:20px; font-size:10px">сюда</span></span>
+              <span class="nums ok">40 000 ֏</span>
+            </div>
+            <div class="t-micro" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border)">
+              Бонусы за приглашения и задания зачисляются только на инвест-счёт: их можно вложить в проект, но не забрать деньгами.
+            </div>
+          </div>
+
+          <div class="segmented">
+            <button aria-pressed="true">Все</button>
+            <button>Приглашения</button>
+            <button>Задания</button>
+          </div>
+
+          <div class="card card-flush">
+            <div class="tx">
+              <div class="tx-ico">👤</div>
+              <div class="tx-main">
+                <div class="tx-title">Ани Г. пополнила кошелёк</div>
+                <div class="tx-sub">Уровень 1 · 100 ֏ + 1% с 35 000 ֏</div>
+              </div>
+              <div class="tx-amt">+450 ֏</div>
+            </div>
+            <div class="tx">
+              <div class="tx-ico">🎬</div>
+              <div class="tx-main">
+                <div class="tx-title">Видео о проекте «Арарат»</div>
+                <div class="tx-sub">Задание от проекта · сегодня</div>
+              </div>
+              <div class="tx-amt">+20 ֏</div>
+            </div>
+            <div class="tx">
+              <div class="tx-ico">🐞</div>
+              <div class="tx-main">
+                <div class="tx-title">Баг: портфель не обновляется</div>
+                <div class="tx-sub">Подтверждён · 22 июля</div>
+              </div>
+              <div class="tx-amt">+100 ֏</div>
+            </div>
+            <div class="tx">
+              <div class="tx-ico">🔥</div>
+              <div class="tx-main">
+                <div class="tx-title">7 дней подряд</div>
+                <div class="tx-sub">Серия · 21 июля</div>
+              </div>
+              <div class="tx-amt">+50 ֏</div>
+            </div>
+            <div class="tx">
+              <div class="tx-ico">👥</div>
+              <div class="tx-main">
+                <div class="tx-title">Д••• пополнил кошелёк</div>
+                <div class="tx-sub">Уровень 2 · 100 ֏</div>
+              </div>
+              <div class="tx-amt">+100 ֏</div>
+            </div>
+            <div class="tx" style="opacity:.6">
+              <div class="tx-ico" style="background:var(--warning-soft); color:var(--warning)">⏳</div>
+              <div class="tx-main">
+                <div class="tx-title">М••• пополнил кошелёк</div>
+                <div class="tx-sub">Уровень 3 · подтвердится через 12 дней</div>
+              </div>
+              <div class="tx-amt warn">+100 ֏</div>
+            </div>
+            <div class="tx" style="opacity:.6">
+              <div class="tx-ico" style="background:var(--danger-soft); color:var(--danger)">✕</div>
+              <div class="tx-main">
+                <div class="tx-title">Отменено: возврат пополнения</div>
+                <div class="tx-sub">Уровень 2 · 18 июля</div>
+              </div>
+              <div class="tx-amt bad">−100 ֏</div>
+            </div>
+          </div>
+
+          <div class="note">
+            <b>Почему часть денег ждёт.</b> Бонус подтверждается через 14 дней после пополнения. Если деньги вернули или аккаунт оказался поддельным, начисление отменяется — до выплаты, а не после.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Единая история: приглашения и задания в одной ленте. Отменённое начисление показано явно — это дешевле, чем разбирать претензии позже.</div>
+  </div>
+
+  <!-- ═══════════ 6. ЗАДАНИЯ ═══════════ -->
+  <div class="slot" data-screen="quests">
+    <div class="slot-caption">6 · Задания</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Задания</h1>
+        </div>
+
+        <div class="stack-md">
+          <div class="card">
+            <div style="display:flex; justify-content:space-between; align-items:baseline">
+              <div class="t-caption-b">Серия входов</div>
+              <div class="t-caption-b ok">5 / 7 дней</div>
+            </div>
+            <div class="streak">
+              <i class="on">Пн</i><i class="on">Вт</i><i class="on">Ср</i><i class="on">Чт</i><i class="today">Пт</i><i>Сб</i><i>Вс</i>
+            </div>
+            <div class="t-micro" style="margin-top:10px">Ещё 2 дня подряд — и получишь 50 ֏. Пропуск обнуляет серию.</div>
+          </div>
+
+          <div class="segmented">
+            <button aria-pressed="true">Все</button>
+            <button>От проектов</button>
+            <button>Платформа</button>
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">От проектов</div></div>
+            <div class="card card-flush">
+              <div class="quest">
+                <div class="quest-ico">🎬</div>
+                <div class="quest-main">
+                  <div class="quest-title">Посмотреть видео о проекте</div>
+                  <div class="quest-sub">«Тепличный комплекс Арарат» · 2 мин</div>
+                </div>
+                <div class="quest-pay">20 ֏</div>
+              </div>
+              <div class="quest">
+                <div class="quest-ico">📄</div>
+                <div class="quest-main">
+                  <div class="quest-title">Прочитать финотчёт за июнь</div>
+                  <div class="quest-sub">«Обжарка кофе Ветер» · 3 вопроса после</div>
+                </div>
+                <div class="quest-pay">40 ֏</div>
+              </div>
+              <div class="quest">
+                <div class="quest-ico">💬</div>
+                <div class="quest-main">
+                  <div class="quest-title">Ответить на 5 вопросов</div>
+                  <div class="quest-sub">Опрос основателя о новом направлении</div>
+                </div>
+                <div class="quest-pay">60 ֏</div>
+              </div>
+            </div>
+            <div class="t-micro" style="margin-top:8px">Эти задания оплачивает проект из своего маркетингового бюджета.</div>
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">От платформы</div></div>
+            <div class="card card-flush">
+              <div class="quest">
+                <div class="quest-ico">🐞</div>
+                <div class="quest-main">
+                  <div class="quest-title">Нашёл баг</div>
+                  <div class="quest-sub">Опиши, что сломалось, и как повторить. Платим за подтверждённые.</div>
+                </div>
+                <div class="quest-pay">до 100 ֏</div>
+              </div>
+              <div class="quest">
+                <div class="quest-ico">🔥</div>
+                <div class="quest-main">
+                  <div class="quest-title">7 дней подряд</div>
+                  <div class="quest-sub">Заходи каждый день</div>
+                  <div class="quest-progress">
+                    <div class="quest-progress-label"><span>5 из 7</span><span>71%</span></div>
+                    <div class="progress thin"><span style="width:71%"></span></div>
+                  </div>
+                </div>
+                <div class="quest-pay">50 ֏</div>
+              </div>
+              <div class="quest">
+                <div class="quest-ico">🧾</div>
+                <div class="quest-main">
+                  <div class="quest-title">Заполнить профиль</div>
+                  <div class="quest-sub">Осталось: род занятий и телефон</div>
+                  <div class="quest-progress">
+                    <div class="quest-progress-label"><span>6 из 8 полей</span><span>75%</span></div>
+                    <div class="progress thin"><span style="width:75%"></span></div>
+                  </div>
+                </div>
+                <div class="quest-pay">30 ֏</div>
+              </div>
+              <div class="quest done">
+                <div class="quest-ico">✓</div>
+                <div class="quest-main">
+                  <div class="quest-title">Первая инвестиция</div>
+                  <div class="quest-sub">Выполнено 4 апреля</div>
+                </div>
+                <div class="quest-pay">+100 ֏</div>
+              </div>
+              <div class="quest done">
+                <div class="quest-ico">✓</div>
+                <div class="quest-main">
+                  <div class="quest-title">Подтвердить телефон</div>
+                  <div class="quest-sub">Выполнено 2 апреля</div>
+                </div>
+                <div class="quest-pay">+20 ֏</div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">Не задания, а работа</div></div>
+            <div class="card card-flush">
+              <div class="row">
+                <div class="row-plaque">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </div>
+                <div class="row-main">
+                  <div class="row-label">Работы проектов</div>
+                  <div class="row-sub">14 открытых · от 15 000 ֏</div>
+                </div>
+                <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+            </div>
+            <div class="t-micro" style="margin-top:8px">
+              Логотип, бизнес-план, поиск поставщика. Подаёшь заявку, основатель выбирает исполнителя, оплата через эскроу по этапам. Это отдельный раздел — не задание на 20 ֏.
+            </div>
+          </div>
+
+          <div class="note">
+            Задания обновляются каждый понедельник. За неделю можно набрать до 300 ֏ от платформы плюс всё, что предложат проекты.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Две категории с разными источниками денег: проекты платят из своего бюджета, платформа — из маркетингового. Ни то, ни другое не зависит от притока новых людей.</div>
+  </div>
+
+  <!-- ═══════════ 7. ДЕТАЛЬ ЗАДАНИЯ ═══════════ -->
+  <div class="slot" data-screen="quest">
+    <div class="slot-caption">7 · Задание · деталь</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Задание</h1>
+        </div>
+
+        <div class="stack-md">
+          <div style="border-radius:var(--r-xl); overflow:hidden; background:var(--surface-sunken); border:1px solid var(--border)">
+            <div style="height:180px; background:linear-gradient(135deg, var(--primary), var(--primary-dark)); display:grid; place-items:center; position:relative">
+              <div style="width:58px; height:58px; border-radius:var(--r-pill); background:rgba(255,255,255,.22); display:grid; place-items:center; cursor:pointer">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+              <div style="position:absolute; bottom:10px; right:12px; background:rgba(0,0,0,.55); color:#fff; font-size:11px; font-weight:700; padding:3px 8px; border-radius:var(--r-sm)">2:14</div>
+            </div>
+            <div style="padding:var(--md)">
+              <div class="t-heading">Как устроен тепличный комплекс</div>
+              <div class="t-caption" style="margin-top:6px">Основатель показывает площадку, оборудование и объясняет, на что пойдут деньги первого раунда.</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="kv"><span class="muted">Вознаграждение</span><span class="ok">20 ֏</span></div>
+            <div class="kv"><span class="muted">Платит</span><span>проект «Арарат»</span></div>
+            <div class="kv"><span class="muted">Условие</span><span>досмотреть до конца</span></div>
+            <div class="kv"><span class="muted">Доступно</span><span>один раз</span></div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:10px">Прогресс просмотра</div>
+            <div class="progress"><span style="width:34%"></span></div>
+            <div class="kv" style="margin-top:10px"><span class="muted">0:45 из 2:14</span><span>34%</span></div>
+          </div>
+
+          <div class="note">
+            <b>Это не реклама инвестиции.</b> Проект платит за твоё внимание, а не за вложение. Смотреть видео и вкладываться — разные решения, второе ты принимаешь сам.
+          </div>
+
+          <button class="btn btn-primary">Смотреть дальше</button>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Отдельная плашка разводит «посмотрел» и «вложился». Без неё оплаченный просмотр читается как оплаченная рекомендация — а это уже другая правовая история.</div>
+  </div>
+
+  <!-- ═══════════ 8. ПРАВИЛА ═══════════ -->
+  <div class="slot" data-screen="rules">
+    <div class="slot-caption">8 · Правила</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Правила</h1>
+        </div>
+
+        <div class="stack-lg">
+          <div class="stack-md">
+            <div class="how-step">
+              <div class="how-num">1</div>
+              <div><div class="t-body-b">Человек переходит по твоей ссылке</div><div class="t-caption" style="margin-top:3px">Код закрепляется при регистрации навсегда и не меняется.</div></div>
+            </div>
+            <div class="how-step">
+              <div class="how-num">2</div>
+              <div><div class="t-body-b">Пополняет счёт — или живёт в приложении неделю</div><div class="t-caption" style="margin-top:3px">Пополнил — засчитывается сразу, плюс 1% от суммы. Не пополнил — заходит и выполняет задания 7 дней подряд, и тогда засчитывается только 100 ֏.</div></div>
+            </div>
+            <div class="how-step">
+              <div class="how-num">3</div>
+              <div><div class="t-body-b">Через 14 дней бонус становится доступным</div><div class="t-caption" style="margin-top:3px">Задержка нужна, чтобы отменить начисление при возврате денег.</div></div>
+            </div>
+            <div class="how-step">
+              <div class="how-num">4</div>
+              <div><div class="t-body-b">Деньги приходят на инвест-счёт</div><div class="t-caption" style="margin-top:3px">Их можно вложить в любой проект, но нельзя вывести на карту.</div></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-head" style="margin-top:0"><div class="t-eyebrow">Ставки по уровням</div></div>
+            <div class="card card-flush">
+              <div class="ladder-row">
+                <div class="ladder-badge">1–5</div>
+                <div class="ladder-main"><div class="ladder-title">100 ֏ за человека</div></div>
+                <div class="ladder-rate">+1% ур.1</div>
+              </div>
+              <div class="ladder-row">
+                <div class="ladder-badge mid">6–15</div>
+                <div class="ladder-main"><div class="ladder-title">50 ֏ за человека</div></div>
+              </div>
+              <div class="ladder-row">
+                <div class="ladder-badge far">16+</div>
+                <div class="ladder-main"><div class="ladder-title">10 ֏ за человека</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-head" style="margin-top:0"><div class="t-eyebrow">Когда не начисляется</div></div>
+            <div class="card stack-sm">
+              <div style="display:flex; gap:10px; align-items:flex-start">
+                <svg width="18" height="18" style="flex:none; margin-top:1px; color:var(--danger)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                <div class="t-caption" style="color:var(--text)">Приглашённый зарегистрировался, но не пополнил и не продержал неделю</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:flex-start">
+                <svg width="18" height="18" style="flex:none; margin-top:1px; color:var(--danger)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                <div class="t-caption" style="color:var(--text)">Тот же телефон, устройство или карта, что у тебя</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:flex-start">
+                <svg width="18" height="18" style="flex:none; margin-top:1px; color:var(--danger)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                <div class="t-caption" style="color:var(--text)">Пополнение вернули или отменили</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:flex-start">
+                <svg width="18" height="18" style="flex:none; margin-top:1px; color:var(--danger)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                <div class="t-caption" style="color:var(--text)">Аккаунт создан для накрутки — начисления по всей ветке снимаются</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="note">
+            <b>Бонус — не доход от вложений других людей.</b> Он не зависит от того, сколько заработали проекты твоих приглашённых, и не растёт от их прибыли. Это фиксированная сумма за то, что человек дошёл до платформы.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Условие «пополнил, а не зарегистрировался» — единственное, что здесь заменяет KYC. Оно делает фейковый аккаунт платным для того, кто его создаёт.</div>
+  </div>
+
+  <!-- ═══════════ ВАРИАНТ А · СЛУЧАЙНОЕ ЗАКРЕПЛЕНИЕ ═══════════ -->
+  <div class="slot" data-screen="randomA">
+    <div class="slot-caption">А · Случайное закрепление</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar"><h1>Добро пожаловать</h1></div>
+
+        <div class="stack-md">
+          <div class="card center" style="padding:var(--xl) var(--md)">
+            <div class="avatar" style="width:64px; height:64px; font-size:30px; margin:0 auto">🦊</div>
+            <div class="t-heading" style="margin-top:14px">Тебя закрепили за Ани Г.</div>
+            <div class="t-caption" style="margin-top:8px">Ты зарегистрировался без кода приглашения, поэтому мы случайно выбрали одного из пользователей, которые сейчас в приложении.</div>
+          </div>
+
+          <div class="note note-warn">
+            <b>Что тут увидит новый человек.</b> «Меня закрепили за незнакомцем, который теперь на мне зарабатывает». Объяснить это так, чтобы не возникло вопросов, довольно трудно — а вопрос возникнет обязательно.
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">А это увидит счастливчик</div></div>
+            <div class="card">
+              <div style="display:flex; gap:12px; align-items:flex-start">
+                <div class="row-plaque" style="background:var(--success-soft); color:var(--success); font-size:18px">🎲</div>
+                <div style="flex:1">
+                  <div class="t-body-b">Тебе достался приглашённый!</div>
+                  <div class="t-caption" style="margin-top:4px">Гор Т. зарегистрировался без кода, и жребий выпал на тебя. Он теперь в твоём дереве на первом уровне.</div>
+                </div>
+              </div>
+              <div class="kv" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border)">
+                <span class="muted">Если он пополнит счёт</span><span class="ok">+100 ֏ и 1%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Что это меняет в системе</div>
+            <div class="kv"><span class="muted">Платформа платит за органику</span><span class="bad">да</span></div>
+            <div class="kv"><span class="muted">Выгодно держать приложение открытым</span><span class="bad">да</span></div>
+            <div class="kv"><span class="muted">Дерево показывает реальные связи</span><span class="bad">нет</span></div>
+            <div class="kv"><span class="muted">«Кто меня пригласил» честно</span><span class="bad">нет</span></div>
+          </div>
+
+          <div class="note note-bad">
+            <b>Главная цена — дерево.</b> Ты начал разговор с того, что хочешь видеть, кого пригласил ты и кого пригласили они. Если часть связей случайная, дерево перестаёт что-либо значить: рядом с настоящим другом стоит незнакомец, и различить их нельзя.
+          </div>
+
+          <div class="note">
+            <b>Второе — новая накрутка.</b> Награду начинает приносить не приглашение, а факт присутствия онлайн. Оптимальная стратегия становится «держать сессию открытой круглосуточно», и ферма эмуляторов возвращается — та самая, которую инвест-кредит и неделя активности только что закрыли.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note warn">Вариант А — то, что ты описал. Показан честно, со всеми последствиями.</div>
+  </div>
+
+  <!-- ═══════════ ВАРИАНТ Б · РОЗЫГРЫШ ═══════════ -->
+  <div class="slot" data-screen="randomB">
+    <div class="slot-caption">Б · Розыгрыш бонусов</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar"><h1>Добро пожаловать</h1></div>
+
+        <div class="stack-md">
+          <div class="card center" style="padding:var(--xl) var(--md)">
+            <div class="empty-mark">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.5 5.5L20 9.5l-4 4 1 6-5-2.8L7 19.5l1-6-4-4 5.5-1z"/></svg>
+            </div>
+            <div class="t-heading" style="margin-top:14px">Ты пришёл сам</div>
+            <div class="t-caption" style="margin-top:8px">Тебя никто не приглашал — и это нормально. Твоё дерево начинается с тебя.</div>
+            <div class="pill pill-primary" style="margin-top:14px">Основатель своей ветки</div>
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">А это увидят активные</div></div>
+            <div class="card">
+              <div style="display:flex; gap:12px; align-items:flex-start">
+                <div class="row-plaque" style="background:var(--success-soft); color:var(--success); font-size:18px">🎁</div>
+                <div style="flex:1">
+                  <div class="t-body-b">Тебе выпал бонус дня</div>
+                  <div class="t-caption" style="margin-top:4px">Сегодня на платформу пришло 47 человек сами по себе. Мы разыграли 2 000 ֏ между теми, кто был активен — тебе досталось 100 ֏.</div>
+                </div>
+              </div>
+              <div class="kv" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border)">
+                <span class="muted">Зачислено на инвест-счёт</span><span class="ok">+100 ֏</span>
+              </div>
+            </div>
+            <div class="t-micro" style="margin-top:8px">Разыгрывается фиксированная сумма в день, а не выплата за каждую регистрацию.</div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Что это меняет в системе</div>
+            <div class="kv"><span class="muted">Платформа платит за органику</span><span class="ok">фикс в день</span></div>
+            <div class="kv"><span class="muted">Выгодно держать приложение открытым</span><span class="ok">нет</span></div>
+            <div class="kv"><span class="muted">Дерево показывает реальные связи</span><span class="ok">да</span></div>
+            <div class="kv"><span class="muted">Ощущение везения у активных</span><span class="ok">есть</span></div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Стоимость двух вариантов</div>
+            <div class="kv"><span class="muted">А · закрепить 600 органических</span><span class="bad">144 900 ֏/мес</span></div>
+            <div class="kv"><span class="muted">Б · розыгрыш 2 000 ֏ в день</span><span class="ok">60 000 ֏/мес</span></div>
+            <div class="kv kv-total"><span class="t-caption-b" style="color:var(--text)">Разница</span><span class="bad">в 2.4 раза</span></div>
+            <div class="t-micro" style="margin-top:12px">При 1 000 регистраций в месяц и 60% органики, с учётом созревания и трат кредита. Главное не сумма: в варианте Б расход назначаешь ты, в варианте А он растёт вместе с платформой.</div>
+          </div>
+
+          <div class="note">
+            <b>Ощущение то же, цена другая.</b> Активный пользователь так же получает неожиданные деньги за то, что он в приложении. Но связь «кто кого привёл» остаётся настоящей, а расход — фиксированным.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Вариант Б — та же лотерея для активных, но без подделки связей в дереве и без выплаты за каждую органическую регистрацию.</div>
+  </div>
+
+  <!-- ═══════════ 9. ЭКОНОМИКА (инструмент) ═══════════ -->
+  <div class="slot econ" data-screen="econ">
+    <div class="slot-caption" style="color:#c99a4e">⚠ 9 · Экономика — только для тебя</div>
+    <div class="phone">
+      <div class="status"><span>Калькулятор</span><span>не экран приложения</span></div>
+      <div class="screen">
+        <div class="navbar"><h1>Сходится ли схема</h1></div>
+
+        <div class="stack-md">
+          <div class="card">
+            <div class="slider-row">
+              <div class="slider-head"><span class="muted">Новых пользователей в месяц</span><b id="oUsers">1 000</b></div>
+              <input type="range" id="rUsers" min="100" max="10000" step="100" value="1000">
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span class="muted">Средняя глубина цепочки</span><b id="oDepth">12</b></div>
+              <input type="range" id="rDepth" min="1" max="40" step="1" value="12">
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span class="muted">Среднее первое пополнение</span><b id="oDep">30 000 ֏</b></div>
+              <input type="range" id="rDep" min="5000" max="200000" step="5000" value="30000">
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span class="muted">Комиссия платформы</span><b id="oFee">0%</b></div>
+              <input type="range" id="rFee" min="0" max="50" step="1" value="0">
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span class="muted">Доля дошедших до условия</span><b id="oConv">35%</b></div>
+              <input type="range" id="rConv" min="5" max="100" step="5" value="35">
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span class="muted">Инвест-кредит реально тратят</span><b id="oUse">60%</b></div>
+              <input type="range" id="rUse" min="0" max="100" step="5" value="60">
+            </div>
+            <div class="slider-row" style="margin-bottom:0">
+              <div class="slider-head"><span class="muted">Пришли сами, без кода</span><b id="oOrg">60%</b></div>
+              <input type="range" id="rOrg" min="0" max="100" step="5" value="60">
+            </div>
+          </div>
+
+          <div class="note">
+            Два последних ползунка появились из твоих правок. <b>Доля дошедших</b> — сколько приглашённых пополняют счёт или выдерживают неделю: за остальных не платится ничего. <b>Тратят кредит</b> — какая часть бонусов доходит до покупки тикета: неистраченный кредит платформе не стоит ничего.
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Стоимость одного нового пользователя</div>
+            <div class="kv"><span class="muted">Уровни 1–5 × 100 ֏</span><span id="c1">500 ֏</span></div>
+            <div class="kv"><span class="muted">Уровни 6–15 × 50 ֏</span><span id="c2">350 ֏</span></div>
+            <div class="kv"><span class="muted">Уровни 16+ × 10 ֏</span><span id="c3">0 ֏</span></div>
+            <div class="kv"><span class="muted">1% от пополнения</span><span id="c4">300 ֏</span></div>
+            <div class="kv kv-total"><span class="t-caption-b" style="color:var(--text)">Начислено кредитом</span><span id="cTotal">1 150 ֏</span></div>
+            <div class="kv"><span class="muted">Из них реально потратят</span><span class="bad" id="cReal">690 ֏</span></div>
+            <div class="kv"><span class="t-caption-b" style="color:var(--text)">Платформа получает</span><span id="cIncome">0 ֏</span></div>
+          </div>
+
+          <div class="verdict bad-bg" id="verdict">
+            <div class="verdict-v" id="vNet">−1 150 000 ֏</div>
+            <div class="verdict-l" id="vLabel">в месяц при 1 000 новых пользователей</div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Накрутка цепочкой</div>
+            <div class="t-micro" style="margin-bottom:12px">Один человек создаёт аккаунты цепочкой, каждый приглашает следующего.</div>
+            <div class="kv"><span class="muted">Фейковых аккаунтов</span><span id="fN">20</span></div>
+            <div class="kv"><span class="muted">Начислено ему кредитом</span><span id="fPay">13 350 ֏</span></div>
+            <div class="kv"><span class="muted">Сколько может вывести</span><span class="ok" id="fCash">0 ֏</span></div>
+            <div class="kv"><span class="muted">Его затраты: 7 дней × 20 аккаунтов</span><span class="warn" id="fCost">140 заходов</span></div>
+            <div class="kv kv-total"><span class="t-caption-b" style="color:var(--text)">Живых денег получил</span><span class="ok">0 ֏</span></div>
+          </div>
+
+          <div class="note">
+            <b>Две твои правки убили накрутку вместе.</b> Инвест-кредит нельзя вывести — значит накрутчик получает не деньги, а право купить тикеты на своё же фейковое имя. А неделя активности на каждый аккаунт делает ферму дорогой по времени. Ни KYC, ни лимитов для этого не понадобилось.
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Регистрация без кода</div>
+            <div class="t-micro" style="margin-bottom:12px">Те, кто пришёл сам: из рекламы, поиска или по прямой ссылке. Платформа за них уже заплатила маркетингом.</div>
+            <div class="kv"><span class="muted">Таких в месяц</span><span id="gN">600</span></div>
+            <div class="kv"><span class="muted">А · случайно закрепить за онлайн-юзером</span><span class="bad" id="gA">241 500 ֏</span></div>
+            <div class="kv"><span class="muted">Б · розыгрыш 2 000 ֏ в день</span><span class="ok">60 000 ֏</span></div>
+            <div class="kv kv-total"><span class="t-caption-b" style="color:var(--text)">Вариант А дороже на</span><span class="bad" id="gDiff">181 500 ֏</span></div>
+            <div class="t-micro" style="margin-top:12px">Расход по варианту А растёт вместе с платформой, по варианту Б — остаётся тем, который ты назначил.</div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Где схема сходится</div>
+            <div class="kv"><span class="muted">Нужна комиссия хотя бы</span><span class="ok" id="needFee">4%</span></div>
+            <div class="kv"><span class="muted">или глубина выплат не более</span><span class="ok" id="needDepth">3 уровней</span></div>
+            <div class="t-micro" style="margin-top:12px">Подвигай ползунок комиссии — увидишь, при какой ставке зелёный блок перестаёт быть красным.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note warn">Это не экран приложения, а калькулятор для решения. Ползунок «Комиссия платформы» — тот, которого сейчас в коде нет вообще: при 0% любая выплата идёт из денег пользователей.</div>
+  </div>
+
+</div>
+
+<script>
+  const body = document.body;
+  document.getElementById('themeBtn').onclick = () => {
+    body.dataset.theme = body.dataset.theme === 'dark' ? 'light' : 'dark';
+  };
+
+  const slots = [...document.querySelectorAll('.slot')];
+  const filters = [...document.querySelectorAll('[data-filter]')];
+  filters.forEach(b => b.onclick = () => {
+    filters.forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    const f = b.dataset.filter;
+    slots.forEach(s => s.style.display = (f === 'all' || s.dataset.screen === f) ? '' : 'none');
+  });
+
+  document.querySelectorAll('.code-copy').forEach(b => {
+    b.onclick = () => {
+      const old = b.innerHTML;
+      b.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+      setTimeout(() => { b.innerHTML = old; }, 1200);
+    };
+  });
+
+  document.querySelectorAll('.segmented').forEach(g => {
+    g.querySelectorAll('button').forEach(b => b.onclick = () => {
+      g.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    });
+  });
+
+  // ---- QR-заглушка: детерминированный узор, чтобы читался как код ----
+  (function () {
+    const qr = document.getElementById('qr');
+    if (!qr) return;
+    const N = 11;
+    const finder = (r, c) => (r < 3 && c < 3) || (r < 3 && c > N - 4) || (r > N - 4 && c < 3);
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        const i = document.createElement('i');
+        const on = finder(r, c) ? !((r === 1 || r === N - 2) && (c === 1 || c === N - 2))
+                                : ((r * 7 + c * 13 + r * c * 3) % 5 < 2);
+        if (!on) i.className = 'off';
+        qr.appendChild(i);
+      }
+    }
+  })();
+
+  // ---- калькулятор экономики ----
+  (function () {
+    const el = id => document.getElementById(id);
+    if (!el('rUsers')) return;
+    const fmt = n => Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+
+    // Сколько платформа платит за одного нового пользователя при глубине d
+    function costPerUser(d, deposit) {
+      const l1 = Math.min(d, 5) * 100;
+      const l2 = Math.max(0, Math.min(d, 15) - 5) * 50;
+      const l3 = Math.max(0, d - 15) * 10;
+      const pct = d >= 1 ? deposit * 0.01 : 0;
+      return { l1, l2, l3, pct, total: l1 + l2 + l3 + pct };
+    }
+
+    // Выплаты накрутчику, создавшему n аккаунтов цепочкой
+    function chainPayout(n) {
+      let sum = 0;
+      for (let k = 2; k <= n; k++) sum += costPerUser(k - 1, 0).total;
+      return sum;
+    }
+
+    function render() {
+      const users = +el('rUsers').value;
+      const depth = +el('rDepth').value;
+      const dep = +el('rDep').value;
+      const fee = +el('rFee').value / 100;
+      const conv = +el('rConv').value / 100;   // доля дошедших до условия
+      const use = +el('rUse').value / 100;     // доля инвест-кредита, которую тратят
+      const org = +el('rOrg').value / 100;     // доля пришедших без кода
+
+      const c = costPerUser(depth, dep);
+      el('oUsers').textContent = fmt(users);
+      el('oDepth').textContent = depth;
+      el('oDep').textContent = fmt(dep) + ' ֏';
+      el('oFee').textContent = (fee * 100).toFixed(0) + '%';
+      el('oConv').textContent = (conv * 100).toFixed(0) + '%';
+      el('oUse').textContent = (use * 100).toFixed(0) + '%';
+      el('oOrg').textContent = (org * 100).toFixed(0) + '%';
+
+      el('c1').textContent = fmt(c.l1) + ' ֏';
+      el('c2').textContent = fmt(c.l2) + ' ֏';
+      el('c3').textContent = fmt(c.l3) + ' ֏';
+      el('c4').textContent = fmt(c.pct) + ' ֏';
+      el('cTotal').textContent = fmt(c.total) + ' ֏';
+
+      // Кредит стоит платформе денег только когда его тратят на тикет
+      const realCost = c.total * use;
+      el('cReal').textContent = fmt(realCost) + ' ֏';
+
+      // Комиссия приходит только с тех, кто действительно пополнил
+      const income = dep * fee;
+      el('cIncome').textContent = fmt(income) + ' ֏';
+
+      // На одного зарегистрировавшегося: платим только за созревших
+      const net = (income - realCost) * conv * users;
+      el('vNet').textContent = (net >= 0 ? '+' : '−') + fmt(Math.abs(net)) + ' ֏';
+      el('vLabel').textContent = 'в месяц при ' + fmt(users) + ' новых пользователях';
+      el('verdict').className = 'verdict ' + (net >= 0 ? 'ok-bg' : 'bad-bg');
+
+      // накрутка: 20 аккаунтов цепочкой
+      const n = 20;
+      const pay = chainPayout(n);
+      el('fN').textContent = n;
+      el('fPay').textContent = fmt(pay) + ' ֏';
+      el('fCost').textContent = fmt(n * 7) + ' заходов';
+
+      // регистрация без кода: сколько добавит случайное закрепление
+      const organic = users * org;
+      const costA = organic * realCost * conv;
+      const costB = 2000 * 30;
+      el('gN').textContent = fmt(organic);
+      el('gA').textContent = fmt(costA) + ' ֏';
+      el('gDiff').textContent = fmt(Math.max(0, costA - costB)) + ' ֏';
+
+      // при какой комиссии сходится
+      const needFee = dep > 0 ? (realCost / dep) * 100 : 0;
+      el('needFee').textContent = needFee.toFixed(1) + '%';
+
+      // максимальная глубина, при которой сходится с текущей комиссией
+      let maxD = 0;
+      for (let d = 1; d <= 40; d++) {
+        if (costPerUser(d, dep).total * use <= income) maxD = d;
+      }
+      el('needDepth').textContent = maxD === 0 ? 'ни одного' : maxD + ' уровней';
+    }
+
+    ['rUsers', 'rDepth', 'rDep', 'rFee', 'rConv', 'rUse', 'rOrg'].forEach(id => el(id).addEventListener('input', render));
+    render();
+  })();
+</script>
+</body>
+</html>
