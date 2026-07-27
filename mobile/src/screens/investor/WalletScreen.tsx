@@ -2,7 +2,14 @@ import React, { useCallback, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import { deposit, fetchTransactions, fetchWallet, Transaction, withdraw } from '../../api/wallet';
+import {
+  deposit,
+  fetchTransactions,
+  fetchWallet,
+  Transaction,
+  TransactionTotals,
+  withdraw,
+} from '../../api/wallet';
 import { Wallet } from '../../types';
 import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
 import { formatDateTime } from '../../utils/date';
@@ -38,6 +45,7 @@ export function WalletScreen() {
   const { isCompact } = useBreakpoint();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [totals, setTotals] = useState<TransactionTotals | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [amount, setAmount] = useState('');
@@ -56,6 +64,7 @@ export function WalletScreen() {
       setWallet(walletData);
       setTransactions(txPage.items);
       setTotal(txPage.total);
+      setTotals(txPage.totals);
     } finally {
       if (requestId === requestIdRef.current) setLoading(false);
     }
@@ -131,6 +140,37 @@ export function WalletScreen() {
                 </Text>
               )}
             </View>
+            {/* Lifetime figures. Kept off the balance card on purpose: that card
+                says what the account holds now, and these say what has passed
+                through it — putting them together invites reading one as the
+                other. Same reason the credit row says "granted" out loud, since
+                buying tickets spends it back down. */}
+            {totals && (
+              <View style={styles.totalsCard}>
+                <TotalRow
+                  label={t('wallet.totalDeposited')}
+                  value={totals.deposited}
+                  color={colors.success}
+                  styles={styles}
+                  currency={t('common.currency')}
+                />
+                <TotalRow
+                  label={t('wallet.totalWithdrawn')}
+                  value={totals.withdrawn}
+                  color={colors.text}
+                  styles={styles}
+                  currency={t('common.currency')}
+                />
+                <TotalRow
+                  label={t('wallet.totalInvestCredited')}
+                  hint={t('wallet.totalInvestCreditedHint')}
+                  value={totals.investCredited}
+                  color={colors.text}
+                  styles={styles}
+                  currency={t('common.currency')}
+                />
+              </View>
+            )}
             <TextField
               label={t('wallet.amount')}
               keyboardType="decimal-pad"
@@ -213,6 +253,34 @@ export function WalletScreen() {
   );
 }
 
+function TotalRow({
+  label,
+  hint,
+  value,
+  color,
+  currency,
+  styles,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  color: string;
+  currency: string;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  return (
+    <View style={styles.totalRow}>
+      <View style={styles.totalLabelWrap}>
+        <Text style={styles.totalLabel}>{label}</Text>
+        {!!hint && <Text style={styles.totalHint}>{hint}</Text>}
+      </View>
+      <Text style={[styles.totalValue, { color }]}>
+        {value.toLocaleString()} {currency}
+      </Text>
+    </View>
+  );
+}
+
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
     container: {
@@ -257,6 +325,39 @@ const createStyles = (c: ThemeColors) =>
     },
     actionButton: {
       flex: 1,
+    },
+    totalsCard: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    totalRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingVertical: spacing.sm,
+    },
+    totalLabelWrap: {
+      flex: 1,
+      marginRight: spacing.sm,
+    },
+    totalLabel: {
+      fontSize: 13,
+      color: c.text,
+    },
+    totalHint: {
+      fontSize: 11,
+      color: c.textMuted,
+      marginTop: 1,
+    },
+    totalValue: {
+      fontSize: 14,
+      fontWeight: '700',
+      fontVariant: ['tabular-nums'],
     },
     historyHeaderRow: {
       flexDirection: 'row',
