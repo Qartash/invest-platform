@@ -34,10 +34,20 @@ export class TransactionsService {
     return this.transactionsRepository.save(transaction);
   }
 
-  findByUser(userId: string): Promise<Transaction[]> {
-    return this.transactionsRepository.find({
+  // Paged rather than everything-at-once: a long-standing account's history is
+  // hundreds of rows, and the screen only ever shows a handful. `total` comes back
+  // so the caller can say which page of how many it is on.
+  async findByUser(
+    userId: string,
+    page = 1,
+    pageSize = 10,
+  ): Promise<{ items: Transaction[]; total: number; page: number; pageSize: number }> {
+    const [items, total] = await this.transactionsRepository.findAndCount({
       where: { userId },
       order: { createdAt: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
+    return { items, total, page, pageSize };
   }
 }

@@ -16,8 +16,17 @@ export function fetchWallet() {
   return apiClient.get<Wallet>('/wallet').then((r) => r.data);
 }
 
-export function fetchTransactions() {
-  return apiClient.get<Transaction[]>('/wallet/transactions').then((r) => r.data);
+export interface TransactionPage {
+  items: Transaction[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export function fetchTransactions(page = 1, pageSize = 10) {
+  return apiClient
+    .get<TransactionPage>('/wallet/transactions', { params: { page, pageSize } })
+    .then((r) => r.data);
 }
 
 export function deposit(amount: number) {
