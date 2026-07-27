@@ -21,6 +21,11 @@ import { User } from '../users/entities/user.entity';
 import { Project } from './entities/project.entity';
 import { KycStatus, ProjectStatus, UserRole } from '../common/enums';
 import { toProjectResponse } from './project-response';
+import { cached } from '../common/response-cache';
+
+// Matches the client's own cache window, so a figure never looks stale on one side and
+// fresh on the other.
+const PROJECT_LIST_TTL_MS = 30_000;
 
 const ALLOWED_ATTACHMENT_MIME_TYPES = [
   'application/pdf',
@@ -42,33 +47,51 @@ export class ProjectsController {
     private readonly worksService: ProjectWorksService,
   ) {}
 
+  // Three counts ride along with every project so the cards can show how many people are in,
+  // what is up for resale and whether there is work to look at — without them the app would
+  // need a request per card to know. They are fetched for the whole list in three queries
+  // rather than three per project: the list used to cost sixty round trips on a page of
+  // twenty, every one of them paid at full price against a database waking from sleep.
+  private async withInvestorCounts(projects: Project[]) {
+    const ids = projects.map((project) => project.id);
+    const [investorCounts, resaleStats, worksCounts] = await Promise.all([
+      this.ticketsService.countInvestorsByProject(ids),
+      this.ticketsService.getResaleStatsByProject(ids),
+      this.worksService.countWorksByProject(ids),
+    ]);
+
+    return projects.map((project) => {
+      // Resale figures belong to projects that allow resale; the others get zeros rather
+      // than whatever rows happen to exist from before the setting was turned off.
+      const resale = project.resaleEnabled
+        ? resaleStats.get(project.id) ?? { listingsCount: 0, ticketsCount: 0 }
+        : { listingsCount: 0, ticketsCount: 0 };
+      return {
+        ...toProjectResponse(project),
+        investorCount: investorCounts.get(project.id) ?? 0,
+        resaleListingsCount: resale.listingsCount,
+        resaleTicketsCount: resale.ticketsCount,
+        worksCount: worksCounts.get(project.id) ?? 0,
+      };
+    });
+  }
+
   private async withInvestorCount(project: Project) {
-    const investorCount = await this.ticketsService.countInvestors(project.id);
-    const resaleStats = project.resaleEnabled
-      ? await this.ticketsService.getResaleStats(project.id)
-      : { listingsCount: 0, ticketsCount: 0 };
-    // Rides along with the other counts so the project cards can offer a jump straight to
-    // the works list — without it the app would need one request per card to know.
-    const worksCount = await this.worksService.countWorks(project.id);
-    return {
-      ...toProjectResponse(project),
-      investorCount,
-      resaleListingsCount: resaleStats.listingsCount,
-      resaleTicketsCount: resaleStats.ticketsCount,
-      worksCount,
-    };
+    const [withCounts] = await this.withInvestorCounts([project]);
+    return withCounts;
   }
 
-  private withInvestorCounts(projects: Project[]) {
-    return Promise.all(projects.map((project) => this.withInvestorCount(project)));
-  }
-
+  // The only endpoint here that is the same for everyone, and the one every visitor hits
+  // first, so it is worth holding briefly in memory — see response-cache.ts. Writes that
+  // could move it clear it immediately (ProjectCacheInterceptor); the half minute is the
+  // ceiling on how stale it can get when nothing is written at all.
   @Get()
   async findActive(@Query('status') status?: 'active' | 'funded') {
-    const projects = await this.projectsService.findByStatus(
-      status === 'funded' ? ProjectStatus.FUNDED : ProjectStatus.ACTIVE,
-    );
-    return this.withInvestorCounts(projects);
+    const wanted = status === 'funded' ? ProjectStatus.FUNDED : ProjectStatus.ACTIVE;
+    return cached(`projects:list:${wanted}`, PROJECT_LIST_TTL_MS, async () => {
+      const projects = await this.projectsService.findByStatus(wanted);
+      return this.withInvestorCounts(projects);
+    });
   }
 
   @UseGuards(JwtAuthGuard)
