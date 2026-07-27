@@ -1,6 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import {
@@ -14,6 +13,7 @@ import {
   rejectProjectDeletion,
 } from '../../api/projects';
 import { refundProject } from '../../api/projectFunding';
+import { invalidateQuery, useCachedQuery } from '../../api/useCachedQuery';
 import { resolveMediaUrl } from '../../api/client';
 import { Project, ProjectAttachment } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
@@ -58,8 +58,6 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
   const { projectId } = route.params;
   const { t, i18n } = useTranslation();
   const { isCompact } = useBreakpoint();
-  const [project, setProject] = useState<Project | null>(null);
-  const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
   const [riskLevel, setRiskLevel] = useState<'low' | 'medium' | 'high' | null>(null);
   const [riskComment, setRiskComment] = useState('');
   const [generalComment, setGeneralComment] = useState('');
@@ -68,26 +66,43 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
   const [showHistory, setShowHistory] = useState(false);
   const [priorityUpdating, setPriorityUpdating] = useState(false);
 
-  const load = useCallback(() => {
-    fetchProject(projectId).then((data) => {
-      setProject(data);
-      // Pre-fill with the risk assessment already on file so a re-review of a
-      // minor edit doesn't force the moderator to redo it from scratch (and
-      // risk picking a different level than before by mistake).
-      setRiskLevel((prev) => prev ?? (data.riskLevel ?? null));
-      setRiskComment((prev) => prev || (data.riskReason ?? ''));
-    });
-    fetchProjectAttachments(projectId).then(setAttachments);
-  }, [projectId]);
+  // Both keys are the ones the investor's project screen uses, so a moderator who has just
+  // looked at the project sees it here without a second round of requests. Every decision
+  // below retires the whole `projects:` prefix, so nothing here outlives the decision.
+  const { data: project, refresh: refreshProject } = useCachedQuery<Project>(
+    `projects:one:${projectId}`,
+    useCallback(() => fetchProject(projectId), [projectId]),
+  );
+  const { data: fetchedAttachments, refresh: refreshAttachments } = useCachedQuery<ProjectAttachment[]>(
+    `projects:one:${projectId}:attachments`,
+    useCallback(() => fetchProjectAttachments(projectId), [projectId]),
+  );
 
-  useFocusEffect(load);
+  const attachments = fetchedAttachments ?? [];
+
+  const load = useCallback(() => {
+    invalidateQuery('projects');
+    void refreshProject();
+    void refreshAttachments();
+  }, [refreshProject, refreshAttachments]);
+
+  // Pre-fill with the risk assessment already on file so a re-review of a minor edit doesn't
+  // force the moderator to redo it from scratch (and risk picking a different level than
+  // before by mistake). Only ever fills a blank field — never types over the moderator.
+  useEffect(() => {
+    if (!project) return;
+    setRiskLevel((prev) => prev ?? (project.riskLevel ?? null));
+    setRiskComment((prev) => prev || (project.riskReason ?? ''));
+  }, [project]);
 
   const handleSetPriority = async (priority: 'low' | 'medium' | 'high') => {
     if (!project || priority === project.priority) return;
     setPriorityUpdating(true);
     try {
-      const updated = await setProjectPriority(project.id, priority);
-      setProject(updated);
+      await setProjectPriority(project.id, priority);
+      // The priority shows on the queue behind this screen and on the project cards, so it
+      // is reloaded from the server rather than patched in here.
+      load();
     } catch (err: any) {
       showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {

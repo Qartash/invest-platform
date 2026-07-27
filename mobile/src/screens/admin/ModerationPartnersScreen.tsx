@@ -1,6 +1,5 @@
 ﻿import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import {
   PartnerApplicationForReview,
@@ -11,6 +10,7 @@ import {
   reviewPartnerApplication,
   settlePartnerPayout,
 } from '../../api/partners';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { showAlert } from '../../utils/alert';
 import { apiErrorMessage } from '../../utils/apiError';
 import { formatDate } from '../../utils/date';
@@ -43,38 +43,30 @@ export function ModerationPartnersScreen() {
   const { t, i18n } = useTranslation();
   const { isCompact } = useBreakpoint();
   const [section, setSection] = useState<Section>('applications');
-  const [applications, setApplications] = useState<PartnerApplicationForReview[]>([]);
-  const [payouts, setPayouts] = useState<PartnerPayoutDue[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadFailed, setLoadFailed] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
   // Keyed by application: each card keeps its own note, so opening a second card
   // does not inherit what was typed into the first.
   const [notes, setNotes] = useState<Record<string, string>>({});
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setLoadFailed(false);
-    try {
-      if (section === 'applications') {
-        setApplications(await fetchPartnerApplications('pending'));
-      } else {
-        setPayouts(await fetchPartnerPayoutsDue());
-      }
-    } catch {
-      // Distinct from an empty queue on purpose: "no applications" and "could not
-      // ask" look identical otherwise, and one of them needs a retry.
-      setLoadFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [section]);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
+  // A query per section, each idle until its section is showing — switching back to one
+  // already looked at now costs nothing.
+  const applicationsQuery = useCachedQuery<PartnerApplicationForReview[]>(
+    'partners:applications:pending',
+    useCallback(() => fetchPartnerApplications('pending'), []),
+    { enabled: section === 'applications' },
   );
+  const payoutsQuery = useCachedQuery<PartnerPayoutDue[]>('partners:payouts:due', fetchPartnerPayoutsDue, {
+    enabled: section === 'payouts',
+  });
+
+  const activeQuery = section === 'applications' ? applicationsQuery : payoutsQuery;
+  const applications = useMemo(() => applicationsQuery.data ?? [], [applicationsQuery.data]);
+  const payouts = useMemo(() => payoutsQuery.data ?? [], [payoutsQuery.data]);
+  const loading = activeQuery.loading;
+  // Distinct from an empty queue on purpose: "no applications" and "could not ask" look
+  // identical otherwise, and one of them needs a retry.
+  const loadFailed = !activeQuery.data && !!activeQuery.error;
+  const load = activeQuery.refresh;
 
   const decide = async (application: PartnerApplicationForReview, status: PartnerApplicationStatus) => {
     const note = notes[application.id]?.trim();

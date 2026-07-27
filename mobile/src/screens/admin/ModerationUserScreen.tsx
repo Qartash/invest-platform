@@ -1,9 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { adminUpdateUser, banUser, deleteUser, fetchAllUsers, restoreUser, unbanUser } from '../../api/users';
+import { invalidateQuery, useCachedQuery } from '../../api/useCachedQuery';
 import { AuthUser, KycStatus, UserRole } from '../../types';
 import { Avatar } from '../../components/Avatar';
 import { TextField } from '../../components/TextField';
@@ -34,25 +34,36 @@ export function ModerationUserScreen({ route, navigation }: Props) {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const load = useCallback(() => {
-    // No single-user admin endpoint yet; the list is small and already cached
-    // server-side, so pick the user out of /users/all.
-    fetchAllUsers().then((users) => {
-      const found = users.find((u) => u.id === userId);
-      if (!found) return;
-      setUser(found);
-      setFullName(found.fullName ?? '');
-      setUsername(found.username ?? '');
-      setEmail(found.email ?? '');
-      setPhone(found.phone ?? '');
-      setRole(found.role);
-      setKycStatus(found.kycStatus);
-    });
-  }, [userId]);
+  // No single-user admin endpoint yet; the list is small, so pick the user out of
+  // /users/all — under the same key the moderation list reads, which is how this screen is
+  // reached, so opening someone's file costs no request at all.
+  const { data: users } = useCachedQuery<AuthUser[]>('users:all', fetchAllUsers);
 
-  useFocusEffect(load);
+  // The form is seeded from the fetched user once, not bound to it. These fields are being
+  // typed into; a background refresh landing mid-edit must not overwrite what is in them.
+  const seededFor = useRef<string | null>(null);
+  useEffect(() => {
+    const found = users?.find((u) => u.id === userId);
+    if (!found || seededFor.current === userId) return;
+    seededFor.current = userId;
+    setUser(found);
+    setFullName(found.fullName ?? '');
+    setUsername(found.username ?? '');
+    setEmail(found.email ?? '');
+    setPhone(found.phone ?? '');
+    setRole(found.role);
+    setKycStatus(found.kycStatus);
+  }, [users, userId]);
 
   const handleError = (err: any) => showAlert(t('common.error'), apiErrorMessage(err, t));
+
+  // Every action here edits a row of the cached user list the moderation screen shows, so
+  // the list has to be retired along with it — otherwise going back displays the old name,
+  // role or ban state.
+  const applyUpdate = (updated: AuthUser) => {
+    setUser(updated);
+    invalidateQuery('users');
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -67,7 +78,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
         kycStatus,
         password: password.trim() || undefined,
       });
-      setUser(updated);
+      applyUpdate(updated);
       setPassword('');
       showAlert(t('moderation.users.saved'));
     } catch (err: any) {
@@ -81,7 +92,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
     if (!user) return;
     setSubmitting(true);
     try {
-      setUser(user.bannedAt ? await unbanUser(user.id) : await banUser(user.id));
+      applyUpdate(user.bannedAt ? await unbanUser(user.id) : await banUser(user.id));
     } catch (err: any) {
       handleError(err);
     } finally {
@@ -92,7 +103,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
   const handleDelete = () => {
     if (!user) return;
     if (user.deletedAt) {
-      restoreUser(user.id).then(setUser).catch(handleError);
+      restoreUser(user.id).then(applyUpdate).catch(handleError);
       return;
     }
     showAlert(t('moderation.users.deleteConfirmTitle'), t('moderation.users.deleteConfirmMessage'), [
@@ -103,7 +114,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
         onPress: () => {
           deleteUser(user.id)
             .then((updated) => {
-              setUser(updated);
+              applyUpdate(updated);
               navigation.goBack();
             })
             .catch(handleError);

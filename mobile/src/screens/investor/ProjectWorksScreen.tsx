@@ -1,9 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchProject } from '../../api/projects';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { useAuthStore } from '../../store/authStore';
@@ -19,12 +19,10 @@ export function ProjectWorksScreen({ route }: Props) {
   const { i18n } = useTranslation();
   const { isCompact } = useBreakpoint();
   const currentUserId = useAuthStore((s) => s.user?.id);
-  const [project, setProject] = useState<Project | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchProject(projectId).then(setProject);
-    }, [projectId]),
+  // Same key the project screen reads, so arriving here from a project card costs nothing.
+  const { data: project, refresh } = useCachedQuery<Project>(
+    `projects:one:${projectId}`,
+    useCallback(() => fetchProject(projectId), [projectId]),
   );
 
   const isFounder = !!project && project.founderId === currentUserId;
@@ -42,7 +40,7 @@ export function ProjectWorksScreen({ route }: Props) {
           // applicant's offered price, not the work's original price).
           treasuryBalance={isFounder && project ? parseFloat(project.treasuryBalance ?? '0') : undefined}
           spendableBalance={isFounder && project ? parseFloat(project.spendableBalance ?? '0') : undefined}
-          onChanged={() => fetchProject(projectId).then(setProject)}
+          onChanged={refresh}
         />
       </View>
     </ScrollView>

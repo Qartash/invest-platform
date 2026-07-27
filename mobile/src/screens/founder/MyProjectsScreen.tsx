@@ -1,6 +1,5 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
@@ -12,8 +11,8 @@ import {
 } from '../../api/projects';
 import { fetchPortfolio } from '../../api/portfolio';
 import { cancelTicketListing, listTicketForSale } from '../../api/tickets';
-import { invalidateQuery } from '../../api/useCachedQuery';
-import { Holding, PortfolioSummary, Project } from '../../types';
+import { invalidateQuery, useCachedQuery } from '../../api/useCachedQuery';
+import { Holding, Portfolio, Project } from '../../types';
 import { showAlert } from '../../utils/alert';
 import { apiErrorMessage } from '../../utils/apiError';
 import { useAuthStore } from '../../store/authStore';
@@ -46,10 +45,15 @@ export function MyProjectsScreen({ navigation }: Props) {
   const user = useAuthStore((s) => s.user);
   const { isCompact } = useBreakpoint();
   const [tab, setTab] = useState<Tab>('owned');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [holdings, setHoldings] = useState<Holding[]>([]);
-  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  // The portfolio half is the very query the portfolio screen runs, so the two tabs of this
+  // screen and that one all draw on the same answer instead of asking three times.
+  const myProjectsQuery = useCachedQuery<Project[]>('projects:mine', fetchMyProjects);
+  const portfolioQuery = useCachedQuery<Portfolio>('portfolio', fetchPortfolio);
+
+  const projects = useMemo(() => myProjectsQuery.data ?? [], [myProjectsQuery.data]);
+  const holdings = portfolioQuery.data?.holdings ?? [];
+  const summary = portfolioQuery.data?.summary ?? null;
+  const loading = myProjectsQuery.loading || portfolioQuery.loading;
   const [historyProjectId, setHistoryProjectId] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [listingHolding, setListingHolding] = useState<Holding | null>(null);
@@ -64,19 +68,15 @@ export function MyProjectsScreen({ navigation }: Props) {
   const tabTouched = useRef(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [projectsData, portfolio] = await Promise.all([fetchMyProjects(), fetchPortfolio()]);
-      setProjects(projectsData);
-      setHoldings(portfolio.holdings);
-      setSummary(portfolio.summary);
-      if (!tabTouched.current) {
-        setTab(projectsData.length > 0 ? 'owned' : 'invested');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    await Promise.all([myProjectsQuery.refresh(), portfolioQuery.refresh()]);
+  }, [myProjectsQuery.refresh, portfolioQuery.refresh]);
+
+  // Picking the opening tab has to wait for the owned list, whether it arrives from the
+  // network or straight out of the cache.
+  useEffect(() => {
+    if (!myProjectsQuery.data || tabTouched.current) return;
+    setTab(myProjectsQuery.data.length > 0 ? 'owned' : 'invested');
+  }, [myProjectsQuery.data]);
 
   const selectTab = (next: Tab) => {
     tabTouched.current = true;
@@ -86,11 +86,8 @@ export function MyProjectsScreen({ navigation }: Props) {
   const tabOrder: Tab[] = projects.length > 0 ? ['owned', 'invested'] : ['invested', 'owned'];
   const tabCount = (key: Tab) => (key === 'owned' ? projects.length : holdings.length);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  // No focus effect here any more: both queries refetch on focus themselves, and quietly,
+  // behind whatever this screen was already showing.
 
   const handleConfirmListing = async (quantity: number, askingPrice: number) => {
     if (!listingHolding) return;

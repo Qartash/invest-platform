@@ -1,10 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
 import { maxWidth, radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
 import { Card, PageContainer, StatStrip } from '../../components/ui';
 import { fetchReferralSummary, fetchReferralTree, ReferralSummary, ReferralTreeNode } from '../../api/referrals';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { LoadFailed } from '../../components/LoadFailed';
 
 // One node and its subtree. Recursion is bounded by the depth the API returns.
@@ -56,29 +56,28 @@ export function ReferralTreeScreen() {
   const styles = useThemeStyles(createStyles);
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const [tree, setTree] = useState<ReferralTreeNode[]>([]);
-  const [summary, setSummary] = useState<ReferralSummary | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  // The summary shares its key with the invites screen, which is usually the way in here —
+  // the figures above the tree are already on hand by the time this screen opens.
+  const {
+    data: fetchedTree,
+    error: treeError,
+    refresh,
+  } = useCachedQuery<ReferralTreeNode[]>(
+    'referrals:tree:4',
+    useCallback(() => fetchReferralTree(4), []),
+  );
+  const { data: summary } = useCachedQuery<ReferralSummary>('referrals:summary', fetchReferralSummary);
 
-  // "You have invited nobody yet" is a discouraging thing to tell someone whose
-  // tree simply failed to arrive.
-  const load = useCallback(() => {
-    setLoadFailed(false);
-    fetchReferralTree(4)
-      .then(setTree)
-      .catch(() => setLoadFailed(true));
-    fetchReferralSummary()
-      .then(setSummary)
-      .catch(() => setSummary(null));
-  }, []);
-
-  useFocusEffect(load);
+  const tree = fetchedTree ?? [];
+  // "You have invited nobody yet" is a discouraging thing to tell someone whose tree simply
+  // failed to arrive.
+  const loadFailed = !fetchedTree && !!treeError;
 
   if (loadFailed) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <PageContainer maxWidth={maxWidth.column}>
-          <LoadFailed onRetry={load} />
+          <LoadFailed onRetry={refresh} />
         </PageContainer>
       </ScrollView>
     );

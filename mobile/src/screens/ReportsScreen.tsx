@@ -1,6 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import {
   fetchLatestUsers,
@@ -19,6 +18,7 @@ import {
   UserMoneyTotal,
   UsersStats,
 } from '../api/stats';
+import { useCachedQuery } from '../api/useCachedQuery';
 import { Avatar } from '../components/Avatar';
 import { InvestorProfileModal } from '../components/InvestorProfileModal';
 import { TrendChart } from '../components/TrendChart';
@@ -26,6 +26,9 @@ import { formatDate, formatDateTime } from '../utils/date';
 import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../theme';
 
 type Tab = 'users' | 'money';
+
+// The three answers that make up one reading of the dashboard.
+type Overview = { usersStats: UsersStats; moneyStats: MoneyStats; seriesData: StatsSeries };
 
 const PERIOD_KEYS: Array<keyof PeriodBreakdown> = ['total', 'day', 'week', 'month', 'year'];
 const RANGES: SeriesRange[] = ['day', '5day', 'month', 'year', '5year', 'max'];
@@ -222,29 +225,42 @@ export function ReportsScreen() {
   // The charts sit one card-padding in from that on each side.
   const chartWidth = chartArea - spacing.md * 2;
 
-  const load = useCallback(() => {
-    setLoadFailed(false);
-    Promise.all([fetchUsersStats(), fetchMoneyStats(), fetchStatsSeries(range)])
-      .then(([usersStats, moneyStats, seriesData]) => {
-        setUsers(usersStats);
-        setMoney(moneyStats);
-        setUsersPage(1);
-        setLatestUsers(usersStats.latest);
-        setHistoryPage(1);
-        setHistoryItems(moneyStats.history);
-        setSeries(seriesData);
-      })
-      .catch(() => setLoadFailed(true));
-  }, [range]);
+  // The three headline figures are fetched together and cached under one key: they describe
+  // the same moment, and a dashboard whose halves came from different minutes reads wrong.
+  // The chart's key carries the range, so flipping between week and month is instant once
+  // both have been looked at.
+  const { data: overview, error: overviewError } = useCachedQuery<Overview>(
+    `stats:overview:${range}`,
+    useCallback(async () => {
+      const [usersStats, moneyStats, seriesData] = await Promise.all([
+        fetchUsersStats(),
+        fetchMoneyStats(),
+        fetchStatsSeries(range),
+      ]);
+      return { usersStats, moneyStats, seriesData };
+    }, [range]),
+  );
 
-  useFocusEffect(load);
+  // The paged lists start from what the overview carried and are then driven by the pager
+  // below, so a fresh overview resets them to their first page.
+  useEffect(() => {
+    if (!overview) return;
+    setUsers(overview.usersStats);
+    setMoney(overview.moneyStats);
+    setSeries(overview.seriesData);
+    setUsersPage(1);
+    setLatestUsers(overview.usersStats.latest);
+    setHistoryPage(1);
+    setHistoryItems(overview.moneyStats.history);
+  }, [overview]);
 
-  const changeRange = (next: SeriesRange) => {
-    setRange(next);
-    fetchStatsSeries(next)
-      .then(setSeries)
-      .catch(() => setLoadFailed(true));
-  };
+  useEffect(() => {
+    if (overviewError) setLoadFailed(true);
+  }, [overviewError]);
+
+  // No fetch here: the range is part of the query's key, so changing it is what asks for the
+  // other series — and a range already looked at comes back without a request at all.
+  const changeRange = (next: SeriesRange) => setRange(next);
 
   const changeUsersPage = (page: number) => {
     setUsersPage(page);

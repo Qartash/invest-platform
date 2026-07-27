@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { decideRelease, fetchPendingReleases } from '../../api/projectFunding';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { PendingReleaseRequest } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
@@ -15,25 +15,16 @@ export function ModerationReleasesScreen() {
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const { isCompact } = useBreakpoint();
-  const [requests, setRequests] = useState<PendingReleaseRequest[]>([]);
-  const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
-  const { columns, data, isGrid } = useGrid(requests, { medium: 2, wide: 2 });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setRequests(await fetchPendingReleases());
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
+  // Refetches quietly on focus; deciding a request below forces a reload, because the row
+  // just decided is the one the list exists to show.
+  const { data: fetched, loading, refresh: load } = useCachedQuery<PendingReleaseRequest[]>(
+    'projects:releases:pending',
+    fetchPendingReleases,
   );
+  const requests = useMemo(() => fetched ?? [], [fetched]);
+  const { columns, data, isGrid } = useGrid(requests, { medium: 2, wide: 2 });
 
   const decide = async (id: string, approve: boolean) => {
     setActingId(id);

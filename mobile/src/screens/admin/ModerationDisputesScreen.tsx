@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { fetchDisputedWorks, resolveDispute } from '../../api/projectWorks';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { DisputedWork } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
@@ -14,25 +14,16 @@ export function ModerationDisputesScreen() {
   const styles = useThemeStyles(createStyles);
   const { t, i18n } = useTranslation();
   const { isCompact } = useBreakpoint();
-  const [works, setWorks] = useState<DisputedWork[]>([]);
-  const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
-  const { columns, data, isGrid } = useGrid(works, { medium: 2, wide: 2 });
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setWorks(await fetchDisputedWorks());
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
+  // Refetches quietly on focus; resolving a dispute below still forces a reload, since the
+  // row that just moved is the whole point of the list.
+  const { data: fetched, loading, refresh: load } = useCachedQuery<DisputedWork[]>(
+    'works:disputed',
+    fetchDisputedWorks,
   );
+  const works = useMemo(() => fetched ?? [], [fetched]);
+  const { columns, data, isGrid } = useGrid(works, { medium: 2, wide: 2 });
 
   const resolve = async (id: string, releaseToWorker: boolean) => {
     setActingId(id);

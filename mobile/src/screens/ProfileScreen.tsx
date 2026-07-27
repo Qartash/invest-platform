@@ -1,8 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   maxWidth,
@@ -26,7 +25,8 @@ import { showAlert } from '../utils/alert';
 import { fetchWallet } from '../api/wallet';
 import { fetchPortfolio } from '../api/portfolio';
 import { fetchUserWorks } from '../api/projectWorks';
-import { Portfolio, Wallet } from '../types';
+import { useCachedQuery } from '../api/useCachedQuery';
+import { Portfolio, UserWorks, Wallet } from '../types';
 import { ProfileStackParamList } from '../navigation/ProfileNavigator';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'Profile'>;
@@ -39,27 +39,19 @@ export function ProfileScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
-  const [worksDone, setWorksDone] = useState(0);
-  const [worksRating, setWorksRating] = useState<number | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchWallet().then(setWallet);
-      fetchPortfolio().then(setPortfolio);
-      if (user?.id)
-        fetchUserWorks(user.id)
-          .then((w) => {
-            setWorksDone(w.completedCount);
-            setWorksRating(w.averageRating);
-          })
-          .catch(() => {
-            setWorksDone(0);
-            setWorksRating(null);
-          });
-    }, [user?.id]),
+  // The balance key sits under the same `wallet:` prefix the wallet screen invalidates, so a
+  // deposit made there retires this copy too. The portfolio key is the very one that screen
+  // reads, which is what makes stepping between the two instant.
+  const { data: wallet } = useCachedQuery<Wallet>('wallet:balance', fetchWallet);
+  const { data: portfolio } = useCachedQuery<Portfolio>('portfolio', fetchPortfolio);
+  const { data: works } = useCachedQuery<UserWorks>(
+    `works:user:${user?.id ?? ''}`,
+    useCallback(() => fetchUserWorks(user!.id), [user?.id]),
+    { enabled: !!user?.id },
   );
+
+  const worksDone = works?.completedCount ?? 0;
+  const worksRating = works?.averageRating ?? null;
 
   const genderLabel = user?.gender
     ? t(`profile.gender${user.gender.charAt(0).toUpperCase()}${user.gender.slice(1)}`)

@@ -24,7 +24,7 @@ import {
   fetchProjectTeam,
 } from '../../api/projects';
 import { buyTicket, buyListing } from '../../api/tickets';
-import { invalidateQuery } from '../../api/useCachedQuery';
+import { invalidateQuery, useCachedQuery } from '../../api/useCachedQuery';
 import { fetchWallet } from '../../api/wallet';
 import { resolveMediaUrl } from '../../api/client';
 import {
@@ -124,12 +124,38 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { isCompact } = useBreakpoint();
   const currentUserId = useAuthStore((s) => s.user?.id);
-  const [project, setProject] = useState<Project | null>(null);
-  const [purchases, setPurchases] = useState<ProjectPurchase[]>([]);
-  const [listings, setListings] = useState<TicketListing[]>([]);
-  const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
-  const [team, setTeam] = useState<ProjectTeamMember[]>([]);
-  const [wallet, setWallet] = useState<Wallet | null>(null);
+  // Six requests used to go out every single time this screen came into focus, which is what
+  // made stepping back from a sub-screen feel like opening the project from scratch. All six
+  // sit under the `projects:` prefix (the wallet under `wallet:`), so the invalidations
+  // already written for buying retire them exactly as before.
+  const projectQuery = useCachedQuery<Project>(
+    `projects:one:${projectId}`,
+    useCallback(() => fetchProject(projectId), [projectId]),
+  );
+  const purchasesQuery = useCachedQuery<ProjectPurchase[]>(
+    `projects:one:${projectId}:purchases`,
+    useCallback(() => fetchProjectPurchases(projectId), [projectId]),
+  );
+  const listingsQuery = useCachedQuery<TicketListing[]>(
+    `projects:one:${projectId}:listings`,
+    useCallback(() => fetchProjectListings(projectId), [projectId]),
+  );
+  const attachmentsQuery = useCachedQuery<ProjectAttachment[]>(
+    `projects:one:${projectId}:attachments`,
+    useCallback(() => fetchProjectAttachments(projectId), [projectId]),
+  );
+  const teamQuery = useCachedQuery<ProjectTeamMember[]>(
+    `projects:one:${projectId}:team`,
+    useCallback(() => fetchProjectTeam(projectId), [projectId]),
+  );
+  const walletQuery = useCachedQuery<Wallet>('wallet:balance', fetchWallet);
+
+  const project = projectQuery.data;
+  const purchases = purchasesQuery.data ?? [];
+  const listings = listingsQuery.data ?? [];
+  const attachments = attachmentsQuery.data ?? [];
+  const team = teamQuery.data ?? [];
+  const wallet = walletQuery.data;
   const [tab, setTab] = useState<TabKey>('about');
   const [quantity, setQuantity] = useState('1');
   const [forecastOpen, setForecastOpen] = useState(false);
@@ -195,14 +221,23 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
     }
   };
 
+  // Everything the screen shows, refetched regardless of age. For after a purchase, where
+  // the figures on screen are the ones that just changed.
   const load = useCallback(() => {
-    fetchProject(projectId).then(setProject);
-    fetchProjectPurchases(projectId).then(setPurchases);
-    fetchProjectListings(projectId).then(setListings);
-    fetchProjectAttachments(projectId).then(setAttachments);
-    fetchProjectTeam(projectId).then(setTeam);
-    fetchWallet().then(setWallet);
-  }, [projectId]);
+    void projectQuery.refresh();
+    void purchasesQuery.refresh();
+    void listingsQuery.refresh();
+    void attachmentsQuery.refresh();
+    void teamQuery.refresh();
+    void walletQuery.refresh();
+  }, [
+    projectQuery.refresh,
+    purchasesQuery.refresh,
+    listingsQuery.refresh,
+    attachmentsQuery.refresh,
+    teamQuery.refresh,
+    walletQuery.refresh,
+  ]);
 
   useEffect(() => {
     if (route.params.scrollToResale) {
@@ -210,8 +245,6 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
       setResaleScrollPending(true);
     }
   }, [route.params.scrollToResale]);
-
-  useFocusEffect(load);
 
   const buyerGroups = useMemo<BuyerGroup[]>(() => {
     const groups = new Map<string, BuyerGroup>();
