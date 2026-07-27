@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -15,6 +15,7 @@ import {
 } from '../../theme';
 import { Card, Icon, ListGroup, ListRow, PageContainer, SectionHeader, StatStrip } from '../../components/ui';
 import { fetchReferralSummary, ReferralSummary } from '../../api/referrals';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { checkIn } from '../../api/activity';
 import { fetchProjects } from '../../api/projects';
 import { getLocalizedText } from '../../utils/localized';
@@ -33,34 +34,34 @@ export function ReferralScreen({ navigation }: Props) {
   const styles = useThemeStyles(createStyles);
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
-  const [summary, setSummary] = useState<ReferralSummary | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [partner, setPartner] = useState<PartnerStatus | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  // Three separate cached queries rather than one combined load: they fail independently
+  // (only the code is worth blanking the screen over) and two of them are shared — the
+  // project feed under the same key the home screen uses, and the partner status with the
+  // blogger screen. Coming back to this tab redraws from those instead of refetching.
+  const {
+    data: summary,
+    error: summaryError,
+    refresh: refreshSummary,
+  } = useCachedQuery<ReferralSummary>('referrals:summary', fetchReferralSummary);
+  const { data: fetchedProjects } = useCachedQuery<Project[]>(
+    'projects:active',
+    useCallback(() => fetchProjects('active'), []),
+  );
+  const { data: partner } = useCachedQuery<PartnerStatus>('partners:status', fetchPartnerStatus);
 
-  const load = useCallback(() => {
-    setLoadFailed(false);
-    // The code is the one thing people come here for, so this is the request whose
-    // failure blanks the screen. Without it the card would read "—" as though the
-    // account had no code.
-    fetchReferralSummary()
-      .then(setSummary)
-      .catch(() => setLoadFailed(true));
-    // The projects worth inviting someone into: the ones still raising.
-    fetchProjects('active')
-      .then(setProjects)
-      .catch(() => setProjects([]));
-    // Drives the blogger card's wording — whether an application is already in.
-    // A failure here just leaves the card at its default invitation.
-    fetchPartnerStatus()
-      .then(setPartner)
-      .catch(() => setPartner(null));
-    // Opening this screen also counts as activity — keeps the streak honest even
-    // for someone who lives on the invites page.
-    checkIn().catch(() => {});
-  }, []);
+  const projects = fetchedProjects ?? [];
+  // The code is the one thing people come here for, so its failure is the one that blanks
+  // the screen — and only when there is nothing cached to show in its place. Without it the
+  // card would read "—" as though the account had no code.
+  const loadFailed = !summary && !!summaryError;
 
-  useFocusEffect(load);
+  // Opening this screen also counts as activity — keeps the streak honest even for someone
+  // who lives on the invites page.
+  useFocusEffect(
+    useCallback(() => {
+      checkIn().catch(() => {});
+    }, []),
+  );
 
   // Which of the four things the blogger card should say. `changes_requested` and a
   // rejection both put the applicant back at "you can apply", because both are states
@@ -106,7 +107,7 @@ export function ReferralScreen({ navigation }: Props) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <PageContainer maxWidth={maxWidth.column}>
-          <LoadFailed onRetry={load} />
+          <LoadFailed onRetry={refreshSummary} />
         </PageContainer>
       </ScrollView>
     );

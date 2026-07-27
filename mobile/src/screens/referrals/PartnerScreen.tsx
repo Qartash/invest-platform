@@ -1,12 +1,12 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
 import { maxWidth, radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
 import { Card, PageContainer, Pill, PillTone, SectionHeader } from '../../components/ui';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { applyForPartner, fetchPartnerStatus, PartnerApplicationStatus, PartnerStatus } from '../../api/partners';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { showAlert } from '../../utils/alert';
 import { LoadFailed } from '../../components/LoadFailed';
 
@@ -21,7 +21,6 @@ export function PartnerScreen() {
   const styles = useThemeStyles(createStyles);
   const { colors } = useTheme();
   const { t } = useTranslation();
-  const [status, setStatus] = useState<PartnerStatus | null>(null);
   const [channelType, setChannelType] = useState('Telegram');
   const [channelUrl, setChannelUrl] = useState('');
   const [audienceSize, setAudienceSize] = useState('');
@@ -29,19 +28,15 @@ export function PartnerScreen() {
   const [plan, setPlan] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const [loadFailed, setLoadFailed] = useState(false);
+  // Shares its key with the invites screen, whose blogger card asks the same question.
+  const { data: status, error, refresh: load } = useCachedQuery<PartnerStatus>(
+    'partners:status',
+    fetchPartnerStatus,
+  );
 
-  // Failing quietly to null showed the blank application form to someone who might
-  // already have one under review — the worst possible reading of "we could not
-  // reach the server".
-  const load = useCallback(() => {
-    setLoadFailed(false);
-    fetchPartnerStatus()
-      .then(setStatus)
-      .catch(() => setLoadFailed(true));
-  }, []);
-
-  useFocusEffect(load);
+  // Failing quietly to null showed the blank application form to someone who might already
+  // have one under review — the worst possible reading of "we could not reach the server".
+  const loadFailed = !status && !!error;
 
   const money = (v: number) => `${v.toLocaleString()} ${t('common.currency')}`;
   const terms = status?.terms;

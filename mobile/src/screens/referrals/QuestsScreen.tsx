@@ -6,6 +6,7 @@ import { maxWidth, radius, spacing, tabularNums, ThemeColors, typography, useThe
 import { Card, PageContainer, Pill, SectionHeader } from '../../components/ui';
 import { completeQuest, DailyBonus, fetchDailyBonus, fetchQuests, Quest } from '../../api/quests';
 import { checkIn, StreakState } from '../../api/activity';
+import { invalidateQuery, useCachedQuery } from '../../api/useCachedQuery';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
 import { LoadFailed } from '../../components/LoadFailed';
@@ -14,30 +15,35 @@ export function QuestsScreen() {
   const styles = useThemeStyles(createStyles);
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
-  const [quests, setQuests] = useState<Quest[]>([]);
   const [streak, setStreak] = useState<StreakState | null>(null);
-  const [bonus, setBonus] = useState<DailyBonus | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+
+  // The quest list is what this screen is for, so only its failure blanks the screen — and
+  // only while there is no cached copy to show instead. The bonus is an occasional extra,
+  // worth caching beside it but never worth replacing the page over.
+  const { data: fetchedQuests, error: questsError, refresh: refreshQuests } = useCachedQuery<Quest[]>(
+    'quests:list',
+    fetchQuests,
+  );
+  const { data: bonus, refresh: refreshBonus } = useCachedQuery<DailyBonus>('quests:bonus', fetchDailyBonus);
+
+  const quests = fetchedQuests ?? [];
+  const loadFailed = !fetchedQuests && !!questsError;
 
   const load = useCallback(() => {
-    setLoadFailed(false);
-    // The quest list is what this screen is for, so only its failure blanks the
-    // screen. The bonus is an occasional extra and the streak is a nicety —
-    // neither is worth replacing the page over if the list itself arrived.
-    fetchQuests()
-      .then(setQuests)
-      .catch(() => setLoadFailed(true));
-    fetchDailyBonus()
-      .then(setBonus)
-      .catch(() => setBonus(null));
-    // Opening the quests screen is itself a visit, so the streak counts it.
-    checkIn()
-      .then(setStreak)
-      .catch(() => {});
-  }, []);
+    void refreshQuests();
+    void refreshBonus();
+  }, [refreshQuests, refreshBonus]);
 
-  useFocusEffect(load);
+  // Opening the quests screen is itself a visit, so the streak counts it. Deliberately not
+  // cached: it is a write as much as a read, and its answer is what the check-in just did.
+  useFocusEffect(
+    useCallback(() => {
+      checkIn()
+        .then(setStreak)
+        .catch(() => {});
+    }, []),
+  );
 
   const money = (v: number) => `${v.toLocaleString()} ${t('common.currency')}`;
 
@@ -53,6 +59,9 @@ export function QuestsScreen() {
     try {
       const res = await completeQuest(q.id);
       showAlert(t('quests.rewarded'), money(res.awarded));
+      // The reward lands in the wallet, so whatever balance other screens are holding is
+      // now short by it.
+      invalidateQuery('wallet');
       load();
     } catch {
       showAlert(t('quests.notYetTitle'), t('quests.notYetText'));

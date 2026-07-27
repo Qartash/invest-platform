@@ -1,10 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { fetchAllProjectsForModeration, fetchPendingDeletions, fetchPendingProjects } from '../../api/projects';
 import { fetchAllUsers } from '../../api/users';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { resolveMediaUrl } from '../../api/client';
 import { AuthUser, Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
@@ -73,58 +73,32 @@ export function ModerationScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const { isCompact } = useBreakpoint();
   const [tab, setTab] = useState<Tab>('pending');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [allProjects, setAllProjects] = useState<Project[]>([]);
-  const [users, setUsers] = useState<AuthUser[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [loading, setLoading] = useState(true);
-  const [loadFailed, setLoadFailed] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setLoadFailed(false);
-    try {
+  // One query per tab, each fetched only while its own tab is showing — the same rule the
+  // three loaders enforced by hand, except a tab already visited now redraws from what it
+  // last saw instead of emptying itself to fetch again. Moderating something invalidates
+  // the `projects:` prefix these live under, so a decision is never held on screen.
+  const queueQuery = useCachedQuery<Project[]>(
+    'projects:moderation:queue',
+    useCallback(async () => {
       const [pendingReview, pendingDeletions] = await Promise.all([fetchPendingProjects(), fetchPendingDeletions()]);
-      setProjects([...pendingDeletions, ...pendingReview]);
-    } catch {
-      setLoadFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadAll = useCallback(async () => {
-    setLoading(true);
-    setLoadFailed(false);
-    try {
-      setAllProjects(await fetchAllProjectsForModeration());
-    } catch {
-      setLoadFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadUsers = useCallback(async () => {
-    setLoading(true);
-    setLoadFailed(false);
-    try {
-      setUsers(await fetchAllUsers());
-    } catch {
-      setLoadFailed(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      if (tab === 'pending') load();
-      if (tab === 'all') loadAll();
-      if (tab === 'users') loadUsers();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [load, loadAll, loadUsers, tab]),
+      return [...pendingDeletions, ...pendingReview];
+    }, []),
+    { enabled: tab === 'pending' },
   );
+  const allQuery = useCachedQuery<Project[]>('projects:moderation:all', fetchAllProjectsForModeration, {
+    enabled: tab === 'all',
+  });
+  const usersQuery = useCachedQuery<AuthUser[]>('users:all', fetchAllUsers, { enabled: tab === 'users' });
+
+  const activeQuery = tab === 'all' ? allQuery : tab === 'users' ? usersQuery : queueQuery;
+
+  const projects = useMemo(() => queueQuery.data ?? [], [queueQuery.data]);
+  const allProjects = useMemo(() => allQuery.data ?? [], [allQuery.data]);
+  const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
+  const loading = activeQuery.loading;
+  const loadFailed = !activeQuery.data && !!activeQuery.error;
 
   const filteredAll = useMemo(() => {
     if (statusFilter === 'all') return allProjects;

@@ -1,3 +1,7 @@
+// Metro only splits the web bundle into chunks when this runtime is in the entry file;
+// without it every `import()` is folded back into the one file everyone downloads first.
+import '@expo/metro-runtime';
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';

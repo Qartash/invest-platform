@@ -1,10 +1,10 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchProject, fetchProjectPurchases } from '../../api/projects';
 import { fetchProjectFinancialReports } from '../../api/projectFinance';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { Project, ProjectFinancialReport, ProjectPurchase } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { useAuthStore } from '../../store/authStore';
@@ -21,17 +21,22 @@ export function ProjectFinanceScreen({ route }: Props) {
   const { t, i18n } = useTranslation();
   const { isCompact } = useBreakpoint();
   const currentUserId = useAuthStore((s) => s.user?.id);
-  const [project, setProject] = useState<Project | null>(null);
-  const [purchases, setPurchases] = useState<ProjectPurchase[]>([]);
-  const [reports, setReports] = useState<ProjectFinancialReport[]>([]);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchProject(projectId).then(setProject);
-      fetchProjectPurchases(projectId).then(setPurchases);
-      fetchProjectFinancialReports(projectId).then(setReports);
-    }, [projectId]),
+  // The first two share their keys with the project screen this is usually opened from.
+  const { data: project } = useCachedQuery<Project>(
+    `projects:one:${projectId}`,
+    useCallback(() => fetchProject(projectId), [projectId]),
   );
+  const { data: fetchedPurchases } = useCachedQuery<ProjectPurchase[]>(
+    `projects:one:${projectId}:purchases`,
+    useCallback(() => fetchProjectPurchases(projectId), [projectId]),
+  );
+  const { data: fetchedReports } = useCachedQuery<ProjectFinancialReport[]>(
+    `projects:one:${projectId}:reports`,
+    useCallback(() => fetchProjectFinancialReports(projectId), [projectId]),
+  );
+
+  const purchases = useMemo(() => fetchedPurchases ?? [], [fetchedPurchases]);
+  const reports = useMemo(() => fetchedReports ?? [], [fetchedReports]);
 
   const myPurchases = useMemo(
     () => purchases.filter((purchase) => purchase.buyerId === currentUserId),

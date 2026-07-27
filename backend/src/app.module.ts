@@ -1,5 +1,6 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
@@ -16,6 +17,8 @@ import { ProjectFinanceModule } from './project-finance/project-finance.module';
 import { StatsModule } from './stats/stats.module';
 import { LogsModule } from './logs/logs.module';
 import { DbQueryLogger } from './logs/db-query-logger';
+import { KeepAliveMiddleware, KeepAliveService } from './database/keep-alive.service';
+import { ProjectCacheInterceptor } from './common/project-cache.interceptor';
 import { SystemLog } from './logs/entities/system-log.entity';
 import { LogSettings } from './logs/entities/log-settings.entity';
 import { User } from './users/entities/user.entity';
@@ -130,6 +133,14 @@ import { PartnersModule } from './partners/partners.module';
     LogsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    KeepAliveService,
+    { provide: APP_INTERCEPTOR, useClass: ProjectCacheInterceptor },
+  ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(KeepAliveMiddleware).forRoutes('*');
+  }
+}

@@ -1,10 +1,10 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useFocusEffect } from '@react-navigation/native';
 import { maxWidth, radius, spacing, tabularNums, ThemeColors, typography, useThemeStyles } from '../../theme';
 import { Card, PageContainer, Pill, PillTone, SegmentedTabs } from '../../components/ui';
 import { fetchReferralEarnings, ReferralEarning } from '../../api/referrals';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { formatDate } from '../../utils/date';
 import { LoadFailed } from '../../components/LoadFailed';
 
@@ -19,19 +19,16 @@ const STATUS_TONE: Record<ReferralEarning['status'], PillTone> = {
 export function ReferralEarningsScreen() {
   const styles = useThemeStyles(createStyles);
   const { t, i18n } = useTranslation();
-  const [earnings, setEarnings] = useState<ReferralEarning[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
-  const [loadFailed, setLoadFailed] = useState(false);
 
+  const { data: fetched, error, refresh } = useCachedQuery<ReferralEarning[]>(
+    'referrals:earnings',
+    fetchReferralEarnings,
+  );
+
+  const earnings = useMemo(() => fetched ?? [], [fetched]);
   // A ledger that failed to load must not read as "you have earned nothing".
-  const load = useCallback(() => {
-    setLoadFailed(false);
-    fetchReferralEarnings()
-      .then(setEarnings)
-      .catch(() => setLoadFailed(true));
-  }, []);
-
-  useFocusEffect(load);
+  const loadFailed = !fetched && !!error;
 
   const shown = useMemo(
     () =>
@@ -50,7 +47,7 @@ export function ReferralEarningsScreen() {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <PageContainer maxWidth={maxWidth.column}>
-          <LoadFailed onRetry={load} />
+          <LoadFailed onRetry={refresh} />
         </PageContainer>
       </ScrollView>
     );

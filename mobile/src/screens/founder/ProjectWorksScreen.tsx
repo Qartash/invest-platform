@@ -1,9 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchProject } from '../../api/projects';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../../theme';
@@ -17,13 +17,12 @@ export function ProjectWorksScreen({ route }: Props) {
   const { projectId } = route.params;
   const { i18n } = useTranslation();
   const { isCompact } = useBreakpoint();
-  const [project, setProject] = useState<Project | null>(null);
-
-  const load = useCallback(() => {
-    fetchProject(projectId).then(setProject);
-  }, [projectId]);
-
-  useFocusEffect(load);
+  // Shares the project's key with every other screen that shows it; `refresh` is what the
+  // panel calls after paying for a work, when the treasury figures below have moved.
+  const { data: project, refresh: load } = useCachedQuery<Project>(
+    `projects:one:${projectId}`,
+    useCallback(() => fetchProject(projectId), [projectId]),
+  );
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}>

@@ -98,8 +98,18 @@ export class ProjectWorksService {
 
   // Just the tally, for the project card and header — listWorks would drag in applications,
   // reviews and the caller's own application to answer a question that is one number.
-  countWorks(projectId: string) {
-    return this.worksRepository.count({ where: { projectId } });
+  // Counted for a whole list of projects at once — see the note on the ticket counts in
+  // TicketsService for why the per-project version had to go.
+  async countWorksByProject(projectIds: string[]): Promise<Map<string, number>> {
+    if (projectIds.length === 0) return new Map();
+    const rows: Array<{ projectId: string; count: string }> = await this.worksRepository
+      .createQueryBuilder('work')
+      .select('work.project_id', 'projectId')
+      .addSelect('COUNT(*)', 'count')
+      .where('work.project_id IN (:...projectIds)', { projectIds })
+      .groupBy('work.project_id')
+      .getRawMany();
+    return new Map(rows.map((row) => [row.projectId, parseInt(row.count, 10)]));
   }
 
   async listWorks(projectId: string, currentUserId?: string) {

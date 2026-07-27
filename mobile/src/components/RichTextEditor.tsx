@@ -1,83 +1,55 @@
-import React, { useEffect, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
-import {
-  PlaceholderBridge,
-  RichText,
-  TenTapStartKit,
-  Toolbar,
-  useEditorBridge,
-  useEditorContent,
-} from '@10play/tentap-editor';
-import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
+import React, { Suspense } from 'react';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { spacing, ThemeColors, useThemeStyles } from '../theme';
 
-interface Props {
+export interface RichTextEditorProps {
   value: string;
   onChangeText: (html: string) => void;
   placeholder?: string;
 }
 
-export function RichTextEditor({ value, onChangeText, placeholder }: Props) {
+/**
+ * The editor itself is the single heaviest thing the app ships — tentap, Tiptap and a
+ * webview shim — and it appears on three screens: creating a project, editing a profile and
+ * moderating one. Everyone else was downloading it anyway, because a single bundle has no
+ * way to leave anything out.
+ *
+ * Splitting it off means the import below becomes its own file that Metro fetches the first
+ * time one of those screens renders. The fallback holds the same space the editor will take
+ * so the form around it does not jump when the chunk arrives.
+ */
+const Editor = React.lazy(async () => {
+  const module = await import('./RichTextEditorImpl');
+  return { default: module.RichTextEditor };
+});
+
+export function RichTextEditor(props: RichTextEditorProps) {
   const styles = useThemeStyles(createStyles);
-  const { colors } = useTheme();
-  // The placeholder bridge also exposes an imperative `setPlaceholder`, but
-  // calling it post-mount doesn't reliably redraw Tiptap's decoration on web.
-  // Configuring it into the extension up front avoids that timing issue.
-  //
-  // The editor's text lives inside a webview and is painted by the library's own CSS, so
-  // `theme.webview` alone would leave black text on the dark surface. `configureCSS`
-  // *replaces* an extension's CSS rather than appending to it — CoreBridge is the safe
-  // place to inject, since it ships no CSS of its own.
-  const bridgeExtensions = useMemo(
-    () => [
-      ...TenTapStartKit.filter((ext) => ext.name !== 'placeholder').map((ext) =>
-        ext.name === 'coreBridge'
-          ? ext.configureCSS(`.ProseMirror { color: ${colors.text}; caret-color: ${colors.primary}; }`)
-          : ext,
-      ),
-      PlaceholderBridge.configureExtension({ placeholder: placeholder ?? '' }),
-    ],
-    [placeholder, colors.text, colors.primary],
-  );
-
-  // Fixed height with its own internal scroll (rather than `dynamicHeight`,
-  // whose resize signal is unreliable on web) — a bounded, independently
-  // scrollable editor box is the standard pattern for this kind of input.
-  // Background/height must go through `theme.webview` rather than a `style`
-  // prop on <RichText> — the library's own style array (which makes the
-  // webview fill its container) would otherwise be clobbered by a plain
-  // `style` override.
-  const editor = useEditorBridge({
-    initialContent: value || '',
-    bridgeExtensions,
-    theme: {
-      webview: { backgroundColor: colors.surface, height: 220 },
-    },
-  });
-  const html = useEditorContent(editor, { type: 'html', debounceInterval: 300 });
-
-  useEffect(() => {
-    if (html !== undefined) {
-      onChangeText(html);
-    }
-    // Only fire when the debounced content actually changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [html]);
 
   return (
-    <View style={styles.wrapper}>
-      <Toolbar editor={editor} />
-      <RichText editor={editor} />
-    </View>
+    <Suspense
+      fallback={
+        <View style={styles.placeholder}>
+          <ActivityIndicator />
+        </View>
+      }
+    >
+      <Editor {...props} />
+    </Suspense>
   );
 }
 
 const createStyles = (c: ThemeColors) =>
   StyleSheet.create({
-    wrapper: {
+    placeholder: {
+      // Toolbar plus the editor's own fixed 220 — see the height set in the impl.
+      height: 260,
       marginBottom: spacing.md,
       borderWidth: 1,
       borderColor: c.border,
       borderRadius: 10,
-      overflow: 'hidden',
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
   });

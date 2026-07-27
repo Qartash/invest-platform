@@ -5,7 +5,7 @@ import { checkIn } from '../api/activity';
 import { HomeStackNavigator } from './InvestorNavigator';
 import { ProjectsStackNavigator } from './FounderNavigator';
 import { ProfileStackNavigator } from './ProfileNavigator';
-import { ModerationStackNavigator } from './ModerationNavigator';
+import { lazyScreen } from './lazyScreen';
 import { useAuthStore } from '../store/authStore';
 import { logEvent } from '../utils/logger';
 import { TabBarIcon, TabIconName } from '../components/TabBarIcon';
@@ -14,6 +14,13 @@ import { SideRail } from '../components/SideRail';
 import { useBreakpoint } from '../theme';
 
 const Tab = createBottomTabNavigator();
+
+// The whole moderation stack — the queue, a project under review, a user's file — loads only
+// once an administrator opens the tab. Everyone else has the tab hidden anyway, and it is a
+// large amount of code to hand to people who will never see it.
+const ModerationStackNavigator = lazyScreen(() =>
+  import('./ModerationNavigator').then((m) => ({ default: m.ModerationStackNavigator })),
+);
 
 function tabOptions(title: string, icon: TabIconName) {
   return {

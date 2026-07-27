@@ -1,9 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchProject } from '../../api/projects';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../../theme';
@@ -17,12 +17,11 @@ export function ProjectFinanceScreen({ route }: Props) {
   const { projectId } = route.params;
   const { i18n } = useTranslation();
   const { isCompact } = useBreakpoint();
-  const [project, setProject] = useState<Project | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchProject(projectId).then(setProject);
-    }, [projectId]),
+  // Shares the project's key with every other screen that shows it, so coming back from the
+  // list does not refetch what was just displayed.
+  const { data: project } = useCachedQuery<Project>(
+    `projects:one:${projectId}`,
+    useCallback(() => fetchProject(projectId), [projectId]),
   );
 
   return (

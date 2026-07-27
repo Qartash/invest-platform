@@ -6,7 +6,7 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WalletScreen } from '../screens/investor/WalletScreen';
 import { PortfolioScreen } from '../screens/investor/PortfolioScreen';
-import { ReportsScreen } from '../screens/ReportsScreen';
+import { lazyScreen } from './lazyScreen';
 import { ReferralScreen } from '../screens/referrals/ReferralScreen';
 import { ReferralTreeScreen } from '../screens/referrals/ReferralTreeScreen';
 import { ReferralEarningsScreen } from '../screens/referrals/ReferralEarningsScreen';
@@ -28,6 +28,12 @@ export type ProfileStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
+
+// Admin-only, and one of the heaviest screens in the app — fetched when an admin actually
+// opens it rather than shipped to everyone who signs in.
+const ReportsScreen = lazyScreen(() =>
+  import('../screens/ReportsScreen').then((m) => ({ default: m.ReportsScreen })),
+);
 
 // Wallet/Portfolio can also be reached by jumping in from a different tab (e.g.
 // "insufficient funds" while buying a ticket). When that happens before the

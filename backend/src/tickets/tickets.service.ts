@@ -119,29 +119,45 @@ export class TicketsService {
     }));
   }
 
-  async countInvestors(projectId: string): Promise<number> {
-    const result = await this.dataSource
+  // Both counts below answer for a whole list of projects in one query rather than one
+  // project per call. The project cards need them for every card on screen, and asking per
+  // card turned a single list into dozens of round trips — each one paid in full when the
+  // database is waking from sleep. Projects with nothing to count are simply absent from
+  // the result; callers read them as zero.
+
+  async countInvestorsByProject(projectIds: string[]): Promise<Map<string, number>> {
+    if (projectIds.length === 0) return new Map();
+    const rows: Array<{ projectId: string; count: string }> = await this.dataSource
       .getRepository(Ticket)
       .createQueryBuilder('ticket')
-      .select('COUNT(DISTINCT ticket.owner_id)', 'count')
-      .where('ticket.project_id = :projectId', { projectId })
-      .getRawOne<{ count: string }>();
-    return parseInt(result?.count ?? '0', 10);
+      .select('ticket.project_id', 'projectId')
+      .addSelect('COUNT(DISTINCT ticket.owner_id)', 'count')
+      .where('ticket.project_id IN (:...projectIds)', { projectIds })
+      .groupBy('ticket.project_id')
+      .getRawMany();
+    return new Map(rows.map((row) => [row.projectId, parseInt(row.count, 10)]));
   }
 
-  async getResaleStats(projectId: string): Promise<{ listingsCount: number; ticketsCount: number }> {
-    const result = await this.dataSource
+  async getResaleStatsByProject(
+    projectIds: string[],
+  ): Promise<Map<string, { listingsCount: number; ticketsCount: number }>> {
+    if (projectIds.length === 0) return new Map();
+    const rows: Array<{ projectId: string; listingsCount: string; ticketsCount: string }> = await this.dataSource
       .getRepository(Ticket)
       .createQueryBuilder('ticket')
-      .select('COUNT(*)', 'listingsCount')
+      .select('ticket.project_id', 'projectId')
+      .addSelect('COUNT(*)', 'listingsCount')
       .addSelect('COALESCE(SUM(ticket.quantity), 0)', 'ticketsCount')
-      .where('ticket.project_id = :projectId', { projectId })
+      .where('ticket.project_id IN (:...projectIds)', { projectIds })
       .andWhere('ticket.status = :status', { status: TicketStatus.LISTED_FOR_SALE })
-      .getRawOne<{ listingsCount: string; ticketsCount: string }>();
-    return {
-      listingsCount: parseInt(result?.listingsCount ?? '0', 10),
-      ticketsCount: parseInt(result?.ticketsCount ?? '0', 10),
-    };
+      .groupBy('ticket.project_id')
+      .getRawMany();
+    return new Map(
+      rows.map((row) => [
+        row.projectId,
+        { listingsCount: parseInt(row.listingsCount, 10), ticketsCount: parseInt(row.ticketsCount, 10) },
+      ]),
+    );
   }
 
   // ticketIds may span several purchase lots for the same project (grouped together in the
