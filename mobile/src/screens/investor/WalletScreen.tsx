@@ -1,5 +1,5 @@
-import React, { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { deposit, fetchTransactions, fetchWallet, Transaction, withdraw } from '../../api/wallet';
@@ -27,6 +27,10 @@ const TX_IS_CREDIT: Record<string, boolean> = {
   dividend: true,
 };
 
+// An account that has been trading for a while has hundreds of rows, and the whole
+// ledger dumped into one scroll buries the balance and the deposit field above it.
+const PAGE_SIZE = 10;
+
 export function WalletScreen() {
   const styles = useThemeStyles(createStyles);
   const { colors } = useTheme();
@@ -34,26 +38,45 @@ export function WalletScreen() {
   const { isCompact } = useBreakpoint();
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // Tapping through pages faster than the server answers would otherwise let an
+  // earlier page land last and contradict the number under the arrows.
+  const requestIdRef = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (targetPage: number) => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     try {
-      const [walletData, txData] = await Promise.all([fetchWallet(), fetchTransactions()]);
+      const [walletData, txPage] = await Promise.all([fetchWallet(), fetchTransactions(targetPage, PAGE_SIZE)]);
+      if (requestId !== requestIdRef.current) return;
       setWallet(walletData);
-      setTransactions(txData);
+      setTransactions(txPage.items);
+      setTotal(txPage.total);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      load();
+      // Coming back to the screen starts at the newest page rather than wherever
+      // the last visit left off — the recent rows are what the balance refers to.
+      setPage(1);
+      load(1);
     }, [load]),
   );
+
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  const goToPage = (target: number) => {
+    if (target < 1 || target > pageCount || target === page) return;
+    setPage(target);
+    load(target);
+  };
 
   const parsedAmount = parseFloat(amount) || 0;
 
@@ -62,7 +85,10 @@ export function WalletScreen() {
     try {
       await deposit(parsedAmount);
       setAmount('');
-      await load();
+      // The row just created is the newest one, so this jumps to where it is
+      // instead of reloading a page it isn't on.
+      setPage(1);
+      await load(1);
     } catch (err: any) {
       showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
@@ -75,7 +101,8 @@ export function WalletScreen() {
     try {
       await withdraw(parsedAmount);
       setAmount('');
-      await load();
+      setPage(1);
+      await load(1);
     } catch (err: any) {
       showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
@@ -88,7 +115,7 @@ export function WalletScreen() {
       <FlatList
         data={transactions}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load(page)} />}
         contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
         ListHeaderComponent={
           <View>
@@ -127,7 +154,10 @@ export function WalletScreen() {
                 />
               </View>
             </View>
-            <Text style={styles.historyHeader}>{t('wallet.history')}</Text>
+            <View style={styles.historyHeaderRow}>
+              <Text style={styles.historyHeader}>{t('wallet.history')}</Text>
+              {total > 0 && <Text style={styles.historyCount}>{t('wallet.txCount', { count: total })}</Text>}
+            </View>
           </View>
         }
         renderItem={({ item }) => {
@@ -151,6 +181,33 @@ export function WalletScreen() {
           );
         }}
         ListEmptyComponent={!loading ? <Text style={styles.empty}>{t('wallet.noTransactions')}</Text> : null}
+        // Only worth drawing once there is a second page to reach. A single page of
+        // history with dead arrows under it reads as something being broken.
+        ListFooterComponent={
+          pageCount > 1 ? (
+            <View style={styles.pager}>
+              <Pressable
+                style={[styles.pagerButton, page <= 1 && styles.pagerButtonDisabled]}
+                disabled={page <= 1 || loading}
+                onPress={() => goToPage(page - 1)}
+                accessibilityRole="button"
+                accessibilityLabel={t('wallet.prevPage')}
+              >
+                <Text style={[styles.pagerArrow, page <= 1 && styles.pagerArrowDisabled]}>‹</Text>
+              </Pressable>
+              <Text style={styles.pagerLabel}>{t('wallet.pageOf', { page, pageCount })}</Text>
+              <Pressable
+                style={[styles.pagerButton, page >= pageCount && styles.pagerButtonDisabled]}
+                disabled={page >= pageCount || loading}
+                onPress={() => goToPage(page + 1)}
+                accessibilityRole="button"
+                accessibilityLabel={t('wallet.nextPage')}
+              >
+                <Text style={[styles.pagerArrow, page >= pageCount && styles.pagerArrowDisabled]}>›</Text>
+              </Pressable>
+            </View>
+          ) : null
+        }
       />
     </View>
   );
@@ -201,11 +258,58 @@ const createStyles = (c: ThemeColors) =>
     actionButton: {
       flex: 1,
     },
+    historyHeaderRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
     historyHeader: {
       fontSize: 14,
       fontWeight: '600',
       color: c.textMuted,
-      marginBottom: spacing.sm,
+    },
+    historyCount: {
+      fontSize: 12,
+      color: c.textMuted,
+      fontVariant: ['tabular-nums'],
+    },
+    pager: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: spacing.sm,
+    },
+    pagerButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pagerButtonDisabled: {
+      opacity: 0.4,
+    },
+    pagerArrow: {
+      fontSize: 22,
+      lineHeight: 24,
+      fontWeight: '600',
+      color: c.text,
+    },
+    pagerArrowDisabled: {
+      color: c.textMuted,
+    },
+    pagerLabel: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textMuted,
+      fontVariant: ['tabular-nums'],
+      marginHorizontal: spacing.md,
+      minWidth: 64,
+      textAlign: 'center',
     },
     txRow: {
       flexDirection: 'row',

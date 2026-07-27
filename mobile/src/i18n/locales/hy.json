@@ -311,6 +311,10 @@
     "history": "Գործարքների պատմություն",
     "amount": "Գումար",
     "noTransactions": "Գործարքներ դեռ չկան",
+    "txCount": "ընդամենը {{count}}",
+    "pageOf": "{{page}} / {{pageCount}}",
+    "prevPage": "Նախորդ էջը",
+    "nextPage": "Հաջորդ էջը",
     "txType": {
       "deposit": "Համալրում",
       "withdraw": "Դուրսբերում",

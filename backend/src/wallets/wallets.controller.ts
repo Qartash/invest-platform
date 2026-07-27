@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { WalletsService } from './wallets.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { WalletAmountDto } from './dto/wallet-amount.dto';
+import { QueryTransactionsDto } from './dto/query-transactions.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { TransactionType } from '../common/enums';
@@ -23,8 +24,8 @@ export class WalletsController {
   }
 
   @Get('transactions')
-  getTransactions(@CurrentUser() user: User) {
-    return this.transactionsService.findByUser(user.id);
+  getTransactions(@CurrentUser() user: User, @Query() query: QueryTransactionsDto) {
+    return this.transactionsService.findByUser(user.id, query.page ?? 1, query.pageSize ?? 10);
   }
 
   @Post('deposit')

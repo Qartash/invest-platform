@@ -311,6 +311,10 @@
     "history": "История транзакций",
     "amount": "Сумма",
     "noTransactions": "Пока нет транзакций",
+    "txCount": "{{count}} всего",
+    "pageOf": "{{page}} / {{pageCount}}",
+    "prevPage": "Предыдущая страница",
+    "nextPage": "Следующая страница",
     "txType": {
       "deposit": "Пополнение",
       "withdraw": "Вывод средств",

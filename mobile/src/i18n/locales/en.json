@@ -311,6 +311,10 @@
     "history": "Transaction history",
     "amount": "Amount",
     "noTransactions": "No transactions yet",
+    "txCount": "{{count}} total",
+    "pageOf": "{{page}} / {{pageCount}}",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
     "txType": {
       "deposit": "Deposit",
       "withdraw": "Withdrawal",
