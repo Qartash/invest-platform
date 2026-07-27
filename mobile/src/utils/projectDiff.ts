@@ -21,6 +21,21 @@ export function formatLocalizedDiffText(field: string, value: string | undefined
   return field === 'description' ? stripHtml(value) : value;
 }
 
+// Fields that move the price of a ticket or the share of the company it carries.
+// A change to one of these reads like any other row in the diff — "Ticket count
+// 100 → 50" — while meaning that everyone already holding a ticket has their
+// stake redrawn. The backend refuses these outright once anything has sold
+// (ProjectsService.STAKE_FIELDS); this list is what tells the moderator why, and
+// what the numbers are, before they reach for approve.
+export const STAKE_DIFF_FIELDS = [
+  'targetAmount',
+  'totalTickets',
+  'priceTierCount',
+  'priceTierIncrementPercent',
+  'equityOfferedPercent',
+  'ticketPrice',
+];
+
 export const DIFF_FIELD_LABEL_KEYS: Record<string, string> = {
   title: 'founder.titleField',
   description: 'founder.descriptionField',

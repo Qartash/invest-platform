@@ -664,6 +664,8 @@
     "selectFrozen": "To freeze"
   },
   "moderation": {
+    "stakeChangeWarning": "This edit redraws what has already been sold",
+    "stakeChangeFacts": "{{sold}} of {{total}} tickets sold, {{collected}} {{currency}} collected. Changing the price or the equity share changes what those holders own.",
     "refund": {
       "confirmTitle": "Refund investors?",
       "confirmMessage": "Mark this project failed and refund the frozen treasury to ticket holders in proportion to tickets held. This cannot be undone.",

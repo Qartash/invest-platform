@@ -275,6 +275,81 @@ export class ProjectsService {
     'priceTierIncrementPercent',
   ] as const;
 
+  // Everything an investor's stake is priced off. `equityOfferedPercent` is not a
+  // price input — it does not move ticketPrice — but it decides what fraction of
+  // the company a ticket carries, so it belongs to the same promise.
+  //
+  // `ticketPrice` is here even though no DTO can set it. normalizeEdit re-derives
+  // it whenever a price field is *present*, not only when it changed, so a form
+  // that submits every field re-derives against a stored price that may have
+  // drifted — that is what src/repair-ticket-prices.ts exists to clean up. Without
+  // this entry such a reprice would arrive as a lone `ticketPrice` change and walk
+  // straight past a guard watching only the inputs.
+  private static readonly STAKE_FIELDS = [
+    ...ProjectsService.PRICE_INPUT_FIELDS,
+    'equityOfferedPercent',
+    'ticketPrice',
+  ] as const;
+
+  /**
+   * Decides whether a set of already-normalized changes may be applied to this
+   * project as it stands right now.
+   *
+   * Two tiers, because they answer different questions.
+   *
+   * The hard invariants are arithmetic: fewer tickets than have been sold, or a
+   * goal below what has already been collected, describe a project that cannot
+   * exist. Nobody may write one — not the founder, not a moderator — because
+   * every number downstream is computed off these two. `ticketsLeft` goes
+   * negative on the card, dividends in project-finance.service divide by a ticket
+   * count that no longer matches the ticket rows, and refunds in
+   * project-funding.service pay against a goal smaller than the escrow.
+   *
+   * The stake policy is a promise: once anyone has bought in, the price and the
+   * share a ticket carries are part of what they paid for, and the founder cannot
+   * redraw them. This is the rule that already existed for equityOfferedPercent,
+   * now covering the three price inputs that reach the same outcome by another
+   * route — dropping totalTickets from 100 to 50 doubles every holder's share
+   * just as surely as editing the percentage would.
+   *
+   * A moderator keeps the escape hatch adminUpdate always was: `enforceStakePolicy`
+   * off means only the arithmetic is checked, so a genuinely mispriced project can
+   * still be repaired by hand. The invariants stay on for them regardless.
+   *
+   * Called from all three write paths. `approve` matters most: an edit that was
+   * valid when the founder sent it can go stale while it waits, because tickets
+   * keep selling — so the question has to be asked at the moment of applying, not
+   * only at the moment of proposing.
+   */
+  private assertChangesApplicable(
+    project: Project,
+    changes: Record<string, any>,
+    { enforceStakePolicy }: { enforceStakePolicy: boolean },
+  ): void {
+    if (project.ticketsSold <= 0) return;
+
+    if (changes.totalTickets !== undefined && Number(changes.totalTickets) < project.ticketsSold) {
+      throw new BadRequestException(
+        `Cannot set the ticket count below the ${project.ticketsSold} already sold.`,
+      );
+    }
+    if (
+      changes.targetAmount !== undefined &&
+      parseFloat(changes.targetAmount) < parseFloat(project.collectedAmount)
+    ) {
+      throw new BadRequestException('Cannot set the goal below the amount already collected.');
+    }
+
+    if (!enforceStakePolicy) return;
+
+    const touched = ProjectsService.STAKE_FIELDS.filter((field) => changes[field] !== undefined);
+    if (touched.length > 0) {
+      throw new BadRequestException(
+        'Cannot change the pricing or the offered equity share after tickets have been sold.',
+      );
+    }
+  }
+
   /**
    * Turns an edit DTO into the column values it implies, shared by the founder and
    * moderator edit paths so the two can't normalize differently.
@@ -327,17 +402,6 @@ export class ProjectsService {
     if (project.deletedAt || project.deletionRequestedAt) {
       throw new BadRequestException('Cannot edit a project that is deleted or pending deletion.');
     }
-    // The share of the company a ticket carries is part of what an investor paid for,
-    // so once anyone has bought in the founder can no longer redraw it — that would
-    // dilute existing holders retroactively. A moderator can still fix it via adminUpdate.
-    if (
-      dto.equityOfferedPercent !== undefined &&
-      project.ticketsSold > 0 &&
-      dto.equityOfferedPercent.toFixed(2) !== project.equityOfferedPercent
-    ) {
-      throw new BadRequestException('Cannot change the offered equity share after tickets have been sold.');
-    }
-
     const normalized = this.normalizeEdit(project, dto);
 
     const changes: Record<string, any> = {};
@@ -348,6 +412,10 @@ export class ProjectsService {
         changes[field] = normalized[field];
       }
     }
+
+    // Checked against the diff rather than the DTO, so re-sending a field at its
+    // current value is not an edit and does not trip the policy.
+    this.assertChangesApplicable(project, changes, { enforceStakePolicy: true });
 
     if (Object.keys(changes).length === 0) {
       if (project.status === ProjectStatus.REJECTED || project.status === ProjectStatus.DRAFT) {
@@ -391,6 +459,10 @@ export class ProjectsService {
         changes[field] = normalized[field];
       }
     }
+
+    // The moderator is trusted to reprice a project the founder no longer may —
+    // that is what this path is for — but not to write a state that cannot exist.
+    this.assertChangesApplicable(project, changes, { enforceStakePolicy: false });
 
     if (Object.keys(changes).length === 0) {
       return project;
@@ -579,6 +651,13 @@ export class ProjectsService {
   async approve(id: string, comment: string, moderatorId: string, moderatorName: string): Promise<Project> {
     const project = await this.findOne(id);
     if (project.pendingChanges) {
+      // Time passed while this waited, and tickets kept selling. An edit that was
+      // valid when it was proposed can be invalid by now, so it is judged against
+      // the project as it stands, under the same policy the founder was held to.
+      // Refusing here leaves the request in the queue for the moderator to reject
+      // with a reason, which is the honest outcome — silently dropping the offending
+      // fields would tell the founder their edit went through.
+      this.assertChangesApplicable(project, project.pendingChanges, { enforceStakePolicy: true });
       Object.assign(project, project.pendingChanges);
     }
     project.status = project.statusBeforeReview ?? ProjectStatus.ACTIVE;

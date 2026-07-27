@@ -21,6 +21,7 @@ import { formatDate } from '../../utils/date';
 import {
   DIFF_FIELD_LABEL_KEYS,
   LOCALIZED_DIFF_FIELDS,
+  STAKE_DIFF_FIELDS,
   formatDiffValue,
   formatLocalizedDiffText,
   getChangedLanguages,
@@ -266,6 +267,24 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
           {project.pendingChanges && (
         <View style={styles.diffBox}>
           <Text style={styles.diffTitle}>{t('founder.pendingChangesTitle')}</Text>
+          {/* "Ticket count 100 → 50" reads like any other row, but it halves what
+              every existing holder was sold. The sold count and the money already
+              collected go above the diff so they are read before the decision, not
+              looked up after it. */}
+          {project.ticketsSold > 0 &&
+            Object.keys(project.pendingChanges).some((field) => STAKE_DIFF_FIELDS.includes(field)) && (
+              <View style={styles.stakeWarnBox}>
+                <Text style={styles.stakeWarnTitle}>{t('moderation.stakeChangeWarning')}</Text>
+                <Text style={styles.stakeWarnText}>
+                  {t('moderation.stakeChangeFacts', {
+                    sold: project.ticketsSold,
+                    total: project.totalTickets,
+                    collected: parseFloat(project.collectedAmount).toLocaleString(),
+                    currency: t('common.currency'),
+                  })}
+                </Text>
+              </View>
+            )}
           {project.pendingChangeReason && (
             <View style={styles.founderNoteBox}>
               <Text style={styles.founderNoteLabel}>{t('founder.pendingChangeReasonLabel')}</Text>
@@ -508,6 +527,24 @@ const createStyles = (c: ThemeColors) =>
       fontWeight: '700',
       color: c.primary,
       marginBottom: spacing.sm,
+    },
+    stakeWarnBox: {
+      backgroundColor: c.dangerSoft,
+      borderLeftWidth: 3,
+      borderLeftColor: c.danger,
+      borderRadius: 8,
+      padding: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    stakeWarnTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.danger,
+      marginBottom: 2,
+    },
+    stakeWarnText: {
+      fontSize: 13,
+      color: c.text,
     },
     founderNoteBox: {
       backgroundColor: c.background,
