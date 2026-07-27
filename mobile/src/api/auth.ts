@@ -13,11 +13,17 @@ export function login(identifier: string, password: string) {
 }
 
 // The id_token is verified server-side against our OAuth client IDs — the client
-// never decides who the user is.
-export function loginWithGoogle(idToken: string) {
-  return apiClient.post<AuthResponse>('/auth/google', { idToken }).then((r) => r.data);
+// never decides who the user is. `referralCode` attributes a first-time sign-up.
+export function loginWithGoogle(idToken: string, referralCode?: string) {
+  return apiClient.post<AuthResponse>('/auth/google', { idToken, referralCode }).then((r) => r.data);
 }
 
-export function register(data: { email: string; password: string; fullName?: string; languagePref?: string }) {
+export function register(data: {
+  email: string;
+  password: string;
+  fullName?: string;
+  languagePref?: string;
+  referralCode?: string;
+}) {
   return apiClient.post<AuthResponse>('/auth/register', data).then((r) => r.data);
 }

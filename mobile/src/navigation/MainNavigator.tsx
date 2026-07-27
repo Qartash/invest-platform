@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
+import { checkIn } from '../api/activity';
 import { HomeStackNavigator } from './InvestorNavigator';
 import { ProjectsStackNavigator } from './FounderNavigator';
 import { ProfileStackNavigator } from './ProfileNavigator';
@@ -31,6 +32,13 @@ export function MainNavigator() {
   // navigator can set it. Splitting the decision across two files would let the rail be
   // rendered into a bottom slot, or the dock into a left one.
   const { isWide } = useBreakpoint();
+
+  // Record a daily check-in when the authenticated app mounts. This is what keeps
+  // the activity streak alive — and, at seven consecutive days, qualifies a
+  // referral without a deposit. Best-effort: a failure never blocks the app.
+  useEffect(() => {
+    checkIn().catch(() => {});
+  }, []);
 
   return (
     <Tab.Navigator

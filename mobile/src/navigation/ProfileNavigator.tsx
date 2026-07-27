@@ -7,6 +7,11 @@ import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WalletScreen } from '../screens/investor/WalletScreen';
 import { PortfolioScreen } from '../screens/investor/PortfolioScreen';
 import { ReportsScreen } from '../screens/ReportsScreen';
+import { ReferralScreen } from '../screens/referrals/ReferralScreen';
+import { ReferralTreeScreen } from '../screens/referrals/ReferralTreeScreen';
+import { ReferralEarningsScreen } from '../screens/referrals/ReferralEarningsScreen';
+import { QuestsScreen } from '../screens/referrals/QuestsScreen';
+import { PartnerScreen } from '../screens/referrals/PartnerScreen';
 import { useAuthStore } from '../store/authStore';
 
 export type ProfileStackParamList = {
@@ -15,6 +20,11 @@ export type ProfileStackParamList = {
   Wallet: undefined;
   Portfolio: undefined;
   Reports: undefined;
+  Referrals: undefined;
+  ReferralTree: undefined;
+  ReferralEarnings: undefined;
+  Quests: undefined;
+  Partner: undefined;
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -73,6 +83,31 @@ export function ProfileStackNavigator() {
           })}
         />
       )}
+      <Stack.Screen
+        name="Referrals"
+        component={ReferralScreen}
+        options={{ headerShown: true, title: t('referrals.title') }}
+      />
+      <Stack.Screen
+        name="ReferralTree"
+        component={ReferralTreeScreen}
+        options={{ headerShown: true, title: t('referrals.treeTitle') }}
+      />
+      <Stack.Screen
+        name="ReferralEarnings"
+        component={ReferralEarningsScreen}
+        options={{ headerShown: true, title: t('referrals.earningsTitle') }}
+      />
+      <Stack.Screen
+        name="Quests"
+        component={QuestsScreen}
+        options={{ headerShown: true, title: t('quests.title') }}
+      />
+      <Stack.Screen
+        name="Partner"
+        component={PartnerScreen}
+        options={{ headerShown: true, title: t('partners.title') }}
+      />
     </Stack.Navigator>
   );
 }

@@ -155,6 +155,22 @@ export function ProfileScreen({ navigation }: Props) {
         )}
       </ListGroup>
 
+      <SectionHeader title={t('referrals.communitySection')} spaced />
+      <ListGroup>
+        <ListRow
+          icon="users"
+          label={t('referrals.title')}
+          sublabel={t('referrals.profileSub')}
+          onPress={() => navigation.navigate('Referrals')}
+        />
+        <ListRow
+          icon="checklist"
+          label={t('quests.title')}
+          sublabel={t('quests.profileSub')}
+          onPress={() => navigation.navigate('Quests')}
+        />
+      </ListGroup>
+
       <SectionHeader title={t('profile.accountSection')} spaced />
       <ListGroup>
         <ListRow label={t('auth.username')} value={user?.username} />

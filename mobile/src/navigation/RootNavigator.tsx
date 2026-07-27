@@ -6,6 +6,11 @@ import { AuthNavigator } from './AuthNavigator';
 import { MainNavigator } from './MainNavigator';
 import { documentTitle, linking } from './linking';
 import { useTheme } from '../theme';
+import { captureInviteFromUrl } from '../store/referralStore';
+
+// Runs once at import, before the NavigationContainer reads the URL, so a shared
+// `/i/CODE` link is turned into a pending code + a `/register` address in time.
+captureInviteFromUrl();
 
 export function RootNavigator() {
   const user = useAuthStore((s) => s.user);

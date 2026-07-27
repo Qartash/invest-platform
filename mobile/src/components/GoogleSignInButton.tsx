@@ -7,6 +7,7 @@ import { GoogleLogo } from './GoogleLogo';
 import { radius, spacing, ThemeColors, typography, useTheme, useThemeStyles } from '../theme';
 import { loginWithGoogle } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
+import { useReferralStore } from '../store/referralStore';
 import { logEvent } from '../utils/logger';
 
 // Closes the popup and hands the result back to the hook once Google redirects.
@@ -31,6 +32,8 @@ export function GoogleSignInButton({ label }: Props) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const setSession = useAuthStore((s) => s.setSession);
+  const pendingCode = useReferralStore((s) => s.pendingCode);
+  const clearPendingCode = useReferralStore((s) => s.clearPendingCode);
   const [exchanging, setExchanging] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,9 +53,12 @@ export function GoogleSignInButton({ label }: Props) {
     }
     let cancelled = false;
     setExchanging(true);
-    loginWithGoogle(idToken)
+    loginWithGoogle(idToken, pendingCode ?? undefined)
       .then((session) => {
-        if (!cancelled) setSession(session.accessToken, session.user);
+        if (!cancelled) {
+          clearPendingCode();
+          setSession(session.accessToken, session.user);
+        }
       })
       .catch(() => {
         if (!cancelled) setError(t('auth.googleFailed'));
@@ -63,7 +69,7 @@ export function GoogleSignInButton({ label }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [response, setSession, t]);
+  }, [response, setSession, t, pendingCode, clearPendingCode]);
 
   if (!isGoogleSignInConfigured) {
     return null;

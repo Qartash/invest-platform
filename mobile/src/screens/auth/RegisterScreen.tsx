@@ -21,6 +21,7 @@ import { OrDivider } from '../../components/OrDivider';
 import { GoogleSignInButton, isGoogleSignInConfigured } from '../../components/GoogleSignInButton';
 import { register } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { useReferralStore } from '../../store/referralStore';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import i18n from '../../i18n';
 
@@ -33,9 +34,14 @@ export function RegisterScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const { isCompact } = useBreakpoint();
   const setSession = useAuthStore((s) => s.setSession);
+  const pendingCode = useReferralStore((s) => s.pendingCode);
+  const clearPendingCode = useReferralStore((s) => s.clearPendingCode);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Prefilled from a shared /i/CODE link, still editable so a code typed off a
+  // friend's screen can be corrected.
+  const [referralCode, setReferralCode] = useState(pendingCode ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +56,9 @@ export function RegisterScreen({ navigation }: Props) {
         password,
         fullName: fullName.trim() || undefined,
         languagePref: i18n.language,
+        referralCode: referralCode.trim() || undefined,
       });
+      clearPendingCode();
       setSession(response.accessToken, response.user);
     } catch (e) {
       // A taken email is the one failure the user can actually act on, so it gets
@@ -117,6 +125,14 @@ export function RegisterScreen({ navigation }: Props) {
               // form is actually valid so it can't fire a doomed request.
               onSubmitEditing={canSubmit ? handleRegister : undefined}
               returnKeyType="go"
+            />
+            <TextField
+              label={t('auth.referralCode')}
+              value={referralCode}
+              onChangeText={setReferralCode}
+              hint={t('auth.referralCodeHint')}
+              autoCapitalize="characters"
+              autoCorrect={false}
             />
 
             {error && <Text style={styles.error}>{error}</Text>}
