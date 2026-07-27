@@ -6,6 +6,7 @@ import { initI18n } from './src/i18n';
 import { useAuthStore } from './src/store/authStore';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { AlertHost } from './src/components/AlertHost';
 import { patchConsoleLogging } from './src/utils/consoleLogger';
 import { ThemeProvider, useTheme } from './src/theme';
 
@@ -32,6 +33,9 @@ function AppContent() {
   return (
     <ErrorBoundary>
       <RootNavigator />
+      {/* Sits beside the navigator, not inside it, so a message survives the screen that
+          raised it navigating away. */}
+      <AlertHost />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </ErrorBoundary>
   );
