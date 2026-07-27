@@ -12,6 +12,7 @@ import {
 } from '../../api/projects';
 import { fetchPortfolio } from '../../api/portfolio';
 import { cancelTicketListing, listTicketForSale } from '../../api/tickets';
+import { invalidateQuery } from '../../api/useCachedQuery';
 import { Holding, PortfolioSummary, Project } from '../../types';
 import { showAlert } from '../../utils/alert';
 import { apiErrorMessage } from '../../utils/apiError';
@@ -96,6 +97,10 @@ export function MyProjectsScreen({ navigation }: Props) {
     setListingSubmitting(true);
     try {
       await listTicketForSale(listingHolding.ticketIds, quantity, askingPrice);
+      // This screen reloads itself below, but the portfolio and the project feed hold
+      // their own cached copies of what just changed.
+      invalidateQuery('portfolio');
+      invalidateQuery('projects');
       showAlert(t('portfolio.listingSuccess'));
       setListingHolding(null);
       await load();
@@ -110,6 +115,8 @@ export function MyProjectsScreen({ navigation }: Props) {
     setCancellingId(ticketId);
     try {
       await cancelTicketListing(ticketId);
+      invalidateQuery('portfolio');
+      invalidateQuery('projects');
       await load();
     } catch (err: any) {
       showAlert(t('common.error'), apiErrorMessage(err, t));

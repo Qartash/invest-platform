@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { fetchPortfolio } from '../../api/portfolio';
+import { invalidateQuery, useCachedQuery } from '../../api/useCachedQuery';
 import { listTicketForSale, cancelTicketListing } from '../../api/tickets';
 import { Holding, Portfolio } from '../../types';
 import { showAlert } from '../../utils/alert';
@@ -28,35 +28,27 @@ export function PortfolioScreen() {
   const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const { isCompact } = useBreakpoint();
-  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
-  const [loading, setLoading] = useState(true);
   const [listingHolding, setListingHolding] = useState<Holding | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setPortfolio(await fetchPortfolio());
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  const {
+    data: portfolio,
+    loading,
+    refreshing,
+    refresh,
+  } = useCachedQuery<Portfolio>('portfolio', fetchPortfolio);
 
   const handleConfirmListing = async (quantity: number, askingPrice: number) => {
     if (!listingHolding) return;
     setSubmitting(true);
     try {
       await listTicketForSale(listingHolding.ticketIds, quantity, askingPrice);
+      // The ticket now appears on the project's resale shelf, which the feed shows.
+      invalidateQuery('projects');
       showAlert(t('portfolio.listingSuccess'));
       setListingHolding(null);
-      await load();
+      await refresh();
     } catch (err: any) {
       showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
@@ -68,7 +60,8 @@ export function PortfolioScreen() {
     setCancellingId(ticketId);
     try {
       await cancelTicketListing(ticketId);
-      await load();
+      invalidateQuery('projects');
+      await refresh();
     } catch (err: any) {
       showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
@@ -83,7 +76,7 @@ export function PortfolioScreen() {
       <FlatList
         data={portfolio?.holdings ?? []}
         keyExtractor={(item) => item.ticketId}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
         ListHeaderComponent={
           summary ? (

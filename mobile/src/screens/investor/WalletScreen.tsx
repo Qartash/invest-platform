@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -6,10 +6,10 @@ import {
   deposit,
   fetchTransactions,
   fetchWallet,
-  Transaction,
-  TransactionTotals,
+  TransactionPage,
   withdraw,
 } from '../../api/wallet';
+import { invalidateQuery, useCachedQuery } from '../../api/useCachedQuery';
 import { Wallet } from '../../types';
 import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
 import { formatDateTime } from '../../utils/date';
@@ -43,48 +43,57 @@ export function WalletScreen() {
   const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const { isCompact } = useBreakpoint();
-  const [wallet, setWallet] = useState<Wallet | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [totals, setTotals] = useState<TransactionTotals | null>(null);
-  const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [amount, setAmount] = useState('');
-  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  // Tapping through pages faster than the server answers would otherwise let an
-  // earlier page land last and contradict the number under the arrows.
-  const requestIdRef = useRef(0);
 
-  const load = useCallback(async (targetPage: number) => {
-    const requestId = ++requestIdRef.current;
-    setLoading(true);
-    try {
-      const [walletData, txPage] = await Promise.all([fetchWallet(), fetchTransactions(targetPage, PAGE_SIZE)]);
-      if (requestId !== requestIdRef.current) return;
-      setWallet(walletData);
-      setTransactions(txPage.items);
-      setTotal(txPage.total);
-      setTotals(txPage.totals);
-    } finally {
-      if (requestId === requestIdRef.current) setLoading(false);
-    }
-  }, []);
+  // The balance and the page of the ledger under it describe each other, so they are
+  // fetched and cached together, keyed by page. Ordering a page against itself — an
+  // earlier request landing last and contradicting the number under the arrows — is
+  // the hook's problem now.
+  const { data, loading, refreshing, refresh } = useCachedQuery<{
+    wallet: Wallet;
+    transactions: TransactionPage;
+  }>(
+    `wallet:page:${page}`,
+    useCallback(async () => {
+      const [wallet, transactions] = await Promise.all([
+        fetchWallet(),
+        fetchTransactions(page, PAGE_SIZE),
+      ]);
+      return { wallet, transactions };
+    }, [page]),
+  );
+
+  const wallet = data?.wallet ?? null;
+  const transactions = data?.transactions.items ?? [];
+  const totals = data?.transactions.totals ?? null;
+  const total = data?.transactions.total ?? 0;
 
   useFocusEffect(
     useCallback(() => {
       // Coming back to the screen starts at the newest page rather than wherever
       // the last visit left off — the recent rows are what the balance refers to.
       setPage(1);
-      load(1);
-    }, [load]),
+    }, []),
   );
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // No fetch here: changing the page changes the query's key, and a page already
+  // visited on this trip comes back from the cache without a request at all.
   const goToPage = (target: number) => {
     if (target < 1 || target > pageCount || target === page) return;
     setPage(target);
-    load(target);
+  };
+
+  // A deposit or a withdrawal moves the balance and adds the newest row, which makes
+  // every cached page of this ledger suspect — not only the one on screen.
+  const reloadAfterMutation = async () => {
+    invalidateQuery('wallet');
+    invalidateQuery('portfolio');
+    setPage(1);
+    if (page === 1) await refresh();
   };
 
   const parsedAmount = parseFloat(amount) || 0;
@@ -96,8 +105,7 @@ export function WalletScreen() {
       setAmount('');
       // The row just created is the newest one, so this jumps to where it is
       // instead of reloading a page it isn't on.
-      setPage(1);
-      await load(1);
+      await reloadAfterMutation();
     } catch (err: any) {
       showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
@@ -110,8 +118,7 @@ export function WalletScreen() {
     try {
       await withdraw(parsedAmount);
       setAmount('');
-      setPage(1);
-      await load(1);
+      await reloadAfterMutation();
     } catch (err: any) {
       showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
@@ -124,7 +131,7 @@ export function WalletScreen() {
       <FlatList
         data={transactions}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load(page)} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
         contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
         ListHeaderComponent={
           <View>

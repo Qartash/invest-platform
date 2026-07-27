@@ -13,6 +13,16 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+    # Everything under this path has a content hash in its filename, so a change to the
+    # file is a change to the URL and a cached copy can never be the wrong one. Render
+    # otherwise serves these with max-age=0, which sends the browser back to ask about
+    # 800KB of JavaScript on every single visit. Not applied any wider than this on
+    # purpose: index.html has a fixed name and points at whichever bundle is current, so
+    # caching that one is how you pin a visitor to a build they can never leave.
+    headers:
+      - path: /_expo/static/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
     envVars:
       - key: EXPO_PUBLIC_API_URL
         value: https://invest-platform-api-7msz.onrender.com/api
