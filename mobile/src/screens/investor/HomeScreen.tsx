@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { ProjectCard } from '../../components/ProjectCard';
 import { PageContainer, SegmentedTabs, useGrid } from '../../components/ui';
 import { fetchProjects } from '../../api/projects';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { Project } from '../../types';
 import { maxWidth, spacing, ThemeColors, typography, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
@@ -21,28 +21,19 @@ export function HomeScreen({ navigation }: Props) {
   const styles = useThemeStyles(createStyles);
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState<FeedTab>('active');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Keyed by tab, so the two feeds cache separately and switching back to one you have
+  // already seen shows it at once instead of emptying the grid to fetch it again.
+  const {
+    data: fetched,
+    loading,
+    refreshing,
+    refresh,
+  } = useCachedQuery<Project[]>(`projects:${tab}`, useCallback(() => fetchProjects(tab), [tab]));
+  const projects = fetched ?? [];
   const { isCompact } = useBreakpoint();
   // Three abreast is where a card still shows its cover, its figure and its three stats
   // without any of them shrinking; a fourth column starts truncating titles.
   const { columns, data, isGrid } = useGrid(projects, { medium: 2, wide: 3 });
-
-  const load = useCallback(async (status: FeedTab) => {
-    setLoading(true);
-    try {
-      const data = await fetchProjects(status);
-      setProjects(data);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load(tab);
-    }, [load, tab]),
-  );
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -74,7 +65,7 @@ export function HomeScreen({ navigation }: Props) {
         keyExtractor={(item, index) => item?.id ?? `filler-${index}`}
         contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={() => load(tab)} tintColor={colors.textMuted} />
+          <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.textMuted} />
         }
         renderItem={({ item }) =>
           // The single-column list renders the card bare, exactly as it always has — the

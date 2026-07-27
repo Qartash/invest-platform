@@ -242,10 +242,17 @@ const hasUniqueCheckinPair = async (q: Q): Promise<boolean> =>
   console.log(
     `[3] runMigrations() applied: ${ran.map((m) => m.name).join(', ') || '(none)'}`,
   );
+  // Named rather than counted. This asked for `ran.length === 2` and went stale the
+  // moment a third migration landed, failing the run for no reason anyone had to act
+  // on. Phase 2 winds back exactly these two, so exactly these two are what has to come
+  // forward again; every later migration is free to arrive without touching this line.
+  const ranNames = ran.map((m) => m.name);
   check(
-    'both migrations ran',
-    ran.length === 2,
-    ran.map((m) => m.name).join(','),
+    'the migrations phase 2 reverted ran again',
+    [ReferralSystem1785110400000.name, DailyCheckinUserFk1785283200000.name].every((n) =>
+      ranNames.includes(n),
+    ),
+    ranNames.join(','),
   );
   {
     const t = await tablesPresent(mig);

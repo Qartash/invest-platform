@@ -24,6 +24,7 @@ import {
   fetchProjectTeam,
 } from '../../api/projects';
 import { buyTicket, buyListing } from '../../api/tickets';
+import { invalidateQuery } from '../../api/useCachedQuery';
 import { fetchWallet } from '../../api/wallet';
 import { resolveMediaUrl } from '../../api/client';
 import {
@@ -333,6 +334,11 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
     setBuying(true);
     try {
       await buyTicket(project.id, parsedQuantity);
+      // Money left the wallet, a holding appeared, and the project's raise moved. All
+      // three are cached on screens the user is about to go back to.
+      invalidateQuery('wallet');
+      invalidateQuery('portfolio');
+      invalidateQuery('projects');
       showAlert(t('project.purchaseSuccess'));
       navigation.goBack();
     } catch (err: any) {
@@ -358,6 +364,9 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
     setBuyingListingSubmitting(true);
     try {
       await buyListing(buyingListing.id, quantity);
+      invalidateQuery('wallet');
+      invalidateQuery('portfolio');
+      invalidateQuery('projects');
       showAlert(t('project.purchaseSuccess'));
       setBuyingListing(null);
       load();

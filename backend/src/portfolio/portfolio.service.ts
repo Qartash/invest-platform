@@ -64,6 +64,39 @@ export class PortfolioService {
     return new Map(rows.map((row) => [row.projectId, parseFloat(row.total)]));
   }
 
+  // One row per ticket: its most recent valuation. DISTINCT ON is Postgres saying
+  // "first row of each group", and it reads straight off the (ticket_id, date DESC)
+  // index rather than sorting the table. created_at breaks ties within a date, which
+  // the per-ticket findOne this replaced left to whatever order the planner felt like.
+  private async latestValueByTicket(ticketIds: string[]): Promise<Map<string, number>> {
+    if (ticketIds.length === 0) return new Map();
+    const rows: Array<{ ticketId: string; value: string }> = await this.snapshotsRepository.query(
+      `SELECT DISTINCT ON (ticket_id) ticket_id AS "ticketId", value
+         FROM earnings_snapshots
+        WHERE ticket_id = ANY($1)
+        ORDER BY ticket_id, date DESC, created_at DESC`,
+      [ticketIds],
+    );
+    return new Map(rows.map((row) => [row.ticketId, parseFloat(row.value)]));
+  }
+
+  // The valuations the comparison points need — what each ticket was worth yesterday
+  // and thirty days ago — for every ticket in one pass. Keyed "<ticketId>:<date>".
+  // The date is cast to text because the driver otherwise hands back a Date parsed at
+  // local midnight, which in a timezone behind UTC prints as the previous day and
+  // would never match the key built from the string.
+  private async valuesOnDates(ticketIds: string[], dates: string[]): Promise<Map<string, number>> {
+    if (ticketIds.length === 0) return new Map();
+    const rows: Array<{ ticketId: string; date: string; value: string }> =
+      await this.snapshotsRepository.query(
+        `SELECT ticket_id AS "ticketId", date::text AS date, value
+           FROM earnings_snapshots
+          WHERE ticket_id = ANY($1) AND date = ANY($2)`,
+        [ticketIds, dates],
+      );
+    return new Map(rows.map((row) => [`${row.ticketId}:${row.date}`, parseFloat(row.value)]));
+  }
+
   async getPortfolio(userId: string) {
     const [tickets, dividendsByProject] = await Promise.all([
       this.ticketsRepository.find({
@@ -83,6 +116,21 @@ export class PortfolioService {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().slice(0, 10);
 
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+    // Every valuation the loop below needs, fetched in two queries before it starts.
+    // This used to be three findOne calls per ticket inside the loop, each one its own
+    // round trip: a portfolio of forty tickets spent a hundred and twenty sequential
+    // trips to a database that is a continent away from nothing but still charges a
+    // few milliseconds a go, and the wait grew with the size of the portfolio.
+    const ticketIds = tickets.map((ticket) => ticket.id);
+    const [latestValues, baselineValues] = await Promise.all([
+      this.latestValueByTicket(ticketIds),
+      this.valuesOnDates(ticketIds, [thirtyDaysAgoStr, yesterdayStr]),
+    ]);
+
     // Tickets bought at the same unit price are separate purchase lots (one per `buyTicket`
     // call) but look identical to the investor, so ACTIVE ones are merged into a single
     // holding here; LISTED_FOR_SALE tickets stay one-per-row since each has its own listing.
@@ -91,23 +139,12 @@ export class PortfolioService {
 
     for (const ticket of tickets) {
       const purchasePrice = parseFloat(ticket.purchasePrice);
-      const latestSnapshot = await this.snapshotsRepository.findOne({
-        where: { ticketId: ticket.id },
-        order: { date: 'DESC' },
-      });
-      const currentValue = latestSnapshot ? parseFloat(latestSnapshot.value) : purchasePrice;
-
-      const monthAgoSnapshot = await this.snapshotsRepository.findOne({
-        where: { ticketId: ticket.id, date: thirtyDaysAgoStr },
-      });
-      const monthBaseline = monthAgoSnapshot ? parseFloat(monthAgoSnapshot.value) : purchasePrice;
-
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdaySnapshot = await this.snapshotsRepository.findOne({
-        where: { ticketId: ticket.id, date: yesterday.toISOString().slice(0, 10) },
-      });
-      const todayBaseline = yesterdaySnapshot ? parseFloat(yesterdaySnapshot.value) : purchasePrice;
+      // A ticket with no valuation yet is worth what was paid for it, and the same
+      // stands in for a missing baseline — a ticket bought last week has nothing
+      // thirty days back, and counting that gap as a return would invent one.
+      const currentValue = latestValues.get(ticket.id) ?? purchasePrice;
+      const monthBaseline = baselineValues.get(`${ticket.id}:${thirtyDaysAgoStr}`) ?? purchasePrice;
+      const todayBaseline = baselineValues.get(`${ticket.id}:${yesterdayStr}`) ?? purchasePrice;
 
       totalInvested += purchasePrice;
       totalCurrentValue += currentValue;

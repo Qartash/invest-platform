@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -12,7 +13,11 @@ import { User } from '../../users/entities/user.entity';
 import { Project } from '../../projects/entities/project.entity';
 import { EarningsSnapshot } from '../../earnings/entities/earnings-snapshot.entity';
 
+// "Which tickets does this user hold" is the first question the portfolio asks and the
+// one every other query there depends on, so owner_id gets an index of its own — the
+// foreign key constraint is not one.
 @Entity('tickets')
+@Index('IDX_tickets_owner', ['ownerId'])
 export class Ticket {
   @PrimaryGeneratedColumn('uuid')
   id: string;
