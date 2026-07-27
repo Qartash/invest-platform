@@ -20,6 +20,6 @@ export class AuthController {
 
   @Post('google')
   google(@Body() dto: GoogleLoginDto) {
-    return this.authService.loginWithGoogle(dto.idToken);
+    return this.authService.loginWithGoogle(dto.idToken, dto.referralCode);
   }
 }

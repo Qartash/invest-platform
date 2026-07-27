@@ -37,8 +37,18 @@ import { ProjectWork } from './project-works/entities/project-work.entity';
 import { WorkApplication } from './project-works/entities/work-application.entity';
 import { WorkReview } from './project-works/entities/work-review.entity';
 import { WorkMilestone } from './project-works/entities/work-milestone.entity';
+import { ReferralEarning } from './referrals/entities/referral-earning.entity';
+import { DailyCheckin } from './activity/entities/daily-checkin.entity';
+import { DailyDrawAward } from './activity/entities/daily-draw-award.entity';
+import { Quest } from './quests/entities/quest.entity';
+import { QuestCompletion } from './quests/entities/quest-completion.entity';
+import { PartnerApplication } from './partners/entities/partner-application.entity';
 import { ProjectFundingModule } from './project-funding/project-funding.module';
 import { ProjectWorksModule } from './project-works/project-works.module';
+import { ReferralsModule } from './referrals/referrals.module';
+import { ActivityModule } from './activity/activity.module';
+import { QuestsModule } from './quests/quests.module';
+import { PartnersModule } from './partners/partners.module';
 
 @Module({
   imports: [
@@ -85,6 +95,12 @@ import { ProjectWorksModule } from './project-works/project-works.module';
             WorkApplication,
             WorkReview,
             WorkMilestone,
+            ReferralEarning,
+            DailyCheckin,
+            DailyDrawAward,
+            Quest,
+            QuestCompletion,
+            PartnerApplication,
             SystemLog,
             LogSettings,
           ],
@@ -106,6 +122,10 @@ import { ProjectWorksModule } from './project-works/project-works.module';
     ProjectFinanceModule,
     ProjectFundingModule,
     ProjectWorksModule,
+    ReferralsModule,
+    ActivityModule,
+    QuestsModule,
+    PartnersModule,
     StatsModule,
     LogsModule,
   ],

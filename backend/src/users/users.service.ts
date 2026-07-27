@@ -38,7 +38,34 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
-  create(data: {
+  // Ambiguous glyphs (0/O, 1/I) are dropped so a code read aloud or off a screen
+  // can't be mistyped.
+  private static readonly CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+  // A shareable code like "ARTUR-4K9": a readable stem from the handle plus a
+  // random tail, retried until the tail lands on a free one.
+  async generateUniqueReferralCode(seed: string): Promise<string> {
+    const stem = (seed || 'USER').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 8) || 'USER';
+    const { CODE_ALPHABET } = UsersService;
+    for (;;) {
+      const tail = Array.from(
+        { length: 4 },
+        () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)],
+      ).join('');
+      const code = `${stem}-${tail}`;
+      if (!(await this.usersRepository.findOne({ where: { referralCode: code } }))) {
+        return code;
+      }
+    }
+  }
+
+  findByReferralCode(code: string): Promise<User | null> {
+    const value = code.trim().toUpperCase();
+    if (!value) return Promise.resolve(null);
+    return this.usersRepository.findOne({ where: { referralCode: value } });
+  }
+
+  async create(data: {
     username: string;
     email?: string;
     passwordHash: string | null;
@@ -47,9 +74,22 @@ export class UsersService {
     role: UserRole;
     languagePref?: string;
     avatarEmoji?: string;
+    // Who referred this account, and that referrer's own materialised path — used
+    // to extend the tree. `referrerPath` is not a column; it only seeds this row's
+    // path once the new id is known.
+    referredById?: string | null;
+    referrerPath?: string | null;
   }): Promise<User> {
-    const user = this.usersRepository.create(data);
-    return this.usersRepository.save(user);
+    const { referrerPath, ...columns } = data;
+    const referralCode = await this.generateUniqueReferralCode(columns.username);
+    const saved = await this.usersRepository.save(this.usersRepository.create({ ...columns, referralCode }));
+
+    // The path can only be built after the insert hands us the id. A root account
+    // (no referrer) starts a path of just itself.
+    const referralPath = `${referrerPath ?? ''}${saved.id}.`;
+    await this.usersRepository.update(saved.id, { referralPath });
+    saved.referralPath = referralPath;
+    return saved;
   }
 
   async update(

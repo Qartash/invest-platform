@@ -31,6 +31,7 @@ export class AuthService {
     if (dto.username && (await this.usersService.findByUsername(dto.username))) {
       throw new ConflictException('Username already taken');
     }
+    const referrer = await this.resolveReferrer(dto.referralCode);
     const user = await this.usersService.create({
       username: dto.username ?? (await this.deriveUsername(email)),
       email,
@@ -39,16 +40,28 @@ export class AuthService {
       role: UserRole.INVESTOR,
       languagePref: dto.languagePref ?? 'hy',
       avatarEmoji: DEFAULT_AVATAR_EMOJIS[Math.floor(Math.random() * DEFAULT_AVATAR_EMOJIS.length)],
+      referredById: referrer?.id ?? null,
+      referrerPath: referrer?.referralPath ?? null,
     });
     await this.walletsService.createForUser(user.id);
     return this.buildAuthResponse(user);
+  }
+
+  // A missing or wrong code is not a registration error — the person still gets
+  // an account, just as one who started their own branch. A banned or deleted
+  // referrer is treated as no referrer, so their tree stops growing.
+  private async resolveReferrer(code: string | undefined): Promise<User | null> {
+    if (!code) return null;
+    const referrer = await this.usersService.findByReferralCode(code);
+    if (!referrer || referrer.bannedAt || referrer.deletedAt) return null;
+    return referrer;
   }
 
   // Google is treated as proof of the email, not as a separate identity: an
   // existing local account with that address is adopted rather than duplicated,
   // which is also what makes "sign up with Google, later log in with Google"
   // work for someone who first registered with a password.
-  async loginWithGoogle(idToken: string) {
+  async loginWithGoogle(idToken: string, referralCode?: string) {
     const identity = await this.googleVerifier.verify(idToken);
 
     let user = await this.usersService.findByEmail(identity.email);
@@ -60,6 +73,9 @@ export class AuthService {
         await this.usersService.linkGoogleAccount(user.id, identity.googleId);
       }
     } else {
+      // A code only attributes a brand-new account; a returning Google user keeps
+      // whoever (if anyone) first referred them.
+      const referrer = await this.resolveReferrer(referralCode);
       user = await this.usersService.create({
         username: await this.deriveUsername(identity.email),
         email: identity.email,
@@ -71,6 +87,8 @@ export class AuthService {
         role: UserRole.INVESTOR,
         languagePref: 'hy',
         avatarEmoji: DEFAULT_AVATAR_EMOJIS[Math.floor(Math.random() * DEFAULT_AVATAR_EMOJIS.length)],
+        referredById: referrer?.id ?? null,
+        referrerPath: referrer?.referralPath ?? null,
       });
       await this.walletsService.createForUser(user.id);
     }

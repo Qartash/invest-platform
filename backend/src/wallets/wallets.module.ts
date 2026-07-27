@@ -4,9 +4,10 @@ import { Wallet } from './entities/wallet.entity';
 import { WalletsService } from './wallets.service';
 import { WalletsController } from './wallets.controller';
 import { TransactionsModule } from '../transactions/transactions.module';
+import { ReferralsModule } from '../referrals/referrals.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Wallet]), TransactionsModule],
+  imports: [TypeOrmModule.forFeature([Wallet]), TransactionsModule, ReferralsModule],
   providers: [WalletsService],
   controllers: [WalletsController],
   exports: [WalletsService],

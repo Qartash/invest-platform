@@ -39,6 +39,60 @@ export enum TransactionType {
   WITHDRAW = 'withdraw',
   DIVIDEND = 'dividend',
   WORK_PAYMENT = 'work_payment',
+  // Referral reward credited to the recipient's invest credit, funded from the
+  // admin account. Non-withdrawable — it can only buy tickets.
+  REFERRAL_BONUS = 'referral_bonus',
+  // Reward for a completed quest or activity streak, same invest-credit bucket
+  // and same admin funding, kept a distinct type so the two read apart in history.
+  QUEST_REWARD = 'quest_reward',
+}
+
+// Who is paying for a quest, which is also what decides where it is shown.
+export enum QuestScope {
+  PLATFORM = 'platform',
+  PROJECT = 'project',
+}
+
+// How a completion is proven. `auto` is checked against the database, `client`
+// is reported by the app (watching a video through), `admin` needs a moderator
+// to confirm it — that last one is what keeps a bug bounty from paying itself.
+export enum QuestVerification {
+  AUTO = 'auto',
+  CLIENT = 'client',
+  ADMIN = 'admin',
+}
+
+// The two things a matured invitee earns for their chain: the flat per-level
+// ladder (paid to every ancestor once the invitee qualifies), and the one-time
+// 1% of the invitee's first deposit (paid only to the direct referrer).
+export enum ReferralEarningType {
+  LEVEL_BONUS = 'level_bonus',
+  DEPOSIT_PERCENT = 'deposit_percent',
+}
+
+// Where a matured earning is paid. Ordinary referral bonuses land in invest
+// credit and can only buy tickets; a partner's are real money on a card, paid
+// monthly against an invoice — which is exactly why partners sign a contract and
+// ordinary users don't.
+export enum EarningChannel {
+  INVEST = 'invest',
+  CARD = 'card',
+}
+
+export enum PartnerApplicationStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  CHANGES_REQUESTED = 'changes_requested',
+}
+
+// PENDING sits in the 14-day hold; PAID has been moved from the admin account
+// into the beneficiary's invest credit; CANCELLED was voided before payout
+// (refund or fraud) and never reaches the wallet.
+export enum ReferralEarningStatus {
+  PENDING = 'pending',
+  PAID = 'paid',
+  CANCELLED = 'cancelled',
 }
 
 export enum TransactionStatus {

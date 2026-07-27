@@ -2,6 +2,8 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
@@ -75,6 +77,35 @@ export class User {
   // When false, other users see the name masked to first+last letters.
   @Column({ default: true, name: 'show_full_name' })
   showFullName: boolean;
+
+  // The user's own share code, e.g. "ARTUR-4K9". Assigned once on creation and
+  // never changed — it is baked into links people have already shared. Nullable
+  // only so rows created before referrals existed don't block the migration;
+  // every new account gets one.
+  @Column({ type: 'varchar', unique: true, nullable: true, name: 'referral_code' })
+  referralCode: string | null;
+
+  // Who brought this user in. Set once at registration from the code they used
+  // and never editable afterwards — the tree must reflect what actually happened.
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'referred_by_id' })
+  referredBy: User | null;
+
+  @Column({ type: 'uuid', nullable: true, name: 'referred_by_id' })
+  referredById: string | null;
+
+  // Materialised path of ancestors including self, dot-joined ids from the root
+  // down to this user: "rootId.parentId.selfId.". A whole branch is everyone whose
+  // path starts with this user's path; depth is the number of segments. `text`
+  // because the chain has no depth limit. See ReferralsService.
+  @Column({ type: 'text', nullable: true, name: 'referral_path' })
+  referralPath: string | null;
+
+  // Set when a partner application is approved. Partners earn a higher flat rate
+  // on people they bring in personally, paid to a card instead of invest credit,
+  // and earn nothing from depth. Null for everyone else.
+  @Column({ type: 'timestamptz', nullable: true, name: 'partner_since' })
+  partnerSince: Date | null;
 
   @Column({ type: 'timestamptz', nullable: true, name: 'banned_at' })
   bannedAt: Date | null;

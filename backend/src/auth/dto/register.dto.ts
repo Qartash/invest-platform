@@ -23,4 +23,10 @@ export class RegisterDto {
   @IsString()
   @IsOptional()
   languagePref?: string;
+
+  // The code the new user arrived with, from a shared link or typed by hand.
+  // Optional: no code just means they started their own branch.
+  @IsString()
+  @IsOptional()
+  referralCode?: string;
 }
