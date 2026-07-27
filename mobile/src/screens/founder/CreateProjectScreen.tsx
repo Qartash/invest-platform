@@ -192,6 +192,15 @@ export function CreateProjectScreen({ route, navigation }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [existingCoverUrl, setExistingCoverUrl] = useState<string | undefined>(undefined);
+  // What the project has actually raised, so the step-7 preview shows the project as
+  // it is rather than as a fresh draft. Stays null for a brand-new one, where the
+  // zero state is the truth.
+  const [liveState, setLiveState] = useState<{
+    collectedAmount: number;
+    ticketsSold: number;
+    currentTier: number;
+    status: string;
+  } | null>(null);
   const [pickedImage, setPickedImage] = useState<PickedImage | null>(null);
   const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
@@ -245,6 +254,12 @@ export function CreateProjectScreen({ route, navigation }: Props) {
       setExpectedAnnualReturnPercent(project.expectedAnnualReturnPercent);
       setPayoutStartDays(String(project.payoutStartDays));
       setExistingCoverUrl(project.coverImageUrl);
+      setLiveState({
+        collectedAmount: parseFloat(project.collectedAmount),
+        ticketsSold: project.ticketsSold,
+        currentTier: project.pricing?.currentTier ?? 0,
+        status: project.status,
+      });
       setFounderName(project.founderName);
       setDataLoaded(true);
     });
@@ -1243,6 +1258,10 @@ export function CreateProjectScreen({ route, navigation }: Props) {
               ticketPrice={ticketPriceNum}
               totalTickets={totalTicketsNum}
               totalTiers={previewTiers.length || 1}
+              collectedAmount={liveState?.collectedAmount}
+              ticketsSold={liveState?.ticketsSold}
+              currentTier={liveState?.currentTier}
+              status={liveState?.status}
             />
             <View style={styles.previewFooter}>
               <Text style={styles.noticeWarn}>{t('founder.wizard.previewNotice')}</Text>

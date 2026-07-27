@@ -124,7 +124,7 @@ export function ProfileScreen({ navigation }: Props) {
       </Card>
 
       <View style={[styles.columns, !isCompact && styles.columnsWide]}>
-        <View style={styles.column}>
+        <View style={!isCompact && styles.columnWide}>
       <SectionHeader title={t('profile.financeSection')} spaced />
       <ListGroup>
         <ListRow
@@ -209,7 +209,7 @@ export function ProfileScreen({ navigation }: Props) {
       </Text>
         </View>
 
-        <View style={styles.column}>
+        <View style={!isCompact && styles.columnWide}>
       {hasContacts && (
         <>
           <SectionHeader title={t('profile.contactsSection')} spaced />
@@ -277,7 +277,11 @@ const createStyles = (c: ThemeColors) =>
       gap: spacing.lg,
       alignItems: 'flex-start',
     },
-    column: {
+    // `flex: 1` belongs to the wide layout only, where it splits the row in two.
+    // In the compact layout the parent has no flexDirection, so it stacks — and
+    // there `flex: 1` made the two columns fight over the height instead of taking
+    // what they needed, which is why "CONTACTS" was drawn on top of the KYC row.
+    columnWide: {
       flex: 1,
     },
 

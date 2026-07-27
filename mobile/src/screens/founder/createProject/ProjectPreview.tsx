@@ -16,6 +16,18 @@ interface Props {
   ticketPrice: number;
   totalTickets: number;
   totalTiers: number;
+  /**
+   * What the project has actually raised, when the wizard is editing a live one rather
+   * than drafting a new one. Left undefined for a new project, where zero is the truth.
+   *
+   * The preview used to assume "new" unconditionally, so a fully funded project reviewed
+   * its own edit as "0 ֏ · 0% raised", "tickets left 50 / 50" and "round 1 of 4" — a
+   * preview that contradicts the page it is previewing.
+   */
+  collectedAmount?: number;
+  ticketsSold?: number;
+  currentTier?: number;
+  status?: string;
 }
 
 /**
@@ -36,11 +48,19 @@ export function ProjectPreview({
   ticketPrice,
   totalTickets,
   totalTiers,
+  collectedAmount = 0,
+  ticketsSold = 0,
+  currentTier = 0,
+  status,
 }: Props) {
   const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const currency = t('common.currency');
   const descriptionEmpty = isRichTextEmpty(description);
+
+  const percentFunded = target > 0 ? Math.min(Math.round((collectedAmount / target) * 100), 100) : 0;
+  const ticketsLeft = Math.max(0, totalTickets - ticketsSold);
+  const isRaising = !status || status === 'draft' || status === 'active' || status === 'pending_review';
 
   return (
     <View style={styles.root}>
@@ -56,7 +76,11 @@ export function ProjectPreview({
         <View style={styles.heroBody}>
           <View style={styles.heroStatus}>
             <View style={styles.heroDot} />
-            <Text style={styles.heroStatusText}>{t('founder.wizard.previewRound', { total: totalTiers })}</Text>
+            <Text style={styles.heroStatusText}>
+              {isRaising
+                ? t('founder.wizard.previewRound', { total: totalTiers, current: currentTier + 1 })
+                : t(`project.status.${status}`)}
+            </Text>
           </View>
           <Text style={styles.heroTitle}>{title.trim() || t('founder.wizard.previewNoTitle')}</Text>
           {founderName && <Text style={styles.heroFounder}>{t('project.by')} {founderName} ›</Text>}
@@ -64,18 +88,19 @@ export function ProjectPreview({
       </View>
 
       <View style={styles.funding}>
-        {/* A draft has raised nothing yet — the zero state is the honest preview. */}
+        {/* Zero for a new draft, which has raised nothing; the real figures when the
+            wizard is editing a project that is already live. */}
         <View style={styles.fundingTop}>
-          <Text style={styles.fundingValue}>0</Text>
+          <Text style={styles.fundingValue}>{collectedAmount.toLocaleString()}</Text>
           <Text style={styles.fundingCurrency}>{currency}</Text>
           <View style={styles.spacer} />
-          <Pill label={t('home.percentFunded', { percent: 0 })} tone="success" />
+          <Pill label={t('home.percentFunded', { percent: percentFunded })} tone="success" />
         </View>
         <Text style={styles.fundingGoal}>
           {t('home.ofGoal', { amount: target.toLocaleString(), currency })}
         </Text>
         <View style={styles.track}>
-          <View style={styles.fill} />
+          <View style={[styles.fill, { width: `${percentFunded}%` }]} />
         </View>
 
         <View style={styles.split}>
@@ -89,7 +114,7 @@ export function ProjectPreview({
           <View style={styles.splitCell}>
             <Text style={styles.splitLabel}>{t('project.ticketsLeft')}</Text>
             <Text style={styles.splitValue}>
-              {totalTickets}
+              {ticketsLeft}
               <Text style={styles.splitValueMuted}> / {totalTickets}</Text>
             </Text>
           </View>

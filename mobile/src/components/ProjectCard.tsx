@@ -115,7 +115,10 @@ export function ProjectCard({ project, onPress, onResalePress, onWorksPress }: P
 
         <View style={styles.statRow}>
           <View style={styles.stat}>
-            <Text style={styles.statLabel}>{t('home.statTickets')}</Text>
+            {/* This is the remaining count, and "Tickets 91/100" left that to be
+                guessed — the founder's own card showed the sold count under the very
+                same word. */}
+            <Text style={styles.statLabel}>{t('home.statTicketsLeft')}</Text>
             <Text style={styles.statValue}>
               {ticketsLeft}/{project.totalTickets}
             </Text>

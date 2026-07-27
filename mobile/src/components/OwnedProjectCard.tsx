@@ -116,7 +116,8 @@ export function OwnedProjectCard(props: Props) {
           stats={[
             { label: t('home.statInvestors'), value: String(project.investorCount ?? 0) },
             {
-              label: t('home.statTickets'),
+              // The opposite of what the investor card counts under the same old label.
+              label: t('home.statTicketsSold'),
               value: `${project.ticketsSold}/${project.totalTickets}`,
             },
             {
