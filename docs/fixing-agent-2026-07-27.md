@@ -43,9 +43,15 @@
 
 ---
 
-## Блок 0. Staging не поднимается — предусловие
+## ~~Блок 0. Staging не поднимается — предусловие~~ — ЗАКРЫТ 27.07.2026
 
-`npm run start:dev` с `backend/.env.local` (Neon) не стартует вообще:
+Обе миграции применены к Neon (сирот в `daily_checkins` не оказалось — 0 из 2 строк).
+`render.yaml` переведён на `NODE_ENV=production`, миграции гоняются из `startCommand`,
+потому что `preDeployCommand` у Render только на платных планах, а сервис на free.
+Проверено: `GET /api` → `Hello World!`, `/api/quests` и `/api/activity/streak` под
+инвестором → 200, старт с `synchronize` не вносит ни одного схемного изменения.
+
+`npm run start:dev` с `backend/.env.local` (Neon) не стартовал вообще:
 
 ```
 ERROR [TypeOrmModule] Unable to connect to the database. Retrying (1)...

@@ -23,15 +23,26 @@ services:
     plan: free
     region: frankfurt
     rootDir: backend
-    buildCommand: npm ci && npm run build
-    startCommand: node dist/main
+    # --include=dev because NODE_ENV below is "production", which otherwise makes
+    # npm ci skip devDependencies — and the build needs @nestjs/cli from there.
+    buildCommand: npm ci --include=dev && npm run build
+    # Migrations run here rather than in a preDeployCommand, which Render offers
+    # only on paid instance types and this service is on free. That means they run
+    # on every boot: harmless, because each migration is written to survive a
+    # second run, and this plan runs a single instance so two cannot race. A
+    # failing migration takes the boot with it, which is the point — better a
+    # deploy that stops than a schema that half-applied.
+    startCommand: npm run migration:run:prod && node dist/main
     healthCheckPath: /api
     envVars:
-      # NODE_ENV stays off "production" on purpose while we are still a test
-      # stand: it keeps TypeORM's synchronize on, so entity changes reach the
-      # database without migrations. Flip it before a real release.
+      # Was "staging" so TypeORM's synchronize stayed on and entity changes
+      # reached the database without migrations. That broke the moment an entity
+      # needed an ALTER synchronize cannot express: daily_checkins.user_id went
+      # from varchar to a uuid foreign key, and every boot died on "contains null
+      # values" instead. Migrations own the schema now; this flag only turns
+      # synchronize off (see app.module.ts).
       - key: NODE_ENV
-        value: staging
+        value: production
       # Set these in the Render dashboard, not here.
       - key: DATABASE_URL
         sync: false
