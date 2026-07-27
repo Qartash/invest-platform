@@ -11,6 +11,12 @@ web-build/
 # demo data travels with the repo: uploads, the seed dump and the dev env files
 # hold placeholder credentials only. Production values live outside this repo.
 .env.local
+# same file parked under another name while QA runs against a local stand —
+# it still holds the real database URL and JWT secret
+.env.local.*
+
+# jest --coverage output
+coverage/
 
 # OS / editor
 .DS_Store
