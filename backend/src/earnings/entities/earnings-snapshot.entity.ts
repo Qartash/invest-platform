@@ -1,7 +1,11 @@
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Ticket } from '../../tickets/entities/ticket.entity';
 
+// The portfolio reads this table by ticket and by date — the newest valuation of a
+// ticket, and its value on two particular days. Postgres does not index a foreign key
+// column on its own, so without this every one of those reads scanned the whole table.
 @Entity('earnings_snapshots')
+@Index('IDX_earnings_snapshots_ticket_date', ['ticketId', 'date'])
 export class EarningsSnapshot {
   @PrimaryGeneratedColumn('uuid')
   id: string;
