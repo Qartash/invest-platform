@@ -12,6 +12,7 @@ import {
   settlePartnerPayout,
 } from '../../api/partners';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 import { formatDate } from '../../utils/date';
 import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../../theme';
 import { useGrid } from '../../components/ui';
@@ -93,7 +94,7 @@ export function ModerationPartnersScreen() {
       });
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setActingId(null);
     }
@@ -106,7 +107,7 @@ export function ModerationPartnersScreen() {
       await load();
       showAlert(t('partners.admin.settled', { count: settled }));
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setActingId(null);
     }

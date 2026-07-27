@@ -9,6 +9,7 @@ import { Avatar } from '../../components/Avatar';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 import { formatDate } from '../../utils/date';
 import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../../theme';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
@@ -51,7 +52,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
 
   useFocusEffect(load);
 
-  const handleError = (err: any) => showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+  const handleError = (err: any) => showAlert(t('common.error'), apiErrorMessage(err, t));
 
   const handleSave = async () => {
     if (!user) return;

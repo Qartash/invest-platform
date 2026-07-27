@@ -32,7 +32,13 @@ export function PrimaryButton({ title, onPress, loading, disabled, variant = 'pr
         styles.base,
         isSmall && styles.small,
         isOutline ? styles.outline : styles.filled,
-        (disabled || loading) && styles.disabled,
+        // Loading keeps the button's colour — it is still the thing you just pressed.
+        // Disabled drains it, because a half-opacity brand colour still reads as a
+        // live button: on the moderation screen three taps in a row produced no
+        // request and no message, and it looked like a broken button rather than an
+        // unmet condition.
+        loading && styles.dimmed,
+        disabled && !loading && (isOutline ? styles.outlineDisabled : styles.filledDisabled),
         // Hover deepens the surface a touch so the button reacts to the cursor before it is
         // clicked; on a phone `hovered` never fires, so the mobile look is unchanged.
         hovered && !pressed && (isOutline ? styles.outlineHovered : styles.filledHovered),
@@ -43,7 +49,16 @@ export function PrimaryButton({ title, onPress, loading, disabled, variant = 'pr
       {loading ? (
         <ActivityIndicator color={isOutline ? colors.primary : colors.textOnAccent} />
       ) : (
-        <Text style={[styles.text, isSmall && styles.textSmall, isOutline && styles.outlineText]}>{title}</Text>
+        <Text
+          style={[
+            styles.text,
+            isSmall && styles.textSmall,
+            isOutline && styles.outlineText,
+            disabled && !loading && styles.textDisabled,
+          ]}
+        >
+          {title}
+        </Text>
       )}
     </Pressable>
   );
@@ -71,8 +86,17 @@ const createStyles = (c: ThemeColors) =>
       borderWidth: 1,
       borderColor: c.primary,
     },
-    disabled: {
+    dimmed: {
       opacity: 0.5,
+    },
+    filledDisabled: {
+      backgroundColor: c.border,
+    },
+    outlineDisabled: {
+      borderColor: c.border,
+    },
+    textDisabled: {
+      color: c.textMuted,
     },
     filledHovered: {
       backgroundColor: c.primaryDark,

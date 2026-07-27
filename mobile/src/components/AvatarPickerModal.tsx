@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { updateMe, uploadAvatar } from '../api/users';
 import { showAlert } from '../utils/alert';
+import { apiErrorMessage } from '../utils/apiError';
 import { spacing, ThemeColors, useThemeStyles } from '../theme';
 import { Dialog } from './ui';
 import { PrimaryButton } from './PrimaryButton';
@@ -41,7 +42,7 @@ export function AvatarPickerModal({ visible, onClose, onUpdated }: Props) {
       onUpdated(updated);
       onClose();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -54,7 +55,7 @@ export function AvatarPickerModal({ visible, onClose, onUpdated }: Props) {
       onUpdated(updated);
       onClose();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }

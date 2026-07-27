@@ -8,6 +8,7 @@ import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { applyForPartner, fetchPartnerStatus, PartnerApplicationStatus, PartnerStatus } from '../../api/partners';
 import { showAlert } from '../../utils/alert';
+import { LoadFailed } from '../../components/LoadFailed';
 
 const STATUS_TONE: Record<PartnerApplicationStatus, PillTone> = {
   pending: 'warning',
@@ -28,8 +29,16 @@ export function PartnerScreen() {
   const [plan, setPlan] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  // Failing quietly to null showed the blank application form to someone who might
+  // already have one under review — the worst possible reading of "we could not
+  // reach the server".
   const load = useCallback(() => {
-    fetchPartnerStatus().then(setStatus).catch(() => setStatus(null));
+    setLoadFailed(false);
+    fetchPartnerStatus()
+      .then(setStatus)
+      .catch(() => setLoadFailed(true));
   }, []);
 
   useFocusEffect(load);
@@ -116,6 +125,16 @@ export function PartnerScreen() {
   }
 
   // ── The offer and the form ───────────────────────────────────────────────
+  if (loadFailed) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <PageContainer maxWidth={maxWidth.column}>
+          <LoadFailed onRetry={load} />
+        </PageContainer>
+      </ScrollView>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <PageContainer maxWidth={maxWidth.column}>

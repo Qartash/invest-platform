@@ -6,6 +6,7 @@ import { fetchPortfolio } from '../../api/portfolio';
 import { listTicketForSale, cancelTicketListing } from '../../api/tickets';
 import { Holding, Portfolio } from '../../types';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
 import { HoldingCard } from '../../components/HoldingCard';
 import { SellTicketModal } from '../../components/SellTicketModal';
@@ -57,7 +58,7 @@ export function PortfolioScreen() {
       setListingHolding(null);
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -69,7 +70,7 @@ export function PortfolioScreen() {
       await cancelTicketListing(ticketId);
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setCancellingId(null);
     }

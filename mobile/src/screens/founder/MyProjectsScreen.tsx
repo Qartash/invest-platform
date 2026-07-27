@@ -14,6 +14,7 @@ import { fetchPortfolio } from '../../api/portfolio';
 import { cancelTicketListing, listTicketForSale } from '../../api/tickets';
 import { Holding, PortfolioSummary, Project } from '../../types';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 import { useAuthStore } from '../../store/authStore';
 import {
   maxWidth,
@@ -99,7 +100,7 @@ export function MyProjectsScreen({ navigation }: Props) {
       setListingHolding(null);
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setListingSubmitting(false);
     }
@@ -111,7 +112,7 @@ export function MyProjectsScreen({ navigation }: Props) {
       await cancelTicketListing(ticketId);
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setCancellingId(null);
     }
@@ -123,7 +124,7 @@ export function MyProjectsScreen({ navigation }: Props) {
       await action();
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setActingId(null);
     }

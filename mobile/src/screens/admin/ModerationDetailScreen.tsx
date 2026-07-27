@@ -36,6 +36,7 @@ import { Icon } from '../../components/ui';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { TicketPriceChart } from '../../components/TicketPriceChart';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 import { InvestorProfileModal } from '../../components/InvestorProfileModal';
 import { ProjectHistoryModal } from '../../components/ProjectHistoryModal';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
@@ -88,7 +89,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
       const updated = await setProjectPriority(project.id, priority);
       setProject(updated);
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setPriorityUpdating(false);
     }
@@ -102,7 +103,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
       await approveProject(project.id, generalComment.trim());
       navigation.goBack();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -115,7 +116,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
       await rejectProject(project.id, generalComment.trim());
       navigation.goBack();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -128,7 +129,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
       await approveProjectDeletion(project.id);
       navigation.goBack();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -141,13 +142,21 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
       await rejectProjectDeletion(project.id, generalComment.trim());
       navigation.goBack();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
   };
 
   if (!project) return null;
+
+  // Which of the three preconditions for approval are still unmet, in the order the
+  // form asks for them.
+  const missingToApprove = [
+    !riskLevel && 'project.riskLevelLabel',
+    isRichTextEmpty(riskComment) && 'project.riskReasonLabel',
+    isRichTextEmpty(generalComment) && 'founder.reviewCommentLabel',
+  ].filter(Boolean) as string[];
 
   const isDeletionRequest = !!project.deletionRequestedAt;
   const { pricing } = project;
@@ -198,7 +207,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
                     showAlert(t('moderation.refund.done', { amount: res.refundedTotal.toLocaleString(), count: res.holders }));
                     navigation.goBack();
                   } catch (err: any) {
-                    showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+                    showAlert(t('common.error'), apiErrorMessage(err, t));
                   }
                 },
               },
@@ -471,7 +480,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
             title={t('founder.approve')}
             onPress={handleApprove}
             loading={submitting}
-            disabled={!riskLevel || isRichTextEmpty(riskComment) || isRichTextEmpty(generalComment)}
+            disabled={missingToApprove.length > 0}
           />
         </View>
         <View style={{ width: spacing.sm }} />
@@ -485,6 +494,14 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
           />
         </View>
       </View>
+      {/* Three separate conditions gate approval, and a dead button named none of
+          them. Naming what is still missing is the difference between "this is
+          broken" and "I have one field left". */}
+      {missingToApprove.length > 0 && (
+        <Text style={styles.blockedHint}>
+          {t('founder.approveBlocked', { fields: missingToApprove.map((key) => t(key)).join(', ') })}
+        </Text>
+      )}
         </>
       )}
 
@@ -527,6 +544,12 @@ const createStyles = (c: ThemeColors) =>
       fontWeight: '700',
       color: c.primary,
       marginBottom: spacing.sm,
+    },
+    blockedHint: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: spacing.sm,
+      textAlign: 'center',
     },
     stakeWarnBox: {
       backgroundColor: c.dangerSoft,

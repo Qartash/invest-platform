@@ -45,6 +45,7 @@ import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, SupportedLanguage } from '../../i
 import { FounderStackParamList } from '../../navigation/FounderNavigator';
 import { useAuthStore } from '../../store/authStore';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 import { computeTicketPricingPreview, deriveBaseTicketPrice } from '../../utils/pricing';
 import { isRichTextEmpty } from '../../utils/richText';
 import { PRIORITY_LEVELS, ProjectPriority, priorityColors } from '../../utils/priority';
@@ -308,7 +309,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
         setAttachments((prev) => [...prev, attachment]);
       }
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setUploadingAttachment(false);
     }
@@ -396,7 +397,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
       await deleteProjectAttachment(attachmentsProjectId, attachmentId);
       setAttachments((prev) => prev.filter((a) => a.id !== attachmentId));
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     }
   };
 
@@ -581,7 +582,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
       try {
         await saveTeam(createdProjectId);
       } catch (err: any) {
-        showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+        showAlert(t('common.error'), apiErrorMessage(err, t));
         return;
       } finally {
         setSubmitting(false);
@@ -658,7 +659,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
         goToStep(STEP.media);
       }
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }

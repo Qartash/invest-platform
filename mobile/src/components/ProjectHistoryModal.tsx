@@ -9,6 +9,7 @@ import { priorityColors, ProjectPriority } from '../utils/priority';
 import { maxWidth, radius, spacing, ThemeColors, typography, useBreakpoint, useTheme, useThemeStyles } from '../theme';
 import { Dialog, Icon, IconName } from './ui';
 import { RichTextView } from './RichTextView';
+import { apiErrorMessage } from '../utils/apiError';
 
 // Built per palette rather than at module load, so the action colours follow the theme.
 // Icons are drawn glyphs, not emoji: a log read top-to-bottom needs marks of one weight and
@@ -72,7 +73,7 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
     fetchProjectHistory(projectId)
       .then(setEntries)
       .catch((err: any) => {
-        setError(err?.response?.data?.message ?? err?.message ?? 'Request failed');
+        setError(apiErrorMessage(err, t));
       })
       .finally(() => setLoading(false));
   }, [projectId]);

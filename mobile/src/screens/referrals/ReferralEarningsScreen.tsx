@@ -6,6 +6,7 @@ import { maxWidth, radius, spacing, tabularNums, ThemeColors, typography, useThe
 import { Card, PageContainer, Pill, PillTone, SegmentedTabs } from '../../components/ui';
 import { fetchReferralEarnings, ReferralEarning } from '../../api/referrals';
 import { formatDate } from '../../utils/date';
+import { LoadFailed } from '../../components/LoadFailed';
 
 type Filter = 'all' | 'available' | 'pending';
 
@@ -20,12 +21,17 @@ export function ReferralEarningsScreen() {
   const { t, i18n } = useTranslation();
   const [earnings, setEarnings] = useState<ReferralEarning[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchReferralEarnings().then(setEarnings).catch(() => setEarnings([]));
-    }, []),
-  );
+  // A ledger that failed to load must not read as "you have earned nothing".
+  const load = useCallback(() => {
+    setLoadFailed(false);
+    fetchReferralEarnings()
+      .then(setEarnings)
+      .catch(() => setLoadFailed(true));
+  }, []);
+
+  useFocusEffect(load);
 
   const shown = useMemo(
     () =>
@@ -39,6 +45,16 @@ export function ReferralEarningsScreen() {
     e.type === 'deposit_percent'
       ? t('referrals.earningPercent', { name: e.sourceName })
       : t('referrals.earningLevel', { name: e.sourceName, level: e.level });
+
+  if (loadFailed) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <PageContainer maxWidth={maxWidth.column}>
+          <LoadFailed onRetry={load} />
+        </PageContainer>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

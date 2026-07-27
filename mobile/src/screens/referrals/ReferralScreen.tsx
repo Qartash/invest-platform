@@ -22,6 +22,8 @@ import { Project } from '../../types';
 import { copyText, shareText } from '../../utils/clipboard';
 import { showAlert } from '../../utils/alert';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
+import { fetchPartnerStatus, PartnerStatus } from '../../api/partners';
+import { LoadFailed } from '../../components/LoadFailed';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'Referrals'>;
 
@@ -33,17 +35,43 @@ export function ReferralScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const [summary, setSummary] = useState<ReferralSummary | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [partner, setPartner] = useState<PartnerStatus | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchReferralSummary().then(setSummary).catch(() => setSummary(null));
-      // The projects worth inviting someone into: the ones still raising.
-      fetchProjects('active').then(setProjects).catch(() => setProjects([]));
-      // Opening this screen also counts as activity — keeps the streak honest even
-      // for someone who lives on the invites page.
-      checkIn().catch(() => {});
-    }, []),
-  );
+  const load = useCallback(() => {
+    setLoadFailed(false);
+    // The code is the one thing people come here for, so this is the request whose
+    // failure blanks the screen. Without it the card would read "—" as though the
+    // account had no code.
+    fetchReferralSummary()
+      .then(setSummary)
+      .catch(() => setLoadFailed(true));
+    // The projects worth inviting someone into: the ones still raising.
+    fetchProjects('active')
+      .then(setProjects)
+      .catch(() => setProjects([]));
+    // Drives the blogger card's wording — whether an application is already in.
+    // A failure here just leaves the card at its default invitation.
+    fetchPartnerStatus()
+      .then(setPartner)
+      .catch(() => setPartner(null));
+    // Opening this screen also counts as activity — keeps the streak honest even
+    // for someone who lives on the invites page.
+    checkIn().catch(() => {});
+  }, []);
+
+  useFocusEffect(load);
+
+  // Which of the four things the blogger card should say. `changes_requested` and a
+  // rejection both put the applicant back at "you can apply", because both are states
+  // they can act on by applying again — only a pending one is a wait.
+  const partnerState = partner?.isPartner
+    ? 'isPartner'
+    : partner?.application?.status === 'pending'
+      ? 'pending'
+      : partner?.application?.status === 'changes_requested'
+        ? 'changesRequested'
+        : 'canApply';
 
   const code = summary?.referralCode ?? '—';
   const link = `${APP_URL}/i/${code}`;
@@ -73,6 +101,16 @@ export function ReferralScreen({ navigation }: Props) {
     if (copied) showAlert(t('referrals.copied'), url);
     else shareText(message).catch(() => {});
   };
+
+  if (loadFailed) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <PageContainer maxWidth={maxWidth.column}>
+          <LoadFailed onRetry={load} />
+        </PageContainer>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -169,12 +207,17 @@ export function ReferralScreen({ navigation }: Props) {
           />
         </ListGroup>
 
-        {/* Blogger door — the partner programme is a separate, higher-rate track. */}
+        {/* Blogger door — the partner programme is a separate, higher-rate track.
+            This used to render the same "got an audience? apply" pitch forever,
+            including to someone whose application was already sitting in the queue
+            and to an approved partner. Tapping it opened a screen that said
+            something else entirely; no duplicate was created, but nothing told them
+            that. The wording now follows where they actually stand. */}
         <Card accented style={styles.bloggerCard}>
-          <Text style={styles.bloggerTitle}>{t('referrals.bloggerTitle')}</Text>
-          <Text style={styles.bloggerText}>{t('referrals.bloggerText')}</Text>
+          <Text style={styles.bloggerTitle}>{t(`referrals.blogger.${partnerState}Title`)}</Text>
+          <Text style={styles.bloggerText}>{t(`referrals.blogger.${partnerState}Text`)}</Text>
           <Pressable style={styles.bloggerButton} onPress={() => navigation.navigate('Partner')}>
-            <Text style={styles.bloggerButtonText}>{t('referrals.bloggerCta')}</Text>
+            <Text style={styles.bloggerButtonText}>{t(`referrals.blogger.${partnerState}Cta`)}</Text>
           </Pressable>
         </Card>
 

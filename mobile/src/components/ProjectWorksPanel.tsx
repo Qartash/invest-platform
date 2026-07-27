@@ -25,6 +25,7 @@ import {
 import { fetchProjectBudgetItems } from '../api/projects';
 import { useAuthStore } from '../store/authStore';
 import { showAlert } from '../utils/alert';
+import { apiErrorMessage } from '../utils/apiError';
 import { maxWidth, spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { Avatar } from './Avatar';
 import { InvestorProfileModal } from './InvestorProfileModal';
@@ -200,7 +201,7 @@ export function ProjectWorksPanel({
       resetWorkForm();
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -235,7 +236,7 @@ export function ProjectWorksPanel({
       showAlert(t('works.applied'));
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -247,7 +248,7 @@ export function ProjectWorksPanel({
     try {
       setApplications(await fetchWorkApplications(projectId, work.id));
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     }
   };
 
@@ -292,7 +293,7 @@ export function ProjectWorksPanel({
       setAppsWork(null);
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -308,7 +309,7 @@ export function ProjectWorksPanel({
       await openApplications(appsWork);
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -320,7 +321,7 @@ export function ProjectWorksPanel({
       await fn();
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -342,7 +343,7 @@ export function ProjectWorksPanel({
       setRatingComment('');
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }

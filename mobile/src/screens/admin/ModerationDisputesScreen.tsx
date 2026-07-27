@@ -6,6 +6,7 @@ import { fetchDisputedWorks, resolveDispute } from '../../api/projectWorks';
 import { DisputedWork } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../../theme';
 import { useGrid } from '../../components/ui';
 
@@ -39,7 +40,7 @@ export function ModerationDisputesScreen() {
       await resolveDispute(id, releaseToWorker);
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setActingId(null);
     }

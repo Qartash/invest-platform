@@ -8,6 +8,7 @@ import { completeQuest, DailyBonus, fetchDailyBonus, fetchQuests, Quest } from '
 import { checkIn, StreakState } from '../../api/activity';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
+import { LoadFailed } from '../../components/LoadFailed';
 
 export function QuestsScreen() {
   const styles = useThemeStyles(createStyles);
@@ -17,12 +18,23 @@ export function QuestsScreen() {
   const [streak, setStreak] = useState<StreakState | null>(null);
   const [bonus, setBonus] = useState<DailyBonus | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const load = useCallback(() => {
-    fetchQuests().then(setQuests).catch(() => setQuests([]));
-    fetchDailyBonus().then(setBonus).catch(() => setBonus(null));
+    setLoadFailed(false);
+    // The quest list is what this screen is for, so only its failure blanks the
+    // screen. The bonus is an occasional extra and the streak is a nicety —
+    // neither is worth replacing the page over if the list itself arrived.
+    fetchQuests()
+      .then(setQuests)
+      .catch(() => setLoadFailed(true));
+    fetchDailyBonus()
+      .then(setBonus)
+      .catch(() => setBonus(null));
     // Opening the quests screen is itself a visit, so the streak counts it.
-    checkIn().then(setStreak).catch(() => {});
+    checkIn()
+      .then(setStreak)
+      .catch(() => {});
   }, []);
 
   useFocusEffect(load);
@@ -98,6 +110,16 @@ export function QuestsScreen() {
       </Card>
     );
   };
+
+  if (loadFailed) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <PageContainer maxWidth={maxWidth.column}>
+          <LoadFailed onRetry={load} />
+        </PageContainer>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

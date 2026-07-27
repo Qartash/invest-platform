@@ -9,6 +9,7 @@ import { formatDateTime } from '../../utils/date';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 
 const TX_ICON: Record<string, string> = {
   deposit: '⬇️',
@@ -63,7 +64,7 @@ export function WalletScreen() {
       setAmount('');
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -76,7 +77,7 @@ export function WalletScreen() {
       setAmount('');
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }

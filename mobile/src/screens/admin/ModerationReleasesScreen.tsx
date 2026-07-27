@@ -6,6 +6,7 @@ import { decideRelease, fetchPendingReleases } from '../../api/projectFunding';
 import { PendingReleaseRequest } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
 import { useGrid } from '../../components/ui';
 
@@ -40,7 +41,7 @@ export function ModerationReleasesScreen() {
       await decideRelease(id, approve);
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setActingId(null);
     }

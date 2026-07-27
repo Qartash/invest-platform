@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { maxWidth, radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
 import { Card, PageContainer, StatStrip } from '../../components/ui';
 import { fetchReferralSummary, fetchReferralTree, ReferralSummary, ReferralTreeNode } from '../../api/referrals';
+import { LoadFailed } from '../../components/LoadFailed';
 
 // One node and its subtree. Recursion is bounded by the depth the API returns.
 function TreeNode({
@@ -57,13 +58,31 @@ export function ReferralTreeScreen() {
   const { t } = useTranslation();
   const [tree, setTree] = useState<ReferralTreeNode[]>([]);
   const [summary, setSummary] = useState<ReferralSummary | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchReferralTree(4).then(setTree).catch(() => setTree([]));
-      fetchReferralSummary().then(setSummary).catch(() => setSummary(null));
-    }, []),
-  );
+  // "You have invited nobody yet" is a discouraging thing to tell someone whose
+  // tree simply failed to arrive.
+  const load = useCallback(() => {
+    setLoadFailed(false);
+    fetchReferralTree(4)
+      .then(setTree)
+      .catch(() => setLoadFailed(true));
+    fetchReferralSummary()
+      .then(setSummary)
+      .catch(() => setSummary(null));
+  }, []);
+
+  useFocusEffect(load);
+
+  if (loadFailed) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <PageContainer maxWidth={maxWidth.column}>
+          <LoadFailed onRetry={load} />
+        </PageContainer>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>

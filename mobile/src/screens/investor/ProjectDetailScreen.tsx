@@ -44,6 +44,7 @@ import {
 } from '../../utils/pricing';
 import { formatDate, formatDateTime } from '../../utils/date';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 import { useAuthStore } from '../../store/authStore';
 import {
   maxWidth,
@@ -260,7 +261,13 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
 
   const { pricing } = project;
   const currentPrice = pricing.currentTicketPrice;
-  const ticketsLeft = project.totalTickets - project.ticketsSold;
+  // Clamped at zero: an edit that dropped totalTickets below what had sold used to
+  // make this negative and the card read "tickets left −50 / 50". The backend now
+  // refuses such an edit, but a project written before that guard existed can still
+  // be loaded, and the arithmetic here should not be what surfaces it.
+  const ticketsLeft = Math.max(0, project.totalTickets - project.ticketsSold);
+  // The raise is over on all three, and nothing about it should still be offered.
+  const isRaising = project.status === 'active' || project.status === 'pending_review';
   const hasActiveListings = project.resaleEnabled && (project.resaleTicketsCount ?? 0) > 0;
   const worksCount = project.worksCount ?? 0;
   const collected = parseFloat(project.collectedAmount);
@@ -339,7 +346,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           },
         ]);
       } else {
-        showAlert(t('common.error'), message ?? undefined);
+        showAlert(t('common.error'), apiErrorMessage(err, t));
       }
     } finally {
       setBuying(false);
@@ -365,7 +372,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           },
         ]);
       } else {
-        showAlert(t('common.error'), message ?? undefined);
+        showAlert(t('common.error'), apiErrorMessage(err, t));
       }
     } finally {
       setBuyingListingSubmitting(false);
@@ -691,9 +698,18 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           <View style={styles.heroBody}>
             <View style={styles.heroStatus}>
               <View style={styles.heroDot} />
+              {/* Was hardcoded to "raising", so a sold-out project announced
+                  "● RAISING · ROUND 4 OF 4" directly above "100% funded" and
+                  "tickets left 0 / 100". The round only means anything while there
+                  are rounds left to sell into. The founder's own list already got
+                  this right, using the same project.status.* keys. */}
               <Text style={styles.heroStatusText}>
-                {t('project.statusRaising')} ·{' '}
-                {t('project.currentRound', { current: pricing.currentTier + 1, total: pricing.totalTiers })}
+                {isRaising
+                  ? `${t('project.statusRaising')} · ${t('project.currentRound', {
+                      current: pricing.currentTier + 1,
+                      total: pricing.totalTiers,
+                    })}`
+                  : t(`project.status.${project.status}`)}
               </Text>
             </View>
             <Text style={styles.heroTitle}>{getLocalizedText(project.title, i18n.language)}</Text>
@@ -797,6 +813,10 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
               ? marketPanel
               : activityPanel}
 
+        {/* Not rendered at all once the raise is over. It used to sit open on a
+            funded project with a live-looking confirm button that could only fail:
+            nothing left to sell, and the stepper clamped to zero. */}
+        {isRaising && (
         <View style={styles.buyFooter}>
           <SectionHeader title={t('project.buySection')} />
           <Card>
@@ -810,10 +830,24 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           >
             <Text style={[styles.stepIcon, parsedQuantity <= 1 && styles.stepIconDisabled]}>−</Text>
           </Pressable>
+          {/* The arrows clamped to ticketsLeft; typing did not. At 71 available the
+              field accepted 999 and showed "to pay 3 889 716 ֏" — which was in fact
+              the cost of all 71, since the sum clamps and the number did not. The
+              button then refused with no reason given, so it read as broken.
+              Clamping the digits themselves is what makes the two agree. Zero and an
+              empty field are left alone: they are how someone clears it before
+              typing, and the button is already disabled for both. */}
           <TextInput
             style={styles.stepValue}
             value={quantity}
-            onChangeText={(text) => setQuantity(text.replace(/[^0-9]/g, ''))}
+            onChangeText={(text) => {
+              const digits = text.replace(/[^0-9]/g, '');
+              if (digits === '') {
+                setQuantity('');
+                return;
+              }
+              setQuantity(String(Math.min(parseInt(digits, 10), ticketsLeft)));
+            }}
             keyboardType="number-pad"
             selectTextOnFocus
             maxLength={5}
@@ -838,6 +872,10 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           </Text>
         </View>
       </View>
+
+      {/* Says out loud what the clamp above enforces, so a field that stops counting
+          up reads as a limit rather than a stuck input. */}
+      <Text style={styles.ticketsAvailableHint}>{t('project.ticketsAvailable', { count: ticketsLeft })}</Text>
 
       {spendable !== null && (
         <View style={styles.fundsRow}>
@@ -910,6 +948,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
       )}
           </Card>
         </View>
+        )}
       </ScrollView>
 
       <RiskLevelModal visible={riskModalVisible} project={project} onClose={() => setRiskModalVisible(false)} />
@@ -1422,6 +1461,12 @@ const createStyles = (c: ThemeColors) =>
       ...tabularNums,
       color: c.textMuted,
       flexShrink: 1,
+    },
+    ticketsAvailableHint: {
+      ...typography.micro,
+      ...tabularNums,
+      color: c.textMuted,
+      marginTop: spacing.xs,
     },
     maxChip: {
       paddingHorizontal: spacing.sm + 2,

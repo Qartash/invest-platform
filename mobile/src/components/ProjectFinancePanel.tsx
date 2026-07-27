@@ -26,6 +26,7 @@ import { requestRelease } from '../api/projectFunding';
 import { fetchWallet } from '../api/wallet';
 import { formatDate, formatMonth } from '../utils/date';
 import { showAlert } from '../utils/alert';
+import { apiErrorMessage } from '../utils/apiError';
 import { maxWidth, spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 import { TextField } from './TextField';
@@ -301,7 +302,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
       setSelectedMonth(entryDate.slice(0, 7));
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -330,7 +331,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
       setDeleteReason('');
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -355,7 +356,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
       await load();
       setTab('reports');
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -378,7 +379,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
               await payProjectFinancialReport(projectId, report.id);
               await load();
             } catch (err: any) {
-              showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+              showAlert(t('common.error'), apiErrorMessage(err, t));
             } finally {
               setSubmitting(false);
             }
@@ -399,7 +400,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
             await deleteProjectFinancialReport(projectId, report.id);
             load();
           } catch (err: any) {
-            showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+            showAlert(t('common.error'), apiErrorMessage(err, t));
           }
         },
       },
@@ -422,7 +423,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
             await requestRelease(projectId, { budgetItemId: item.id });
             showAlert(t('project.finance.releaseRequested'));
           } catch (err: any) {
-            showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+            showAlert(t('common.error'), apiErrorMessage(err, t));
           }
         },
       },

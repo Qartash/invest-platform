@@ -16,6 +16,7 @@ import { fetchMyProjects } from '../api/projects';
 import { useAuthStore } from '../store/authStore';
 import { Gender } from '../types';
 import { ProfileStackParamList } from '../navigation/ProfileNavigator';
+import { apiErrorMessage } from '../utils/apiError';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'EditProfile'>;
 
@@ -73,7 +74,7 @@ export function EditProfileScreen({ navigation }: Props) {
       updateUser(updated);
       navigation.goBack();
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? t('common.error'));
+      setError(apiErrorMessage(err, t));
     } finally {
       setLoading(false);
     }
