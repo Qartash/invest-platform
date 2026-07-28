@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BrandMark } from './BrandMark';
 import { radius, spacing, ThemeColors, typography, useTheme, useThemeStyles } from '../theme';
+import { TourTarget } from '../onboarding/TourTarget';
 
 /**
  * The same four tabs as {@link BottomDock}, laid down the left edge for a desktop window.
@@ -42,28 +43,32 @@ export function SideRail({ state, descriptors, navigation, insets }: BottomTabBa
         <BrandMark size={40} />
       </View>
 
-      {state.routes.map((route, index) => {
-        const { options } = descriptors[route.key];
-        const focused = state.index === index;
+      {/* Rings the tabs and not the whole rail — the brand mark above them is not what the
+          step is about. Shares its id with the dock; only one of the two ever exists. */}
+      <TourTarget id="nav.bar">
+        {state.routes.map((route, index) => {
+          const { options } = descriptors[route.key];
+          const focused = state.index === index;
 
-        const onPress = () => {
-          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (!focused && !event.defaultPrevented) {
-            navigation.navigate(route.name, route.params);
-          }
-        };
+          const onPress = () => {
+            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !event.defaultPrevented) {
+              navigation.navigate(route.name, route.params);
+            }
+          };
 
-        return (
-          <RailTab
-            key={route.key}
-            focused={focused}
-            label={options.title ?? route.name}
-            icon={options.tabBarIcon}
-            onPress={onPress}
-            onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
-          />
-        );
-      })}
+          return (
+            <RailTab
+              key={route.key}
+              focused={focused}
+              label={options.title ?? route.name}
+              icon={options.tabBarIcon}
+              onPress={onPress}
+              onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
+            />
+          );
+        })}
+      </TourTarget>
     </View>
   );
 }

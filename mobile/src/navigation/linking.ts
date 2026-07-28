@@ -79,6 +79,7 @@ export const linking: LinkingOptions<ReactNavigation.RootParamList> = {
           ReferralEarnings: 'invites/earnings',
           Quests: 'quests',
           Partner: 'partner',
+          Guide: 'guide',
         },
       },
     },

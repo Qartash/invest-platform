@@ -9,6 +9,7 @@ import { fetchProjects } from '../../api/projects';
 import { useCachedQuery } from '../../api/useCachedQuery';
 import { Project } from '../../types';
 import { maxWidth, spacing, ThemeColors, typography, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
+import { HelpButton, TourTarget } from '../../onboarding';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
 
 type Props = NativeStackScreenProps<InvestorHomeStackParamList, 'Home'>;
@@ -40,9 +41,12 @@ export function HomeScreen({ navigation }: Props) {
       {/* Header and control sit outside the list, so they need the same width cap as the
           grid below or they end up hanging off its left edge in a wide window. */}
       <PageContainer maxWidth={maxWidth.page}>
-        <Text style={styles.header}>{t('home.title')}</Text>
+        <TourTarget id="home.header" style={styles.headerRow}>
+          <Text style={styles.header}>{t('home.title')}</Text>
+          <HelpButton topic="home" tour="investor" />
+        </TourTarget>
 
-        <View style={styles.tabsWrap}>
+        <TourTarget id="home.tabs" style={styles.tabsWrap}>
           <SegmentedTabs
             active={tab}
             onChange={setTab}
@@ -52,7 +56,7 @@ export function HomeScreen({ navigation }: Props) {
               { key: 'funded', label: t('home.tabStarted') },
             ]}
           />
-        </View>
+        </TourTarget>
       </PageContainer>
 
       <FlatList
@@ -67,31 +71,23 @@ export function HomeScreen({ navigation }: Props) {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.textMuted} />
         }
-        renderItem={({ item }) =>
-          // The single-column list renders the card bare, exactly as it always has — the
-          // cell wrapper only exists to divide a row between siblings.
-          isGrid ? (
-            <View style={styles.cell}>
-              {item && (
-                <ProjectCard
-                  project={item}
-                  onPress={() => navigation.navigate('ProjectDetail', { projectId: item.id })}
-                  onResalePress={() =>
-                    navigation.navigate('ProjectDetail', { projectId: item.id, scrollToResale: true })
-                  }
-                  onWorksPress={() => navigation.navigate('ProjectWorks', { projectId: item.id })}
-                />
-              )}
-            </View>
-          ) : item ? (
+        renderItem={({ item, index }) => {
+          if (!item) return isGrid ? <View style={styles.cell} /> : null;
+          const card = (
             <ProjectCard
               project={item}
               onPress={() => navigation.navigate('ProjectDetail', { projectId: item.id })}
               onResalePress={() => navigation.navigate('ProjectDetail', { projectId: item.id, scrollToResale: true })}
               onWorksPress={() => navigation.navigate('ProjectWorks', { projectId: item.id })}
             />
-          ) : null
-        }
+          );
+          // The tour points at whichever card is first, since that is the one it can be sure
+          // is on screen. Wrapping only that one keeps the rest of the feed untouched.
+          const body = index === 0 ? <TourTarget id="home.card">{card}</TourTarget> : card;
+          // The single-column list renders the card bare, exactly as it always has — the
+          // cell wrapper only exists to divide a row between siblings.
+          return isGrid ? <View style={styles.cell}>{body}</View> : body;
+        }}
         ListEmptyComponent={
           !loading ? (
             <Text style={styles.empty}>{tab === 'active' ? t('home.emptyRaising') : t('home.emptyStarted')}</Text>
@@ -109,12 +105,21 @@ const createStyles = (c: ThemeColors) =>
       flex: 1,
       backgroundColor: c.background,
     },
-    header: {
-      ...typography.display,
-      color: c.text,
+    // The title shares its line with the help button, which is why the padding moved out
+    // of the text and onto the row that now holds both.
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
       paddingHorizontal: spacing.md,
       paddingTop: spacing.md,
       paddingBottom: spacing.sm + 4,
+    },
+    header: {
+      ...typography.display,
+      color: c.text,
+      flexShrink: 1,
     },
     // Fixed above the feed, so it carries the rule that separates it from the scrolling list.
     // No rule under the control: the track's own groove already fences it off from the

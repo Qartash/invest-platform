@@ -69,6 +69,7 @@ import { BuyListingModal } from '../../components/BuyListingModal';
 import { RoundLadder } from '../../components/RoundLadder';
 import { TeamMemberCard } from '../../components/TeamMemberCard';
 import { Card, HeroScrim, Icon, ListGroup, ListRow, Pill, SectionHeader, SegmentedTabs } from '../../components/ui';
+import { HelpButton, TourTarget } from '../../onboarding';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
 
 // Raw DOM tag — real YouTube embed on web; native shows an "open in YouTube" link instead.
@@ -439,6 +440,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
         ))}
 
       <SectionHeader title={t('project.metricsSection')} />
+      <TourTarget id="project.metrics">
       <ListGroup>
         {project.riskLevel ? (
           <ListRow
@@ -487,6 +489,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           />
         ) : null}
       </ListGroup>
+      </TourTarget>
 
       {attachments.length > 0 && (
         <>
@@ -509,6 +512,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
       )}
 
       <SectionHeader title={t('project.moreSection')} spaced />
+      <TourTarget id="project.more">
       <ListGroup>
         <ListRow
           icon="chart"
@@ -524,6 +528,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           onPress={() => navigation.navigate('ProjectWorks', { projectId: project.id })}
         />
       </ListGroup>
+      </TourTarget>
     </View>
   );
 
@@ -556,6 +561,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
       </Card>
 
       <SectionHeader title={t('project.roundsSection')} spaced />
+      <TourTarget id="project.rounds">
       <Pressable
         style={styles.roundBadgeRow}
         onPress={() =>
@@ -572,9 +578,11 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
       </Pressable>
       {/* Sits directly on the page: its notches are painted in the background colour. */}
       <RoundLadder tiers={pricing.tiers} currentTier={pricing.currentTier} />
+      </TourTarget>
 
       <View onLayout={handleResaleLayout}>
         <SectionHeader title={t('project.resaleSection')} spaced />
+        <TourTarget id="project.resale">
         <Animated.View
           style={[
             styles.resaleHighlight,
@@ -652,6 +660,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
             </>
           )}
         </Animated.View>
+        </TourTarget>
       </View>
     </View>
   );
@@ -737,7 +746,13 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           >
             <Text style={styles.backIcon}>‹</Text>
           </Pressable>
-          <View style={styles.heroBody}>
+          {/* Mirrors the back button across the hero. This is the densest page in the app —
+              eight kinds of figure on one screen — so the way to ask what they mean belongs
+              where the eye already is, not at the bottom of it. */}
+          <View style={[styles.helpFloat, { top: insets.top + spacing.sm }]}>
+            <HelpButton topic="project" tour="investor" />
+          </View>
+          <TourTarget id="project.hero" style={styles.heroBody}>
             <View style={styles.heroStatus}>
               <View style={styles.heroDot} />
               {/* Was hardcoded to "raising", so a sold-out project announced
@@ -762,10 +777,10 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
                 </Text>
               </Pressable>
             )}
-          </View>
+          </TourTarget>
         </View>
 
-        <View style={styles.fundingWrap}>
+        <TourTarget id="project.price" style={styles.fundingWrap}>
           <Card style={styles.fundingCard}>
             <View style={styles.fundingTop}>
               <Text style={styles.fundingValue}>{collected.toLocaleString()}</Text>
@@ -832,9 +847,9 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
               </View>
             )}
           </Card>
-        </View>
+        </TourTarget>
 
-        <View style={styles.tabsWrap}>
+        <TourTarget id="project.tabs" style={styles.tabsWrap}>
           <SegmentedTabs
             active={tab}
             onChange={setTab}
@@ -845,7 +860,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
               { key: 'activity', label: t('project.tabActivity') },
             ]}
           />
-        </View>
+        </TourTarget>
 
         {tab === 'about'
           ? aboutPanel
@@ -859,7 +874,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
             funded project with a live-looking confirm button that could only fail:
             nothing left to sell, and the stepper clamped to zero. */}
         {isRaising && (
-        <View style={styles.buyFooter}>
+        <TourTarget id="project.buy" style={styles.buyFooter}>
           <SectionHeader title={t('project.buySection')} />
           <Card>
       <View style={styles.buySummary}>
@@ -989,7 +1004,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
         </>
       )}
           </Card>
-        </View>
+        </TourTarget>
         )}
       </ScrollView>
 
@@ -1058,6 +1073,10 @@ const createStyles = (c: ThemeColors) =>
       backgroundColor: 'rgba(10, 18, 12, 0.45)',
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    helpFloat: {
+      position: 'absolute',
+      right: spacing.md,
     },
     backIcon: {
       color: c.onOverlay,

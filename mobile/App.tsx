@@ -7,6 +7,7 @@ import { useAuthStore } from './src/store/authStore';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { AlertHost } from './src/components/AlertHost';
+import { OnboardingHost } from './src/onboarding';
 import { patchConsoleLogging } from './src/utils/consoleLogger';
 import { ThemeProvider, useTheme } from './src/theme';
 
@@ -36,6 +37,9 @@ function AppContent() {
       {/* Sits beside the navigator, not inside it, so a message survives the screen that
           raised it navigating away. */}
       <AlertHost />
+      {/* Beside the navigator for the same reason as the alerts, and for one more: a tour
+          step walks the user between screens, so it cannot live on any one of them. */}
+      <OnboardingHost />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </ErrorBoundary>
   );

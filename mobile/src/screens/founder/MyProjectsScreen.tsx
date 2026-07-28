@@ -32,6 +32,7 @@ import { OwnedProjectCard } from '../../components/OwnedProjectCard';
 import { HoldingCard } from '../../components/HoldingCard';
 import { PortfolioSummaryCard } from '../../components/PortfolioSummaryCard';
 import { SellTicketModal } from '../../components/SellTicketModal';
+import { HelpButton, TourTarget, useAutoTour } from '../../onboarding';
 import { FounderStackParamList } from '../../navigation/FounderNavigator';
 
 type Tab = 'owned' | 'invested';
@@ -44,6 +45,10 @@ export function MyProjectsScreen({ navigation }: Props) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const { isCompact } = useBreakpoint();
+  // Raising money is a different job from investing in someone else's raise, so it gets its
+  // own walkthrough — offered the first time this tab is opened rather than at sign-up,
+  // where it would be an answer to a question nobody had asked yet.
+  useAutoTour('founder');
   const [tab, setTab] = useState<Tab>('owned');
   // The portfolio half is the very query the portfolio screen runs, so the two tabs of this
   // screen and that one all draw on the same answer instead of asking three times.
@@ -167,8 +172,11 @@ export function MyProjectsScreen({ navigation }: Props) {
       {/* The head is capped to whatever the tab below it is capped to, so the title never
           hangs off the left edge of its own list. */}
       <PageContainer maxWidth={tab === 'owned' ? maxWidth.page : maxWidth.column}>
-        <View style={styles.head}>
-          <Text style={styles.header}>{t('founder.myProjects')}</Text>
+        <TourTarget id="founder.head" style={styles.head}>
+          <View style={styles.headRow}>
+            <Text style={styles.header}>{t('founder.myProjects')}</Text>
+            <HelpButton topic="founder" tour="founder" />
+          </View>
           <SegmentedTabs
             active={tab}
             onChange={selectTab}
@@ -179,7 +187,7 @@ export function MyProjectsScreen({ navigation }: Props) {
               count: tabCount(key),
             }))}
           />
-        </View>
+        </TourTarget>
       </PageContainer>
 
       {tab === 'owned' && (
@@ -190,29 +198,9 @@ export function MyProjectsScreen({ navigation }: Props) {
           data={ownedCells}
           keyExtractor={(item, index) => item?.id ?? `filler-${index}`}
           contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
-          renderItem={({ item }) => {
-            if (isGrid) {
-              return (
-                <View style={styles.cell}>
-                  {item && (
-                    <OwnedProjectCard
-                      project={item}
-                      busy={actingId === item.id}
-                      onOpenFinance={() => navigation.navigate('ProjectFinance', { projectId: item.id })}
-                      onOpenWorks={() => navigation.navigate('ProjectWorks', { projectId: item.id })}
-                      onOpenHistory={() => setHistoryProjectId(item.id)}
-                      onEdit={() => navigation.navigate('CreateProject', { projectId: item.id })}
-                      onPreview={() => openAsInvestor(item.id)}
-                      onDelete={() => handleDeleteProject(item)}
-                      onCancelReview={() => runAction(item.id, () => cancelProjectReview(item.id))}
-                      onCancelDeletion={() => runAction(item.id, () => cancelProjectDeletion(item.id))}
-                      onRestore={() => runAction(item.id, () => restoreProject(item.id))}
-                    />
-                  )}
-                </View>
-              );
-            }
-            return item ? (
+          renderItem={({ item, index }) => {
+            if (!item) return isGrid ? <View style={styles.cell} /> : null;
+            const card = (
               <OwnedProjectCard
                 project={item}
                 busy={actingId === item.id}
@@ -226,19 +214,23 @@ export function MyProjectsScreen({ navigation }: Props) {
                 onCancelDeletion={() => runAction(item.id, () => cancelProjectDeletion(item.id))}
                 onRestore={() => runAction(item.id, () => restoreProject(item.id))}
               />
-            ) : null;
+            );
+            const body = index === 0 ? <TourTarget id="founder.card">{card}</TourTarget> : card;
+            return isGrid ? <View style={styles.cell}>{body}</View> : body;
           }}
           ListFooterComponent={
-            <Pressable
-              onPress={handleCreateProject}
-              style={({ pressed }) => [styles.createCard, pressed && styles.pressed]}
-            >
-              <Icon name="plus" size={20} color={colors.primary} />
-              <Text style={styles.createTitle}>{t('founder.createProject')}</Text>
-              {user?.kycStatus !== 'approved' && (
-                <Text style={styles.createNote}>{t('founder.verificationRequiredShort')}</Text>
-              )}
-            </Pressable>
+            <TourTarget id="founder.create">
+              <Pressable
+                onPress={handleCreateProject}
+                style={({ pressed }) => [styles.createCard, pressed && styles.pressed]}
+              >
+                <Icon name="plus" size={20} color={colors.primary} />
+                <Text style={styles.createTitle}>{t('founder.createProject')}</Text>
+                {user?.kycStatus !== 'approved' && (
+                  <Text style={styles.createNote}>{t('founder.verificationRequiredShort')}</Text>
+                )}
+              </Pressable>
+            </TourTarget>
           }
         />
       )}
@@ -294,10 +286,17 @@ const createStyles = (c: ThemeColors) =>
       paddingTop: spacing.lg,
       paddingBottom: spacing.sm,
     },
+    headRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      marginBottom: spacing.sm + 2,
+    },
     header: {
       ...typography.display,
       color: c.text,
-      marginBottom: spacing.sm + 2,
+      flexShrink: 1,
     },
     list: {
       padding: spacing.md,
