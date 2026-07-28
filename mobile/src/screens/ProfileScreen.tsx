@@ -27,6 +27,7 @@ import { fetchPortfolio } from '../api/portfolio';
 import { fetchUserWorks } from '../api/projectWorks';
 import { useCachedQuery } from '../api/useCachedQuery';
 import { Portfolio, UserWorks, Wallet } from '../types';
+import { HelpButton, TourTarget } from '../onboarding';
 import { ProfileStackParamList } from '../navigation/ProfileNavigator';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'Profile'>;
@@ -78,8 +79,12 @@ export function ProfileScreen({ navigation }: Props) {
           card and the section columns share one `page` cap so they stay the same width as
           each other; the split into two columns happens only below `md`. */}
       <PageContainer maxWidth={maxWidth.page}>
-      <Text style={styles.header}>{t('profile.title')}</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.header}>{t('profile.title')}</Text>
+        <HelpButton topic="profile" tour="investor" />
+      </View>
 
+      <TourTarget id="profile.identity">
       <Card style={styles.identityCard}>
         <Pressable
           style={styles.editButton}
@@ -114,10 +119,12 @@ export function ProfileScreen({ navigation }: Props) {
           </View>
         )}
       </Card>
+      </TourTarget>
 
       <View style={[styles.columns, !isCompact && styles.columnsWide]}>
         <View style={!isCompact && styles.columnWide}>
       <SectionHeader title={t('profile.financeSection')} spaced />
+      <TourTarget id="profile.finance">
       <ListGroup>
         <ListRow
           icon="wallet"
@@ -146,8 +153,10 @@ export function ProfileScreen({ navigation }: Props) {
           />
         )}
       </ListGroup>
+      </TourTarget>
 
       <SectionHeader title={t('referrals.communitySection')} spaced />
+      <TourTarget id="profile.community">
       <ListGroup>
         <ListRow
           icon="users"
@@ -162,8 +171,24 @@ export function ProfileScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('Quests')}
         />
       </ListGroup>
+      </TourTarget>
+
+      {/* The way back into onboarding, and the reason nothing else has to nag: whatever the
+          tour explained once is readable here for as long as the account exists. */}
+      <SectionHeader title={t('guide.sectionTitle')} spaced />
+      <TourTarget id="profile.guide">
+        <ListGroup>
+          <ListRow
+            icon="checklist"
+            label={t('guide.title')}
+            sublabel={t('guide.profileSub')}
+            onPress={() => navigation.navigate('Guide')}
+          />
+        </ListGroup>
+      </TourTarget>
 
       <SectionHeader title={t('profile.accountSection')} spaced />
+      <TourTarget id="profile.account">
       <ListGroup>
         <ListRow label={t('auth.username')} value={user?.username} />
         <ListRow label={t('auth.email')} value={user?.email} />
@@ -196,6 +221,7 @@ export function ProfileScreen({ navigation }: Props) {
           />
         ) : null}
       </ListGroup>
+      </TourTarget>
       <Text style={styles.note}>
         {user?.kycStatus === 'approved' ? t('profile.kycExplainVerified') : t('profile.kycExplain')}
       </Text>
@@ -214,6 +240,7 @@ export function ProfileScreen({ navigation }: Props) {
       )}
 
       <SectionHeader title={t('profile.appearance')} spaced />
+      <TourTarget id="profile.appearance">
       <Card>
         <Text style={styles.settingLabel}>{t('profile.theme')}</Text>
         <SegmentedTabs
@@ -232,6 +259,7 @@ export function ProfileScreen({ navigation }: Props) {
         <Text style={styles.settingLabel}>{t('profile.language')}</Text>
         <LanguageSwitcher />
       </Card>
+      </TourTarget>
 
       <Pressable style={styles.logout} onPress={handleLogout} hitSlop={8}>
         <Text style={styles.logoutText}>{t('profile.logout')}</Text>
@@ -253,10 +281,17 @@ const createStyles = (c: ThemeColors) =>
       paddingHorizontal: spacing.md,
       paddingBottom: spacing.xl,
     },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      marginBottom: spacing.md,
+    },
     header: {
       ...typography.display,
       color: c.text,
-      marginBottom: spacing.md,
+      flexShrink: 1,
     },
 
     // On a phone the two "columns" are just the normal top-to-bottom flow. On a wide window

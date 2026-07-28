@@ -7,9 +7,10 @@ import { listTicketForSale, cancelTicketListing } from '../../api/tickets';
 import { Holding, Portfolio } from '../../types';
 import { showAlert } from '../../utils/alert';
 import { apiErrorMessage } from '../../utils/apiError';
-import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
+import { maxWidth, spacing, ThemeColors, typography, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
 import { HoldingCard } from '../../components/HoldingCard';
 import { SellTicketModal } from '../../components/SellTicketModal';
+import { HelpButton, TourTarget } from '../../onboarding';
 
 function ReturnText({ value }: { value: number }) {
   const { colors } = useTheme();
@@ -80,7 +81,11 @@ export function PortfolioScreen() {
         contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
         ListHeaderComponent={
           summary ? (
-            <View style={styles.summaryCard}>
+            <TourTarget id="portfolio.summary" style={styles.summaryCard}>
+              <View style={styles.summaryHead}>
+                <Text style={styles.summaryTitle}>{t('portfolio.title')}</Text>
+                <HelpButton topic="portfolio" tour="investor" />
+              </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>{t('portfolio.totalInvested')}</Text>
                 <Text style={styles.summaryValue}>
@@ -111,17 +116,22 @@ export function PortfolioScreen() {
                 <Text style={styles.summaryLabel}>{t('portfolio.totalReturn')}</Text>
                 <ReturnText value={summary.totalReturnAmount} />
               </View>
-            </View>
+            </TourTarget>
           ) : null
         }
-        renderItem={({ item }) => (
-          <HoldingCard
-            holding={item}
-            onSellPress={setListingHolding}
-            onCancelListing={handleCancelListing}
-            cancellingId={cancellingId}
-          />
-        )}
+        renderItem={({ item, index }) => {
+          const card = (
+            <HoldingCard
+              holding={item}
+              onSellPress={setListingHolding}
+              onCancelListing={handleCancelListing}
+              cancellingId={cancellingId}
+            />
+          );
+          // Only the first holding is a tour target; with no holdings at all the step
+          // still shows, centred, and explains what would be here.
+          return index === 0 ? <TourTarget id="portfolio.holding">{card}</TourTarget> : card;
+        }}
         ListEmptyComponent={!loading ? <Text style={styles.empty}>{t('portfolio.noHoldings')}</Text> : null}
       />
 
@@ -159,6 +169,18 @@ const createStyles = (c: ThemeColors) =>
       borderColor: c.border,
       padding: spacing.md,
       marginBottom: spacing.md,
+    },
+    // The screen has a native header, but it is the summary card that people look at — so
+    // the help button lives on the card rather than in a bar the eye skips.
+    summaryHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.xs,
+    },
+    summaryTitle: {
+      ...typography.subheading,
+      color: c.text,
     },
     summaryRow: {
       flexDirection: 'row',

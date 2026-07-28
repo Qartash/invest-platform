@@ -10,6 +10,7 @@ import { invalidateQuery, useCachedQuery } from '../../api/useCachedQuery';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
 import { LoadFailed } from '../../components/LoadFailed';
+import { HelpButton, TourTarget } from '../../onboarding';
 
 export function QuestsScreen() {
   const styles = useThemeStyles(createStyles);
@@ -134,12 +135,16 @@ export function QuestsScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <PageContainer maxWidth={maxWidth.column}>
         {/* Streak — the same seven days that also qualify a referral. */}
+        <TourTarget id="quests.bonus">
         <Card>
           <View style={styles.streakHead}>
             <Text style={styles.streakTitle}>{t('quests.streakTitle')}</Text>
-            <Text style={styles.streakCount}>
-              {days} / {target}
-            </Text>
+            <View style={styles.streakRight}>
+              <Text style={styles.streakCount}>
+                {days} / {target}
+              </Text>
+              <HelpButton topic="quests" tour="referrals" />
+            </View>
           </View>
           <View style={styles.streakRow}>
             {Array.from({ length: target }, (_, i) => (
@@ -150,6 +155,7 @@ export function QuestsScreen() {
           </View>
           <Text style={styles.streakHint}>{t('quests.streakHint', { count: daysLeft })}</Text>
         </Card>
+        </TourTarget>
 
         {/* The draw that stands in for attributing a code-less sign-up to a stranger. */}
         {bonus && bonus.wonToday > 0 && (
@@ -171,7 +177,7 @@ export function QuestsScreen() {
         )}
 
         <SectionHeader title={t('quests.fromPlatform')} spaced />
-        {platform.map(renderQuest)}
+        <TourTarget id="quests.list">{platform.map(renderQuest)}</TourTarget>
 
         <Text style={styles.note}>{t('quests.investCreditNote')}</Text>
       </PageContainer>
@@ -184,7 +190,8 @@ const createStyles = (c: ThemeColors) =>
     container: { flex: 1, backgroundColor: c.background },
     content: { padding: spacing.md, paddingBottom: spacing.xl },
 
-    streakHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+    streakHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    streakRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     streakTitle: { ...typography.captionStrong, color: c.text },
     streakCount: { ...typography.captionStrong, ...tabularNums, color: c.success },
     streakRow: { flexDirection: 'row', gap: spacing.xs + 1, marginTop: spacing.sm },

@@ -21,6 +21,7 @@ import {
   useThemeStyles,
   useTheme,
 } from '../../theme';
+import { HelpButton, TourTarget, useAutoTour } from '../../onboarding';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
 import { LogsScreen } from './LogsScreen';
 import { ModerationReleasesScreen } from './ModerationReleasesScreen';
@@ -94,6 +95,10 @@ export function ModerationScreen({ navigation }: Props) {
 
   const activeQuery = tab === 'all' ? allQuery : tab === 'users' ? usersQuery : queueQuery;
 
+  // Seven destinations behind seven unlabelled glyphs — the one screen in the app where a
+  // first visit genuinely needs a map.
+  useAutoTour('admin');
+
   const projects = useMemo(() => queueQuery.data ?? [], [queueQuery.data]);
   const allProjects = useMemo(() => allQuery.data ?? [], [allQuery.data]);
   const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
@@ -124,7 +129,7 @@ export function ModerationScreen({ navigation }: Props) {
   const { columns: userColumns, data: userCells, isGrid: usersGrid } = useGrid(users, { medium: 2, wide: 2 });
 
   const tabSwitcher = (
-    <View style={styles.tabBlock} key="tabs">
+    <TourTarget id="admin.tabs" style={styles.tabBlock} key="tabs">
       <View style={styles.tabRow}>
         {TABS.map((item) => {
           const active = item.key === tab;
@@ -144,14 +149,17 @@ export function ModerationScreen({ navigation }: Props) {
         })}
       </View>
       <Text style={styles.tabCaption}>{t(activeTab.labelKey)}</Text>
-    </View>
+    </TourTarget>
   );
 
   // Every tab below repeats the same title and switcher; capping them once here keeps the
   // six destinations from drifting apart from each other in a wide window.
   const head = (
     <PageContainer maxWidth={maxWidth.page}>
-      <Text style={styles.header}>{t('founder.moderation')}</Text>
+      <TourTarget id="admin.queue" style={styles.headerRow}>
+        <Text style={styles.header}>{t('founder.moderation')}</Text>
+        <HelpButton topic="admin" tour="admin" />
+      </TourTarget>
       {tabSwitcher}
     </PageContainer>
   );
@@ -345,12 +353,20 @@ const createStyles = (c: ThemeColors) =>
       flex: 1,
       backgroundColor: c.background,
     },
+    // The help button shares the title's line, so the title's own padding moved onto the row.
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: spacing.sm,
+      padding: spacing.lg,
+      paddingBottom: spacing.sm,
+    },
     header: {
       fontSize: 24,
       fontWeight: '700',
       color: c.text,
-      padding: spacing.lg,
-      paddingBottom: spacing.sm,
+      flexShrink: 1,
     },
     tabBlock: {
       marginBottom: spacing.sm,

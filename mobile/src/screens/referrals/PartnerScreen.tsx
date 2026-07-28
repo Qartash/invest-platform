@@ -9,6 +9,7 @@ import { applyForPartner, fetchPartnerStatus, PartnerApplicationStatus, PartnerS
 import { useCachedQuery } from '../../api/useCachedQuery';
 import { showAlert } from '../../utils/alert';
 import { LoadFailed } from '../../components/LoadFailed';
+import { TourTarget } from '../../onboarding';
 
 const STATUS_TONE: Record<PartnerApplicationStatus, PillTone> = {
   pending: 'warning',
@@ -68,6 +69,7 @@ export function PartnerScreen() {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <PageContainer maxWidth={maxWidth.column}>
+          <TourTarget id="partner.card">
           <Card style={styles.balanceCard}>
             <Text style={styles.eyebrow}>{t('partners.owedToCard')}</Text>
             <Text style={styles.balanceValue}>{money(e?.earnedPending ?? 0)}</Text>
@@ -83,6 +85,7 @@ export function PartnerScreen() {
               </View>
             </View>
           </Card>
+          </TourTarget>
 
           <SectionHeader title={t('partners.termsTitle')} spaced />
           <Card>
@@ -108,11 +111,13 @@ export function PartnerScreen() {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.content}>
         <PageContainer maxWidth={maxWidth.column}>
-          <Card style={styles.balanceCard}>
-            <Pill label={t(`partners.status.${app.status}`)} tone={STATUS_TONE[app.status]} />
-            <Text style={styles.statusTitle}>{t('partners.underReviewTitle')}</Text>
-            <Text style={styles.hint}>{t('partners.underReviewText')}</Text>
-          </Card>
+          <TourTarget id="partner.card">
+            <Card style={styles.balanceCard}>
+              <Pill label={t(`partners.status.${app.status}`)} tone={STATUS_TONE[app.status]} />
+              <Text style={styles.statusTitle}>{t('partners.underReviewTitle')}</Text>
+              <Text style={styles.hint}>{t('partners.underReviewText')}</Text>
+            </Card>
+          </TourTarget>
           <Text style={styles.note}>{t('partners.whileWaiting')}</Text>
         </PageContainer>
       </ScrollView>
@@ -133,10 +138,14 @@ export function PartnerScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <PageContainer maxWidth={maxWidth.column}>
-        <Card accented style={styles.hero}>
-          <Text style={styles.heroTitle}>{t('partners.heroTitle')}</Text>
-          <Text style={styles.heroText}>{t('partners.heroText')}</Text>
-        </Card>
+        {/* The tour points here in every state this screen has — an offer, an application
+            under review, or a partner's cabinet. Only one of the three is ever mounted. */}
+        <TourTarget id="partner.card">
+          <Card accented style={styles.hero}>
+            <Text style={styles.heroTitle}>{t('partners.heroTitle')}</Text>
+            <Text style={styles.heroText}>{t('partners.heroText')}</Text>
+          </Card>
+        </TourTarget>
 
         <SectionHeader title={t('partners.termsTitle')} spaced />
         <Card>

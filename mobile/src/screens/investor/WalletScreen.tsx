@@ -17,6 +17,7 @@ import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { showAlert } from '../../utils/alert';
 import { apiErrorMessage } from '../../utils/apiError';
+import { HelpButton, TourTarget } from '../../onboarding';
 
 const TX_ICON: Record<string, string> = {
   deposit: '⬇️',
@@ -135,8 +136,11 @@ export function WalletScreen() {
         contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
         ListHeaderComponent={
           <View>
-            <View style={styles.balanceCard}>
-              <Text style={styles.balanceLabel}>{t('wallet.balance')}</Text>
+            <TourTarget id="wallet.balance" style={styles.balanceCard}>
+              <View style={styles.balanceHead}>
+                <Text style={styles.balanceLabel}>{t('wallet.balance')}</Text>
+                <HelpButton topic="wallet" tour="investor" />
+              </View>
               <Text style={styles.balanceValue}>
                 {wallet ? parseFloat(wallet.balance).toLocaleString() : '—'} {t('common.currency')}
               </Text>
@@ -146,14 +150,14 @@ export function WalletScreen() {
                   {t('common.currency')}
                 </Text>
               )}
-            </View>
+            </TourTarget>
             {/* Lifetime figures. Kept off the balance card on purpose: that card
                 says what the account holds now, and these say what has passed
                 through it — putting them together invites reading one as the
                 other. Same reason the credit row says "granted" out loud, since
                 buying tickets spends it back down. */}
             {totals && (
-              <View style={styles.totalsCard}>
+              <TourTarget id="wallet.totals" style={styles.totalsCard}>
                 <TotalRow
                   label={t('wallet.totalDeposited')}
                   value={totals.deposited}
@@ -176,35 +180,42 @@ export function WalletScreen() {
                   styles={styles}
                   currency={t('common.currency')}
                 />
-              </View>
+              </TourTarget>
             )}
-            <TextField
-              label={t('wallet.amount')}
-              keyboardType="decimal-pad"
-              format="decimal"
-              placeholder="0"
-              value={amount}
-              onChangeText={setAmount}
-            />
-            <View style={styles.actionsRow}>
-              <View style={styles.actionButton}>
-                <PrimaryButton title={t('wallet.deposit')} onPress={handleDeposit} loading={submitting} disabled={parsedAmount <= 0} />
+            <TourTarget id="wallet.form">
+              <TextField
+                label={t('wallet.amount')}
+                keyboardType="decimal-pad"
+                format="decimal"
+                placeholder="0"
+                value={amount}
+                onChangeText={setAmount}
+              />
+              <View style={styles.actionsRow}>
+                <View style={styles.actionButton}>
+                  <PrimaryButton
+                    title={t('wallet.deposit')}
+                    onPress={handleDeposit}
+                    loading={submitting}
+                    disabled={parsedAmount <= 0}
+                  />
+                </View>
+                <View style={{ width: spacing.sm }} />
+                <View style={styles.actionButton}>
+                  <PrimaryButton
+                    title={t('wallet.withdraw')}
+                    variant="outline"
+                    onPress={handleWithdraw}
+                    loading={submitting}
+                    disabled={parsedAmount <= 0}
+                  />
+                </View>
               </View>
-              <View style={{ width: spacing.sm }} />
-              <View style={styles.actionButton}>
-                <PrimaryButton
-                  title={t('wallet.withdraw')}
-                  variant="outline"
-                  onPress={handleWithdraw}
-                  loading={submitting}
-                  disabled={parsedAmount <= 0}
-                />
-              </View>
-            </View>
-            <View style={styles.historyHeaderRow}>
+            </TourTarget>
+            <TourTarget id="wallet.history" style={styles.historyHeaderRow}>
               <Text style={styles.historyHeader}>{t('wallet.history')}</Text>
               {total > 0 && <Text style={styles.historyCount}>{t('wallet.txCount', { count: total })}</Text>}
-            </View>
+            </TourTarget>
           </View>
         }
         renderItem={({ item }) => {
@@ -309,10 +320,17 @@ const createStyles = (c: ThemeColors) =>
       padding: spacing.lg,
       marginBottom: spacing.md,
     },
+    // The help button shares the balance card's top line, so the label's own bottom margin
+    // moved onto the row that now holds both.
+    balanceHead: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.xs,
+    },
     balanceLabel: {
       color: c.textOnAccentMuted,
       fontSize: 13,
-      marginBottom: spacing.xs,
     },
     investCredit: {
       color: c.textOnAccentMuted,

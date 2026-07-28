@@ -25,6 +25,7 @@ import { showAlert } from '../../utils/alert';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
 import { fetchPartnerStatus, PartnerStatus } from '../../api/partners';
 import { LoadFailed } from '../../components/LoadFailed';
+import { HelpButton, TourTarget, useAutoTour } from '../../onboarding';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'Referrals'>;
 
@@ -48,6 +49,9 @@ export function ReferralScreen({ navigation }: Props) {
     useCallback(() => fetchProjects('active'), []),
   );
   const { data: partner } = useCachedQuery<PartnerStatus>('partners:status', fetchPartnerStatus);
+  // The ladder, the invest credit and the quest bonuses are the least self-evident part of
+  // the app, so this section explains itself the first time it is opened.
+  useAutoTour('referrals');
 
   const projects = fetchedProjects ?? [];
   // The code is the one thing people come here for, so its failure is the one that blanks
@@ -117,8 +121,12 @@ export function ReferralScreen({ navigation }: Props) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <PageContainer maxWidth={maxWidth.column}>
         {/* Code card — the one thing people came here to get. */}
+        <TourTarget id="referrals.code">
         <Card accented style={styles.codeCard}>
-          <Text style={styles.codeEyebrow}>{t('referrals.yourCode')}</Text>
+          <View style={styles.codeHead}>
+            <Text style={styles.codeEyebrow}>{t('referrals.yourCode')}</Text>
+            <HelpButton topic="referrals" tour="referrals" />
+          </View>
           <Text style={styles.codeValue} selectable>
             {code}
           </Text>
@@ -133,8 +141,10 @@ export function ReferralScreen({ navigation }: Props) {
             </Pressable>
           </View>
         </Card>
+        </TourTarget>
 
         {/* Earned so far — split into what's spendable now and what's still maturing. */}
+        <TourTarget id="referrals.earned">
         <Card style={styles.balanceCard}>
           <Text style={styles.balanceEyebrow}>{t('referrals.earnedOnInvest')}</Text>
           <Text style={styles.balanceValue}>{money(summary?.earnedTotal ?? 0)}</Text>
@@ -154,23 +164,28 @@ export function ReferralScreen({ navigation }: Props) {
             </View>
           </View>
         </Card>
+        </TourTarget>
 
-        <StatStrip
-          stats={[
-            { label: t('referrals.inTree'), value: String(summary?.branchTotal ?? 0) },
-            { label: t('referrals.invited'), value: String(summary?.directCount ?? 0) },
-            { label: t('referrals.depth'), value: String(summary?.maxDepth ?? 0) },
-          ]}
-        />
+        <TourTarget id="referrals.stats">
+          <StatStrip
+            stats={[
+              { label: t('referrals.inTree'), value: String(summary?.branchTotal ?? 0) },
+              { label: t('referrals.invited'), value: String(summary?.directCount ?? 0) },
+              { label: t('referrals.depth'), value: String(summary?.maxDepth ?? 0) },
+            ]}
+          />
+        </TourTarget>
 
         {/* The ladder, mirroring the numbers the backend actually pays. */}
         <SectionHeader title={t('referrals.ladderTitle')} spaced />
+        <TourTarget id="referrals.ladder">
         <ListGroup>
           <ListRow label={t('referrals.ladderNear')} sublabel={t('referrals.ladderNearSub')} value="100 ֏" />
           <ListRow label={t('referrals.ladderFar')} sublabel={t('referrals.ladderFarSub')} value="50 ֏" />
           <ListRow label={t('referrals.ladderDeep')} sublabel={t('referrals.ladderDeepSub')} value="10 ֏" />
           <ListRow label={t('referrals.ladderPercent')} sublabel={t('referrals.ladderPercentSub')} value="1%" />
         </ListGroup>
+        </TourTarget>
 
         {/* Inviting someone into a particular project converts far better than a
             bare invite: the recipient arrives at something concrete. */}
@@ -234,6 +249,7 @@ const createStyles = (c: ThemeColors) =>
     content: { padding: spacing.md, paddingBottom: spacing.xl },
 
     codeCard: { alignItems: 'center', backgroundColor: c.primary, borderColor: c.primary },
+    codeHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', alignSelf: 'stretch' },
     codeEyebrow: { ...typography.eyebrow, color: c.textOnAccentMuted },
     codeValue: { ...typography.display, ...tabularNums, color: c.textOnAccent, letterSpacing: 2, marginVertical: spacing.md },
     codeActions: { flexDirection: 'row', gap: spacing.sm, alignSelf: 'stretch' },

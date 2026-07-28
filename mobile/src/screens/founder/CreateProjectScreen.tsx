@@ -8,6 +8,7 @@ import { PrimaryButton } from '../../components/PrimaryButton';
 import { HintModal } from '../../components/HintModal';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { PageContainer, SectionHeader, SegmentedTabs, StepRail, StepState } from '../../components/ui';
+import { HelpButton, TourTarget } from '../../onboarding';
 import { BudgetMeter } from './createProject/BudgetMeter';
 import { EconomicsCard } from './createProject/EconomicsCard';
 import { EquityCard } from './createProject/EquityCard';
@@ -1276,7 +1277,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
       {/* The wizard is four stacked bands, two of which paint a full-width surface. The
           bars keep spanning the window — a rail that stopped mid-screen would read as a
           card — and it is their contents that get capped, so all four line up. */}
-      <View style={styles.railWrap}>
+      <TourTarget id="create.rail" style={styles.railWrap}>
         <PageContainer maxWidth={maxWidth.column}>
           <StepRail
             states={STEP_KEYS.map((_, index) => stepState(index))}
@@ -1285,18 +1286,21 @@ export function CreateProjectScreen({ route, navigation }: Props) {
             labels={STEP_KEYS.map((key) => t(`founder.wizard.${key}Name`))}
           />
         </PageContainer>
-      </View>
+      </TourTarget>
 
       <PageContainer maxWidth={maxWidth.column}>
-        <View style={styles.stepHead}>
+        <TourTarget id="create.body" style={styles.stepHead}>
           <View style={styles.stepHeadRow}>
             <Text style={styles.stepName}>{t(`founder.wizard.${STEP_KEYS[step]}Name`)}</Text>
-            <Text style={styles.stepCount}>
-              {t('founder.wizard.stepOf', { current: step + 1, total: STEP_KEYS.length })}
-            </Text>
+            <View style={styles.stepHeadRight}>
+              <Text style={styles.stepCount}>
+                {t('founder.wizard.stepOf', { current: step + 1, total: STEP_KEYS.length })}
+              </Text>
+              <HelpButton topic="create" tour="founder" />
+            </View>
           </View>
           <Text style={styles.stepHint}>{t(`founder.wizard.${STEP_KEYS[step]}Hint`)}</Text>
-        </View>
+        </TourTarget>
       </PageContainer>
 
       <ScrollView
@@ -1311,7 +1315,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
         {renderStep()}
       </ScrollView>
 
-      <View style={[styles.foot, !isCompact && styles.footWide]}>
+      <TourTarget id="create.nav" style={[styles.foot, !isCompact && styles.footWide]}>
         <PageContainer maxWidth={maxWidth.column} style={styles.footRow}>
           {step > 0 && (
             <View style={styles.footBack}>
@@ -1322,7 +1326,7 @@ export function CreateProjectScreen({ route, navigation }: Props) {
             <PrimaryButton title={primaryLabel} onPress={handlePrimaryPress} loading={submitting} />
           </View>
         </PageContainer>
-      </View>
+      </TourTarget>
 
       <HintModal hint={hint} onClose={() => setHint(null)} />
     </View>
@@ -1370,6 +1374,14 @@ const createStyles = (c: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'baseline',
       justifyContent: 'space-between',
+      gap: spacing.sm,
+    },
+    // The counter and the help button share the right-hand end of the step title's line.
+    // Centred against each other rather than on the title's baseline, which a 28px circle
+    // would sit oddly on.
+    stepHeadRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
       gap: spacing.sm,
     },
     stepName: {

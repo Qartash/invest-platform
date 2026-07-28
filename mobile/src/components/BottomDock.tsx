@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { shadow, spacing, ThemeColors, ColorSchemeName, useTheme, useThemeStyles } from '../theme';
+import { TourTarget } from '../onboarding/TourTarget';
 
 /**
  * The bottom tab bar, drawn as a floating dock instead of a full-width strip.
@@ -18,7 +19,10 @@ export function BottomDock({ state, descriptors, navigation }: BottomTabBarProps
 
   return (
     <View style={[styles.ground, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-      <View style={styles.dock}>
+      {/* The dock itself is the tour's target, not the ground it floats on — a spotlight on
+          the ground would ring the whole width of the screen. The side rail registers the
+          same id; only one of the two is ever mounted. */}
+      <TourTarget id="nav.bar" style={styles.dock}>
         {state.routes.map((route, index) => {
           const { options } = descriptors[route.key];
           const focused = state.index === index;
@@ -43,7 +47,7 @@ export function BottomDock({ state, descriptors, navigation }: BottomTabBarProps
             />
           );
         })}
-      </View>
+      </TourTarget>
     </View>
   );
 }

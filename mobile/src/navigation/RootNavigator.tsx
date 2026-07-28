@@ -7,6 +7,7 @@ import { MainNavigator } from './MainNavigator';
 import { documentTitle, linking } from './linking';
 import { useTheme } from '../theme';
 import { captureInviteFromUrl } from '../store/referralStore';
+import { navigationRef } from './navigationRef';
 
 // Runs once at import, before the NavigationContainer reads the URL, so a shared
 // `/i/CODE` link is turned into a pending code + a `/register` address in time.
@@ -40,6 +41,7 @@ export function RootNavigator() {
     // and a native dependency there, and the defect it fixes (reload losing the route,
     // unshareable links) only exists in the browser.
     <NavigationContainer
+      ref={navigationRef}
       theme={navTheme}
       linking={Platform.OS === 'web' ? linking : undefined}
       documentTitle={documentTitle}

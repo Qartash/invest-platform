@@ -12,6 +12,7 @@ import { ReferralTreeScreen } from '../screens/referrals/ReferralTreeScreen';
 import { ReferralEarningsScreen } from '../screens/referrals/ReferralEarningsScreen';
 import { QuestsScreen } from '../screens/referrals/QuestsScreen';
 import { PartnerScreen } from '../screens/referrals/PartnerScreen';
+import { GuideScreen } from '../screens/GuideScreen';
 import { useAuthStore } from '../store/authStore';
 
 export type ProfileStackParamList = {
@@ -25,6 +26,7 @@ export type ProfileStackParamList = {
   ReferralEarnings: undefined;
   Quests: undefined;
   Partner: undefined;
+  Guide: undefined;
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
@@ -113,6 +115,11 @@ export function ProfileStackNavigator() {
         name="Partner"
         component={PartnerScreen}
         options={{ headerShown: true, title: t('partners.title') }}
+      />
+      <Stack.Screen
+        name="Guide"
+        component={GuideScreen}
+        options={{ headerShown: true, title: t('guide.title') }}
       />
     </Stack.Navigator>
   );

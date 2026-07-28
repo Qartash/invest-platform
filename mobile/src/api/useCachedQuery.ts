@@ -36,6 +36,17 @@ export function invalidateQuery(prefix: string): void {
 }
 
 /**
+ * Reads a cached answer without subscribing to it or triggering a fetch.
+ *
+ * For code that is not a screen and has no business asking the server: the guided tour uses
+ * it to find a project to open, and would rather skip that step than make a request on
+ * someone's behalf.
+ */
+export function peekQuery<T>(key: string): T | null {
+  return (cache.get(key)?.data as T) ?? null;
+}
+
+/**
  * Empties the cache. Belongs to sign-out: the keys carry no user in them, so without
  * this the next person to sign in on the device would be shown the last one's balance.
  */
