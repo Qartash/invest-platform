@@ -3,9 +3,15 @@ import { FlatList, Image, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { fetchAllProjectsForModeration, fetchPendingDeletions, fetchPendingProjects } from '../../api/projects';
-import { fetchAllUsers } from '../../api/users';
-import { useCachedQuery } from '../../api/useCachedQuery';
+import { fetchAllUsers, fetchMe } from '../../api/users';
+import { wipeAllData } from '../../api/admin';
+import { clearQueryCache, useCachedQuery } from '../../api/useCachedQuery';
 import { resolveMediaUrl } from '../../api/client';
+import { useAuthStore } from '../../store/authStore';
+import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
+import { PrimaryButton } from '../../components/PrimaryButton';
+import { WipeDataModal } from '../../components/WipeDataModal';
 import { AuthUser, Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { priorityColors } from '../../utils/priority';
@@ -75,6 +81,9 @@ export function ModerationScreen({ navigation }: Props) {
   const { isCompact } = useBreakpoint();
   const [tab, setTab] = useState<Tab>('pending');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [wipeOpen, setWipeOpen] = useState(false);
+  const [wiping, setWiping] = useState(false);
+  const updateUser = useAuthStore((s) => s.updateUser);
 
   // One query per tab, each fetched only while its own tab is showing — the same rule the
   // three loaders enforced by hand, except a tab already visited now redraws from what it
@@ -234,6 +243,28 @@ export function ModerationScreen({ navigation }: Props) {
     return usersGrid ? <View style={styles.cell}>{card}</View> : card;
   };
 
+  // Everything the wipe touched is now wrong on the client too: cached lists, and the
+  // admin's own avatar, whose file was deleted with the rest of the uploads.
+  const handleWipe = async (password: string) => {
+    setWiping(true);
+    try {
+      const result = await wipeAllData(password);
+      clearQueryCache();
+      setWipeOpen(false);
+      try {
+        updateUser(await fetchMe());
+      } catch {
+        // A stale avatar in the header is not worth failing a wipe that succeeded.
+      }
+      await usersQuery.refresh();
+      showAlert(t('moderation.wipe.doneTitle'), t('moderation.wipe.doneMessage', { ...result }));
+    } catch (err) {
+      showAlert(t('common.error'), apiErrorMessage(err, t));
+    } finally {
+      setWiping(false);
+    }
+  };
+
   if (tab === 'users') {
     return (
       <View style={styles.container}>
@@ -251,6 +282,25 @@ export function ModerationScreen({ navigation }: Props) {
               <Text style={styles.empty}>{loadFailed ? t('common.error') : t('reports.noData')}</Text>
             ) : null
           }
+          // Below the list rather than beside the per-user actions: this one is not about
+          // any single account, and it should take a scroll to reach.
+          ListFooterComponent={
+            <View style={styles.dangerZone}>
+              <Text style={styles.dangerTitle}>{t('moderation.wipe.zoneTitle')}</Text>
+              <Text style={styles.dangerText}>{t('moderation.wipe.zoneDescription')}</Text>
+              <PrimaryButton
+                title={t('moderation.wipe.action')}
+                variant="outline"
+                onPress={() => setWipeOpen(true)}
+              />
+            </View>
+          }
+        />
+        <WipeDataModal
+          visible={wipeOpen}
+          submitting={wiping}
+          onClose={() => setWipeOpen(false)}
+          onConfirm={handleWipe}
         />
       </View>
     );
@@ -554,5 +604,25 @@ const createStyles = (c: ThemeColors) =>
       textAlign: 'center',
       color: c.textMuted,
       marginTop: spacing.xl,
+    },
+    // Fenced off from the list above it, in the colour the app uses for anything that
+    // takes something away.
+    dangerZone: {
+      marginTop: spacing.xl,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: c.danger,
+      borderRadius: 12,
+      backgroundColor: c.dangerSoft,
+    },
+    dangerTitle: {
+      ...typography.captionStrong,
+      color: c.danger,
+      marginBottom: spacing.xs,
+    },
+    dangerText: {
+      ...typography.caption,
+      color: c.textMuted,
+      marginBottom: spacing.md,
     },
   });

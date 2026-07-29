@@ -52,6 +52,7 @@ import { ReferralsModule } from './referrals/referrals.module';
 import { ActivityModule } from './activity/activity.module';
 import { QuestsModule } from './quests/quests.module';
 import { PartnersModule } from './partners/partners.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -129,6 +130,7 @@ import { PartnersModule } from './partners/partners.module';
     ActivityModule,
     QuestsModule,
     PartnersModule,
+    AdminModule,
     StatsModule,
     LogsModule,
   ],
