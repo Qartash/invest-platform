@@ -45,3 +45,12 @@ export function invalidateCached(prefix: string): void {
     if (key === prefix || key.startsWith(`${prefix}:`)) entries.delete(key);
   }
 }
+
+/**
+ * Drops everything. For the admin wipe, which empties the tables all of these were
+ * computed from — naming the prefixes one by one would mean a stale answer survives
+ * every time a new cached key is added and this list is not.
+ */
+export function invalidateAllCached(): void {
+  entries.clear();
+}

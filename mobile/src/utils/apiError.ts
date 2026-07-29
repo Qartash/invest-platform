@@ -44,6 +44,8 @@ const MESSAGE_KEYS: Record<string, string> = {
   'Cannot set the goal below the amount already collected.': 'errors.goalBelowCollected',
   'This project already has changes pending review. Wait for the moderator to approve or reject it first.':
     'errors.editAlreadyPending',
+  'Wrong wipe password': 'errors.wrongWipePassword',
+  'ADMIN_WIPE_PASSWORD is not configured on this server': 'errors.wipeNotConfigured',
 };
 
 // Backend prose that varies at runtime, so an exact match cannot catch it.

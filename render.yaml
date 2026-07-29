@@ -58,3 +58,7 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      # The password for POST /admin/wipe (the "erase everything" button in the
+      # moderation panel). Leave it unset and the endpoint refuses every call.
+      - key: ADMIN_WIPE_PASSWORD
+        sync: false

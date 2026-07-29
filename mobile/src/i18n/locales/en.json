@@ -695,6 +695,32 @@
       "none": "No pending release requests"
     },
     "tabPending": "Pending review",
+    "wipe": {
+      "zoneTitle": "Danger zone",
+      "zoneDescription": "Wipes the whole platform, for testing. This button should be removed before production.",
+      "action": "Erase all data",
+      "title": "Erase all platform data?",
+      "warning": "Absolutely everything below is deleted from the database, with no way back:",
+      "items": [
+        "Every user, their profile and their password",
+        "Every project, including covers, images and attached files",
+        "Every ticket, stake and portfolio",
+        "Every wallet, balance, invest credit and transaction",
+        "All financial reports, income, expenses and payouts",
+        "All works, applications, milestones and disputes",
+        "The entire referral network, its earnings and partner applications",
+        "Every quest, completion and daily draw",
+        "All system logs and action history",
+        "Every uploaded file on the server"
+      ],
+      "keepsAdmin": "Only your own admin account survives — without it nobody could sign in again. Its wallet is zeroed and its avatar removed.",
+      "passwordLabel": "Wipe password",
+      "passwordPlaceholder": "Enter the password",
+      "confirmLabel": "Type {{word}} to confirm",
+      "confirmWord": "DELETE",
+      "doneTitle": "Database cleared",
+      "doneMessage": "{{tablesCleared}} table(s) cleared. {{usersDeleted}} user(s) and {{filesDeleted}} file(s) deleted."
+    },
     "logs": {
       "title": "Logs",
       "frontendClicks": "App clicks",
@@ -801,7 +827,9 @@
     "stakeLockedAfterSale": "Price and equity share cannot be changed once tickets have been sold.",
     "goalBelowCollected": "The goal cannot be lower than the amount already collected.",
     "ticketCountBelowSold": "The ticket count cannot be lower than the number already sold.",
-    "editAlreadyPending": "This project already has an edit under review. Wait for the decision."
+    "editAlreadyPending": "This project already has an edit under review. Wait for the decision.",
+    "wrongWipePassword": "Wrong wipe password.",
+    "wipeNotConfigured": "ADMIN_WIPE_PASSWORD is not set on the server — the wipe is disabled."
   },
   "partners": {
     "admin": {
