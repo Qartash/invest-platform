@@ -695,9 +695,25 @@
       "none": "No pending release requests"
     },
     "tabPending": "Pending review",
+    "seedDemo": {
+      "action": "Create demo project",
+      "title": "Fill the platform with demo data?",
+      "intro": "One project walked through every state it has, plus the accounts around it:",
+      "items": [
+        "\"Coffee Roastery Yerevan\" — cover image, description in three languages, 2 documents, a team of 3, risk level and moderator approval",
+        "4 budget stages: the first unfrozen by a moderator, the second waiting in the release queue",
+        "40 of 100 tickets sold to two investors, treasury filled, 5 tickets listed for resale",
+        "4 works: one accepted and rated 5★, one mid-milestones (1 of 2 paid), one open with 2 applications, one in dispute",
+        "3 months of books: income, expenses, a paid report with dividends and one still payable",
+        "A referral tree of the founder plus three invitees, wallets with balances"
+      ],
+      "note": "Nothing is deleted. If the demo project already exists the button refuses — wipe first.",
+      "doneTitle": "Demo data created",
+      "doneMessage": "The project and its accounts are ready. Logins:"
+    },
     "wipe": {
       "zoneTitle": "Danger zone",
-      "zoneDescription": "Wipes the whole platform, for testing. This button should be removed before production.",
+      "zoneDescription": "Testing tools: fill the platform with demo data, or erase it entirely. This block should be removed before production.",
       "action": "Erase all data",
       "title": "Erase all platform data?",
       "warning": "Absolutely everything below is deleted from the database, with no way back:",
@@ -829,6 +845,7 @@
     "ticketCountBelowSold": "The ticket count cannot be lower than the number already sold.",
     "editAlreadyPending": "This project already has an edit under review. Wait for the decision.",
     "wrongWipePassword": "Wrong wipe password.",
+    "demoAlreadySeeded": "The demo project already exists. Wipe the data first.",
     "wipeNotConfigured": "ADMIN_WIPE_PASSWORD is not set on the server — the wipe is disabled."
   },
   "partners": {

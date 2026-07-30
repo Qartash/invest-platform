@@ -57,7 +57,7 @@ export class AdminService {
    * There is no undo. The only recovery is a database backup taken beforehand.
    */
   async wipeEverything(adminId: string, password: string): Promise<WipeResult> {
-    this.assertPassword(password);
+    this.assertWipePassword(password);
 
     const tables = await this.publicTables();
     const toTruncate = tables.filter((t) => t !== 'users' && !PRESERVED_TABLES.has(t));
@@ -153,8 +153,11 @@ export class AdminService {
    * The password lives in the environment, never in the repository — this is the one
    * secret standing between a stolen admin token and an empty platform, and a value
    * committed to git is a value anyone with the clone already has.
+   *
+   * Public because the demo seeder sits behind the same secret: both are test tooling,
+   * and one password to hold is one password to rotate.
    */
-  private assertPassword(supplied: string): void {
+  assertWipePassword(supplied: string): void {
     const expected = this.config.get<string>('ADMIN_WIPE_PASSWORD');
     if (!expected) {
       throw new ServiceUnavailableException(

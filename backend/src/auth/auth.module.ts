@@ -25,6 +25,9 @@ import { WalletsModule } from '../wallets/wallets.module';
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, GoogleVerifier],
-  exports: [JwtModule],
+  // AuthService is exported for the demo seeder, which creates its accounts through
+  // registration rather than by inserting rows — a hand-built row misses the wallet,
+  // the referral code and the password hashing that registering does for you.
+  exports: [JwtModule, AuthService],
 })
 export class AuthModule {}
