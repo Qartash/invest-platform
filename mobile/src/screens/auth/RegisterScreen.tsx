@@ -39,9 +39,10 @@ export function RegisterScreen({ navigation }: Props) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  // Prefilled from a shared /i/CODE link, still editable so a code typed off a
-  // friend's screen can be corrected.
   const [referralCode, setReferralCode] = useState(pendingCode ?? '');
+  // Whether the code came from the link this visitor followed, as opposed to being typed in.
+  // Read once, from the value the field started with, so it cannot flip mid-form.
+  const [invitedByLink] = useState(!!pendingCode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -126,11 +127,19 @@ export function RegisterScreen({ navigation }: Props) {
               onSubmitEditing={canSubmit ? handleRegister : undefined}
               returnKeyType="go"
             />
+            {/* A code that arrived on a link is shown but not editable. It used to be a plain
+                field "still editable so a code typed off a friend's screen can be corrected" —
+                except a code that came from the link needs no correcting, and leaving it open
+                meant an invitee could clear it without understanding what it was, silently
+                costing the person who invited them their credit. Someone typing a code they
+                read out still gets a writable field, because there was no link to trust. */}
             <TextField
               label={t('auth.referralCode')}
               value={referralCode}
-              onChangeText={setReferralCode}
-              hint={t('auth.referralCodeHint')}
+              onChangeText={invitedByLink ? undefined : setReferralCode}
+              editable={!invitedByLink}
+              hint={invitedByLink ? t('auth.referralCodeLocked') : t('auth.referralCodeHint')}
+              style={invitedByLink ? styles.lockedField : undefined}
               autoCapitalize="characters"
               autoCorrect={false}
             />
@@ -194,6 +203,12 @@ const createStyles = (c: ThemeColors, scheme: ColorSchemeName) =>
     },
     form: {
       marginTop: spacing.lg,
+    },
+    // A locked field has to read as "this is filled in for you", not as a field you failed to
+    // type in: dimmed background, muted text, no caret to invite an edit.
+    lockedField: {
+      backgroundColor: c.background,
+      color: c.textMuted,
     },
     error: {
       ...typography.caption,

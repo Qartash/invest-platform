@@ -6,14 +6,23 @@ interface ReferralState {
   // held until registration consumes it. Not persisted: an invite is for this
   // sign-up, not forever.
   pendingCode: string | null;
+  // The project an invite pointed at, when it pointed at one. A signed-out invitee has to
+  // be sent to sign-up, which loses the project from the address bar — this is what gets
+  // them there afterwards instead of dropping them on a generic feed.
+  pendingProjectId: string | null;
   setPendingCode: (code: string | null) => void;
+  setPendingProjectId: (projectId: string | null) => void;
   clearPendingCode: () => void;
+  clearPendingProjectId: () => void;
 }
 
 export const useReferralStore = create<ReferralState>((set) => ({
   pendingCode: null,
+  pendingProjectId: null,
   setPendingCode: (code) => set({ pendingCode: code ? code.trim().toUpperCase() : null }),
+  setPendingProjectId: (projectId) => set({ pendingProjectId: projectId }),
   clearPendingCode: () => set({ pendingCode: null }),
+  clearPendingProjectId: () => set({ pendingProjectId: null }),
 }));
 
 /**
@@ -48,6 +57,13 @@ export function captureInviteFromUrl(): void {
   const code = params.get('i');
   if (!code) return;
   useReferralStore.getState().setPendingCode(code);
+  // Remember which project this invite was into, if any. A signed-in visitor reaches it
+  // from the URL alone and never needs this; a signed-out one is about to be moved to
+  // sign-up, and without it the project they were invited to would simply be gone.
+  const project = pathname.match(/^\/projects\/([^/?#]+)/i);
+  if (project) {
+    useReferralStore.getState().setPendingProjectId(decodeURIComponent(project[1]));
+  }
   // Strip only `i`, keeping the route and any other query the screen relies on.
   params.delete('i');
   const rest = params.toString();

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
@@ -17,9 +17,11 @@ import { Card, Icon, ListGroup, ListRow, PageContainer, SectionHeader, StatStrip
 import { fetchReferralSummary, ReferralSummary } from '../../api/referrals';
 import { useCachedQuery } from '../../api/useCachedQuery';
 import { checkIn } from '../../api/activity';
-import { fetchProjects } from '../../api/projects';
+import { fetchMyProjects, fetchProjects } from '../../api/projects';
+import { fetchPortfolio } from '../../api/portfolio';
 import { getLocalizedText } from '../../utils/localized';
-import { Project } from '../../types';
+import { Portfolio, Project } from '../../types';
+import { inviteLink, projectInviteLink } from '../../utils/appUrl';
 import { copyText, shareText } from '../../utils/clipboard';
 import { showAlert } from '../../utils/alert';
 import { ProfileStackParamList } from '../../navigation/ProfileNavigator';
@@ -28,8 +30,6 @@ import { LoadFailed } from '../../components/LoadFailed';
 import { HelpButton, TourTarget, useAutoTour } from '../../onboarding';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'Referrals'>;
-
-const APP_URL = process.env.EXPO_PUBLIC_APP_URL ?? 'https://invest.am';
 
 export function ReferralScreen({ navigation }: Props) {
   const styles = useThemeStyles(createStyles);
@@ -48,12 +48,46 @@ export function ReferralScreen({ navigation }: Props) {
     'projects:active',
     useCallback(() => fetchProjects('active'), []),
   );
+  // The two things that make a project "yours": you founded it, or you hold tickets in it.
+  // Both under the keys the founder and portfolio screens already use, so this costs nothing
+  // for anyone who has opened either.
+  const { data: founded } = useCachedQuery<Project[]>('projects:mine', fetchMyProjects);
+  const { data: portfolio } = useCachedQuery<Portfolio>('portfolio', fetchPortfolio);
   const { data: partner } = useCachedQuery<PartnerStatus>('partners:status', fetchPartnerStatus);
   // The ladder, the invest credit and the quest bonuses are the least self-evident part of
   // the app, so this section explains itself the first time it is opened.
   useAutoTour('referrals');
 
-  const projects = fetchedProjects ?? [];
+  const activeProjects = useMemo(() => fetchedProjects ?? [], [fetchedProjects]);
+
+  /**
+   * The projects this user may invite into: their own, and nobody else's.
+   *
+   * It used to offer every active project on the platform, which meant the natural thing to
+   * share was whatever happened to be at the top of the feed — sending your invitees into a
+   * stranger's round. Founded projects come first because that is the case the founder came
+   * here for; the ones you hold tickets in follow, so an investor with no project of their own
+   * can still point people at what they backed themselves. Anything else is reachable by the
+   * plain invite link above, which is not tied to a project at all.
+   *
+   * Filtered against the active feed rather than shown raw: a closed or still-unapproved
+   * project is not something to send anyone to, and the feed is where a project's current
+   * status and localized title come from.
+   */
+  const projects = useMemo(() => {
+    const activeById = new Map(activeProjects.map((p) => [p.id, p]));
+    const mine: Project[] = [];
+    const seen = new Set<string>();
+    const take = (id: string) => {
+      const project = activeById.get(id);
+      if (!project || seen.has(id)) return;
+      seen.add(id);
+      mine.push(project);
+    };
+    for (const project of founded ?? []) take(project.id);
+    for (const holding of portfolio?.holdings ?? []) take(holding.projectId);
+    return mine;
+  }, [activeProjects, founded, portfolio]);
   // The code is the one thing people come here for, so its failure is the one that blanks
   // the screen — and only when there is nothing cached to show in its place. Without it the
   // card would read "—" as though the account had no code.
@@ -79,13 +113,11 @@ export function ReferralScreen({ navigation }: Props) {
         : 'canApply';
 
   const code = summary?.referralCode ?? '—';
-  const link = `${APP_URL}/i/${code}`;
+  // Both links are built against wherever the app is being served from — see appUrl.ts. They
+  // used to carry a hardcoded production domain, so every link copied out of a test build
+  // pointed at a site the tester could not reach.
+  const link = inviteLink(code);
   const money = (v: number) => `${v.toLocaleString()} ${t('common.currency')}`;
-
-  // An invite that opens a specific project. The path is the app's real project
-  // route, so a signed-in recipient lands on the project itself; `i` is consumed
-  // at startup and still attributes the sign-up of a signed-out one.
-  const projectLink = (projectId: string) => `${APP_URL}/projects/${projectId}?i=${code}`;
 
   const onShare = () =>
     shareText(t('referrals.shareMessage', { link })).catch(() => {});
@@ -98,7 +130,7 @@ export function ReferralScreen({ navigation }: Props) {
 
   const onShareProject = async (project: Project) => {
     const title = getLocalizedText(project.title, i18n.language);
-    const url = projectLink(project.id);
+    const url = projectInviteLink(project.id, code);
     const message = t('referrals.shareProjectMessage', { title, link: url });
     // Copying is the quieter option where it works; the share sheet is the
     // fallback (and the only path on native).
