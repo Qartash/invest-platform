@@ -4,7 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { fetchAllProjectsForModeration, fetchPendingDeletions, fetchPendingProjects } from '../../api/projects';
 import { fetchAllUsers, fetchMe } from '../../api/users';
-import { wipeAllData } from '../../api/admin';
+import { seedDemoData, wipeAllData } from '../../api/admin';
 import { clearQueryCache, useCachedQuery } from '../../api/useCachedQuery';
 import { resolveMediaUrl } from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
@@ -12,6 +12,7 @@ import { showAlert } from '../../utils/alert';
 import { apiErrorMessage } from '../../utils/apiError';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { WipeDataModal } from '../../components/WipeDataModal';
+import { SeedDemoModal } from '../../components/SeedDemoModal';
 import { AuthUser, Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { priorityColors } from '../../utils/priority';
@@ -83,6 +84,8 @@ export function ModerationScreen({ navigation }: Props) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [wipeOpen, setWipeOpen] = useState(false);
   const [wiping, setWiping] = useState(false);
+  const [seedOpen, setSeedOpen] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const updateUser = useAuthStore((s) => s.updateUser);
 
   // One query per tab, each fetched only while its own tab is showing — the same rule the
@@ -265,6 +268,25 @@ export function ModerationScreen({ navigation }: Props) {
     }
   };
 
+  // The new project and its cast have to reach every other screen, so nothing cached from
+  // the empty platform may survive. The logins go in the success message: they are generated
+  // server-side and there is nowhere else to read them.
+  const handleSeed = async (password: string) => {
+    setSeeding(true);
+    try {
+      const result = await seedDemoData(password);
+      clearQueryCache();
+      setSeedOpen(false);
+      await usersQuery.refresh();
+      const logins = result.accounts.map((a) => `${a.username} / ${a.password} — ${a.role}`).join('\n');
+      showAlert(t('moderation.seedDemo.doneTitle'), `${t('moderation.seedDemo.doneMessage')}\n\n${logins}`);
+    } catch (err) {
+      showAlert(t('common.error'), apiErrorMessage(err, t));
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   if (tab === 'users') {
     return (
       <View style={styles.container}>
@@ -288,6 +310,14 @@ export function ModerationScreen({ navigation }: Props) {
             <View style={styles.dangerZone}>
               <Text style={styles.dangerTitle}>{t('moderation.wipe.zoneTitle')}</Text>
               <Text style={styles.dangerText}>{t('moderation.wipe.zoneDescription')}</Text>
+              {/* Seeding above wiping, in the order they are used: empty the platform, then
+                  fill it again. The pair is one workflow, not two unrelated controls. */}
+              <PrimaryButton
+                title={t('moderation.seedDemo.action')}
+                variant="outline"
+                onPress={() => setSeedOpen(true)}
+              />
+              <View style={styles.dangerGap} />
               <PrimaryButton
                 title={t('moderation.wipe.action')}
                 variant="outline"
@@ -295,6 +325,12 @@ export function ModerationScreen({ navigation }: Props) {
               />
             </View>
           }
+        />
+        <SeedDemoModal
+          visible={seedOpen}
+          submitting={seeding}
+          onClose={() => setSeedOpen(false)}
+          onConfirm={handleSeed}
         />
         <WipeDataModal
           visible={wipeOpen}
@@ -624,5 +660,8 @@ const createStyles = (c: ThemeColors) =>
       ...typography.caption,
       color: c.textMuted,
       marginBottom: spacing.md,
+    },
+    dangerGap: {
+      height: spacing.sm,
     },
   });

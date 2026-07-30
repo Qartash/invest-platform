@@ -17,5 +17,6 @@ import {
   imports: [TypeOrmModule.forFeature([FundReleaseRequest, Project, ProjectBudgetItem, Wallet, Ticket])],
   providers: [ProjectFundingService],
   controllers: [ProjectReleaseController, ProjectFundsController, FundReleaseModerationController, ProjectRefundController],
+  exports: [ProjectFundingService],
 })
 export class ProjectFundingModule {}

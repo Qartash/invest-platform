@@ -45,6 +45,7 @@ const MESSAGE_KEYS: Record<string, string> = {
   'This project already has changes pending review. Wait for the moderator to approve or reject it first.':
     'errors.editAlreadyPending',
   'Wrong wipe password': 'errors.wrongWipePassword',
+  'The demo project already exists — wipe the data first': 'errors.demoAlreadySeeded',
   'ADMIN_WIPE_PASSWORD is not configured on this server': 'errors.wipeNotConfigured',
 };
 
