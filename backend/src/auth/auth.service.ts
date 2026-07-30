@@ -1,7 +1,8 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { WalletsService } from '../wallets/wallets.service';
+import { InviteEligibilityService } from '../referrals/invite-eligibility.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { User } from '../users/entities/user.entity';
@@ -21,9 +22,17 @@ export class AuthService {
     private readonly walletsService: WalletsService,
     private readonly jwtService: JwtService,
     private readonly googleVerifier: GoogleVerifier,
+    private readonly inviteEligibility: InviteEligibilityService,
   ) {}
 
-  async register(dto: RegisterDto) {
+  /**
+   * @param options.skipInviteCheck Creates the account without an invite. For the seeders
+   * only — the demo seeder and `npm run seed` build a cast of accounts on an empty database,
+   * where by definition nobody yet holds a code that works. Deliberately a parameter rather
+   * than a field on RegisterDto: anything on the DTO can be sent over HTTP, and a flag that
+   * turns off the invite requirement is not something a caller may ask for.
+   */
+  async register(dto: RegisterDto, options: { skipInviteCheck?: boolean } = {}) {
     const email = dto.email.trim().toLowerCase();
     if (await this.usersService.findByEmail(email)) {
       throw new ConflictException('Email already registered');
@@ -31,7 +40,9 @@ export class AuthService {
     if (dto.username && (await this.usersService.findByUsername(dto.username))) {
       throw new ConflictException('Username already taken');
     }
-    const referrer = await this.resolveReferrer(dto.referralCode);
+    const referrer = options.skipInviteCheck
+      ? await this.resolveReferrer(dto.referralCode)
+      : await this.requireInviter(dto.referralCode);
     const user = await this.usersService.create({
       username: dto.username ?? (await this.deriveUsername(email)),
       email,
@@ -47,9 +58,46 @@ export class AuthService {
     return this.buildAuthResponse(user);
   }
 
-  // A missing or wrong code is not a registration error — the person still gets
-  // an account, just as one who started their own branch. A banned or deleted
-  // referrer is treated as no referrer, so their tree stops growing.
+  /**
+   * The gate on the whole platform: no working invite, no account.
+   *
+   * Each refusal is its own message because they are three different situations for the
+   * person at the form, and one generic "invalid code" would leave all three stuck. A
+   * mistyped code is theirs to fix; a code whose owner cannot yet invite is not — that one
+   * has to send them back to whoever gave it to them, which is only possible if we say so.
+   *
+   * A banned or deleted referrer is reported as unknown rather than as ineligible: their
+   * standing is nobody else's business, and the outcome is the same either way.
+   */
+  private async requireInviter(code: string | undefined): Promise<User | null> {
+    // The one way onto a brand-new platform. Invite-only registration plus an empty users
+    // table is a locked door with the key inside: nobody holds a code, so nobody can sign up,
+    // so nobody ever holds a code. The first account is therefore let in without one — and
+    // only the first, because the moment it exists this branch can never be taken again.
+    // It is created as an ordinary investor, like any other; whoever deployed the platform
+    // promotes it to admin, which is the same step they take today.
+    if (await this.usersService.isEmpty()) {
+      return null;
+    }
+
+    const trimmed = code?.trim();
+    if (!trimmed) {
+      throw new BadRequestException('An invite code is required to register');
+    }
+    const referrer = await this.usersService.findByReferralCode(trimmed);
+    if (!referrer || referrer.bannedAt || referrer.deletedAt) {
+      throw new BadRequestException('This invite code does not exist');
+    }
+    const eligibility = await this.inviteEligibility.forUser(referrer);
+    if (!eligibility.canInvite) {
+      throw new BadRequestException('This invite code is not active yet');
+    }
+    return referrer;
+  }
+
+  // The lenient resolution, kept for the two callers that are not a public sign-up: the
+  // seeders (see register's options) and a returning Google user, whose attribution was
+  // settled when their account was first created and must not be re-decided now.
   private async resolveReferrer(code: string | undefined): Promise<User | null> {
     if (!code) return null;
     const referrer = await this.usersService.findByReferralCode(code);
@@ -73,9 +121,11 @@ export class AuthService {
         await this.usersService.linkGoogleAccount(user.id, identity.googleId);
       }
     } else {
-      // A code only attributes a brand-new account; a returning Google user keeps
-      // whoever (if anyone) first referred them.
-      const referrer = await this.resolveReferrer(referralCode);
+      // No account with this address yet, so this is a sign-up wearing a sign-in's clothing
+      // and the invite gate applies exactly as it does on the registration form. Without
+      // this, "continue with Google" would be an open door straight past it. A returning
+      // Google user never reaches here and keeps whoever first referred them.
+      const referrer = await this.requireInviter(referralCode);
       user = await this.usersService.create({
         username: await this.deriveUsername(identity.email),
         email: identity.email,

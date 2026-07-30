@@ -23,15 +23,19 @@ async function ensureUser(
   let user = await usersRepo.findOne({ where: { username: opts.username } });
   const isNew = !user;
   if (!user) {
-    await authService.register({
-      username: opts.username,
-      // Registration is email-keyed now; demo accounts get a placeholder so they
-      // can still be created by handle.
-      email: `${opts.username}@demo.local`,
-      password: opts.password,
-      fullName: opts.fullName,
-      languagePref: 'ru',
-    });
+    await authService.register(
+      {
+        username: opts.username,
+        // Registration is email-keyed now; demo accounts get a placeholder so they
+        // can still be created by handle.
+        email: `${opts.username}@demo.local`,
+        password: opts.password,
+        fullName: opts.fullName,
+        languagePref: 'ru',
+      },
+      // Registration is invite-only, and a seed runs where no code is active yet.
+      { skipInviteCheck: true },
+    );
     user = await usersRepo.findOneOrFail({ where: { username: opts.username } });
     console.log(`Created user ${opts.username}`);
   }

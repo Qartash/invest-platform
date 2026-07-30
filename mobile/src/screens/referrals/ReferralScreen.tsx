@@ -113,6 +113,10 @@ export function ReferralScreen({ navigation }: Props) {
         : 'canApply';
 
   const code = summary?.referralCode ?? '—';
+  // Assume locked until the server has said otherwise, so a slow load never briefly offers a
+  // share button that would hand out a link nobody can use.
+  const canInvite = summary?.canInvite ?? false;
+  const daysLeft = summary?.inviteDaysUntilOldEnough ?? 0;
   // Both links are built against wherever the app is being served from — see appUrl.ts. They
   // used to carry a hardcoded production domain, so every link copied out of a test build
   // pointed at a site the tester could not reach.
@@ -162,16 +166,35 @@ export function ReferralScreen({ navigation }: Props) {
           <Text style={styles.codeValue} selectable>
             {code}
           </Text>
-          <View style={styles.codeActions}>
-            <Pressable style={styles.codeButton} onPress={onShare}>
-              <Icon name="users" color={colors.textOnAccent} size={16} />
-              <Text style={styles.codeButtonText}>{t('referrals.share')}</Text>
-            </Pressable>
-            <Pressable style={styles.codeButton} onPress={onCopy}>
-              <Icon name="file" color={colors.textOnAccent} size={16} />
-              <Text style={styles.codeButtonText}>{t('referrals.copyLink')}</Text>
-            </Pressable>
-          </View>
+          {/* Registration is invite-only, which means a code that is not active yet is a link
+              that turns away everyone who follows it. Sharing is withheld rather than left to
+              fail on the recipient's screen — the person who would find out is the wrong one,
+              and they would find out as a stranger who could not sign up. */}
+          {canInvite ? (
+            <View style={styles.codeActions}>
+              <Pressable style={styles.codeButton} onPress={onShare}>
+                <Icon name="users" color={colors.textOnAccent} size={16} />
+                <Text style={styles.codeButtonText}>{t('referrals.share')}</Text>
+              </Pressable>
+              <Pressable style={styles.codeButton} onPress={onCopy}>
+                <Icon name="file" color={colors.textOnAccent} size={16} />
+                <Text style={styles.codeButtonText}>{t('referrals.copyLink')}</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.lockedBox}>
+              <Text style={styles.lockedTitle}>{t('referrals.lock.title')}</Text>
+              <Text style={styles.lockedItem}>
+                {summary?.inviteHasDeposited ? '✓' : '•'} {t('referrals.lock.deposit')}
+              </Text>
+              <Text style={styles.lockedItem}>
+                {daysLeft === 0 ? '✓' : '•'}{' '}
+                {daysLeft === 0
+                  ? t('referrals.lock.ageDone', { days: summary?.inviteMinAccountAgeDays ?? 7 })
+                  : t('referrals.lock.ageLeft', { days: daysLeft })}
+              </Text>
+            </View>
+          )}
         </Card>
         </TourTarget>
 
@@ -221,7 +244,7 @@ export function ReferralScreen({ navigation }: Props) {
 
         {/* Inviting someone into a particular project converts far better than a
             bare invite: the recipient arrives at something concrete. */}
-        {projects.length > 0 && (
+        {canInvite && projects.length > 0 && (
           <>
             <SectionHeader title={t('referrals.inviteToProjectTitle')} spaced />
             <ListGroup>
@@ -296,6 +319,17 @@ const createStyles = (c: ThemeColors) =>
       gap: spacing.sm,
     },
     codeButtonText: { ...typography.labelStrong, color: c.textOnAccent },
+    // Sits where the share buttons would be, inside the accented card, so the two conditions
+    // read as what stands between the code and being able to hand it out.
+    lockedBox: {
+      alignSelf: 'stretch',
+      borderRadius: radius.lg,
+      backgroundColor: c.onOverlayFill,
+      padding: spacing.md,
+      gap: spacing.xs,
+    },
+    lockedTitle: { ...typography.labelStrong, color: c.textOnAccent, marginBottom: spacing.xs },
+    lockedItem: { ...typography.caption, color: c.textOnAccentMuted },
 
     balanceCard: { alignItems: 'center', marginTop: spacing.md },
     balanceEyebrow: { ...typography.eyebrow, color: c.textMuted },

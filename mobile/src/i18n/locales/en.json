@@ -45,6 +45,7 @@
     "referralCode": "Invite code",
     "referralCodeHint": "If someone invited you — optional",
     "referralCodeLocked": "You arrived on an invite — the code is filled in and needs no changing",
+    "referralCodeRequiredHint": "Registration is invite-only. Get a code from someone already on the platform",
     "emailTaken": "That email is already registered",
     "terms": "By signing up you accept the terms and the privacy policy",
     "or": "or",
@@ -845,6 +846,9 @@
     "goalBelowCollected": "The goal cannot be lower than the amount already collected.",
     "ticketCountBelowSold": "The ticket count cannot be lower than the number already sold.",
     "editAlreadyPending": "This project already has an edit under review. Wait for the decision.",
+    "inviteRequired": "Registration is invite-only — a code is required.",
+    "inviteUnknown": "No such invite code. Check it for a typo.",
+    "inviteNotActive": "This code is not active yet. Whoever invited you needs a deposit and 7 days on the platform — ask them for a new code, or wait.",
     "wrongWipePassword": "Wrong wipe password.",
     "demoAlreadySeeded": "The demo project already exists. Wipe the data first.",
     "wipeNotConfigured": "ADMIN_WIPE_PASSWORD is not set on the server — the wipe is disabled."
@@ -952,6 +956,12 @@
     "profileSub": "Code, tree and earnings",
     "communitySection": "Community & bonuses",
     "yourCode": "Your code",
+    "lock": {
+      "title": "This code does not work yet. To invite, you need to:",
+      "deposit": "Top up your account at least once",
+      "ageLeft": "Stay on the platform {{days}} more day(s)",
+      "ageDone": "{{days}} days on the platform"
+    },
     "share": "Share",
     "copyLink": "Copy link",
     "copied": "Link copied",

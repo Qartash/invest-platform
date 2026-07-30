@@ -3,6 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { ReferralEarningsService } from './referral-earnings.service';
+import { InviteEligibilityService } from './invite-eligibility.service';
+import { INVITE_MIN_ACCOUNT_AGE_DAYS } from './invite-eligibility';
 
 // One node of the community tree as the client draws it. Deliberately carries no
 // email, phone, wallet or investment sum — the tree shows shape and belonging,
@@ -44,6 +46,7 @@ export class ReferralsService implements OnModuleInit {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly earningsService: ReferralEarningsService,
+    private readonly inviteEligibility: InviteEligibilityService,
   ) {}
 
   // Accounts that existed before referrals shipped have no code or path. The
@@ -105,6 +108,10 @@ export class ReferralsService implements OnModuleInit {
       .getCount();
     const depth = await this.maxRelativeDepth(path);
     const earnings = await this.earningsService.totals(me.id);
+    // Registration is invite-only, so a code that is not active yet is a link that refuses
+    // everyone who follows it. The screen has to be able to say so, and say what is missing —
+    // otherwise the first the inviter hears of it is a friend who could not sign up.
+    const invite = await this.inviteEligibility.forUser(me);
 
     return {
       referralCode: me.referralCode,
@@ -112,6 +119,10 @@ export class ReferralsService implements OnModuleInit {
       branchTotal: branch,
       maxDepth: depth,
       ...earnings,
+      canInvite: invite.canInvite,
+      inviteHasDeposited: invite.hasDeposited,
+      inviteDaysUntilOldEnough: invite.daysUntilOldEnough,
+      inviteMinAccountAgeDays: INVITE_MIN_ACCOUNT_AGE_DAYS,
     };
   }
 

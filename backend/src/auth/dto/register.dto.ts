@@ -25,7 +25,12 @@ export class RegisterDto {
   languagePref?: string;
 
   // The code the new user arrived with, from a shared link or typed by hand.
-  // Optional: no code just means they started their own branch.
+  //
+  // Still `@IsOptional()` on purpose, even though registration now requires one: the check
+  // that a code exists lives in AuthService alongside the checks that it is real and that
+  // its owner may invite, so all three failures come back as their own message. A
+  // class-validator rejection here would collapse the first of the three into a generic
+  // "referralCode must be a string" that the sign-up form cannot say anything useful about.
   @IsString()
   @IsOptional()
   referralCode?: string;

@@ -8,11 +8,13 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleVerifier } from './google-verifier';
 import { UsersModule } from '../users/users.module';
 import { WalletsModule } from '../wallets/wallets.module';
+import { InviteEligibilityModule } from '../referrals/invite-eligibility.module';
 
 @Module({
   imports: [
     UsersModule,
     WalletsModule,
+    InviteEligibilityModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
