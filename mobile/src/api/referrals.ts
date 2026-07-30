@@ -8,6 +8,12 @@ export interface ReferralSummary {
   earnedTotal: number;
   earnedAvailable: number;
   earnedPending: number;
+  /** Whether this code currently works as an invite. Registration is invite-only. */
+  canInvite: boolean;
+  inviteHasDeposited: boolean;
+  /** Whole days still to wait on the account-age requirement; 0 once it is met. */
+  inviteDaysUntilOldEnough: number;
+  inviteMinAccountAgeDays: number;
 }
 
 export interface ReferralReferrer {

@@ -44,6 +44,9 @@ const MESSAGE_KEYS: Record<string, string> = {
   'Cannot set the goal below the amount already collected.': 'errors.goalBelowCollected',
   'This project already has changes pending review. Wait for the moderator to approve or reject it first.':
     'errors.editAlreadyPending',
+  'An invite code is required to register': 'errors.inviteRequired',
+  'This invite code does not exist': 'errors.inviteUnknown',
+  'This invite code is not active yet': 'errors.inviteNotActive',
   'Wrong wipe password': 'errors.wrongWipePassword',
   'The demo project already exists — wipe the data first': 'errors.demoAlreadySeeded',
   'ADMIN_WIPE_PASSWORD is not configured on this server': 'errors.wipeNotConfigured',

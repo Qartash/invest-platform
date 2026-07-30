@@ -125,14 +125,21 @@ export class DemoSeedService {
     const existing = await this.usersRepository.findOne({ where: { username } });
     if (existing) return existing;
 
-    await this.authService.register({
-      username,
-      email: `${username}@demo.local`,
-      password: DEMO_PASSWORD,
-      fullName,
-      languagePref: 'ru',
-      referralCode: referralCode ?? undefined,
-    });
+    // skipInviteCheck because this runs on an empty platform: the founder has nobody to be
+    // invited by, and the accounts chained beneath them are created seconds old with empty
+    // wallets, so none of their codes would be active yet under the sign-up rule. The chain
+    // is still built through real referral codes, so the tree comes out the right shape.
+    await this.authService.register(
+      {
+        username,
+        email: `${username}@demo.local`,
+        password: DEMO_PASSWORD,
+        fullName,
+        languagePref: 'ru',
+        referralCode: referralCode ?? undefined,
+      },
+      { skipInviteCheck: true },
+    );
     const user = await this.usersRepository.findOneOrFail({ where: { username } });
     await this.usersRepository.update(user.id, {
       role,

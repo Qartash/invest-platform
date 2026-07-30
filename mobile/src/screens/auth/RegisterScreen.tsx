@@ -22,6 +22,7 @@ import { GoogleSignInButton, isGoogleSignInConfigured } from '../../components/G
 import { register } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
 import { useReferralStore } from '../../store/referralStore';
+import { apiErrorMessage } from '../../utils/apiError';
 import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import i18n from '../../i18n';
 
@@ -46,7 +47,11 @@ export function RegisterScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canSubmit = email.includes('@') && password.length >= MIN_PASSWORD_LENGTH;
+  // The platform is invite-only, so a code is as required as the email. Checked here as well
+  // as on the server so the button simply does not fire rather than making a round trip to be
+  // told what the form could have said itself.
+  const canSubmit =
+    email.includes('@') && password.length >= MIN_PASSWORD_LENGTH && referralCode.trim().length > 0;
 
   const handleRegister = async () => {
     setError(null);
@@ -63,8 +68,11 @@ export function RegisterScreen({ navigation }: Props) {
       setSession(response.accessToken, response.user);
     } catch (e) {
       // A taken email is the one failure the user can actually act on, so it gets
-      // its own message instead of the generic one.
-      setError(axios.isAxiosError(e) && e.response?.status === 409 ? t('auth.emailTaken') : t('common.error'));
+      // its own message instead of the generic one. The three ways an invite can be refused
+      // are equally actionable and are translated the same way every other backend refusal
+      // is — a generic "something went wrong" over a rejected code tells nobody whether to
+      // retype it or go back to the person who sent it.
+      setError(axios.isAxiosError(e) && e.response?.status === 409 ? t('auth.emailTaken') : apiErrorMessage(e, t));
     } finally {
       setLoading(false);
     }
@@ -138,7 +146,7 @@ export function RegisterScreen({ navigation }: Props) {
               value={referralCode}
               onChangeText={invitedByLink ? undefined : setReferralCode}
               editable={!invitedByLink}
-              hint={invitedByLink ? t('auth.referralCodeLocked') : t('auth.referralCodeHint')}
+              hint={invitedByLink ? t('auth.referralCodeLocked') : t('auth.referralCodeRequiredHint')}
               style={invitedByLink ? styles.lockedField : undefined}
               autoCapitalize="characters"
               autoCorrect={false}

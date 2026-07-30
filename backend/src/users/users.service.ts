@@ -59,6 +59,15 @@ export class UsersService {
     }
   }
 
+  /**
+   * True when there is not a single account yet — a brand-new database, before anyone has
+   * signed up. The sign-up path uses it to let the very first account in: registration is
+   * invite-only, and on an empty platform there is nobody to be invited by.
+   */
+  async isEmpty(): Promise<boolean> {
+    return (await this.usersRepository.count()) === 0;
+  }
+
   findByReferralCode(code: string): Promise<User | null> {
     const value = code.trim().toUpperCase();
     if (!value) return Promise.resolve(null);
