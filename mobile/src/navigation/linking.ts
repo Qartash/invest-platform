@@ -15,6 +15,13 @@ import { LinkingOptions } from '@react-navigation/native';
  * The shape mirrors the navigator tree exactly (tab -> stack -> screen); a path here that does
  * not correspond to a real screen name is silently ignored, so keep it in step with the
  * ParamLists in this folder.
+ *
+ * Every nested stack names its `initialRouteName`. Without it, opening a deep link cold — a
+ * shared `/projects/<id>`, or a reload while looking at one — built a stack holding only that
+ * one screen. Nothing sat underneath it, so the header's back arrow had nothing to pop and did
+ * nothing at all, and pressing the already-selected tab could not reset to a list that was
+ * never there: the visitor was stuck on the project with no way back into the app but editing
+ * the address bar. Naming the route inserts the list beneath the deep-linked screen.
  */
 const APP_NAME = 'Invest Platform';
 
@@ -41,6 +48,7 @@ export const linking: LinkingOptions<ReactNavigation.RootParamList> = {
 
       // --- signed in ---
       HomeTab: {
+        initialRouteName: 'Home',
         screens: {
           Home: '',
           ProjectDetail: 'projects/:projectId',
@@ -49,6 +57,7 @@ export const linking: LinkingOptions<ReactNavigation.RootParamList> = {
         },
       },
       ProjectsTab: {
+        initialRouteName: 'MyProjects',
         screens: {
           MyProjects: 'my-projects',
           // projectId is optional here (the same form creates and edits), so it rides as a
@@ -59,6 +68,7 @@ export const linking: LinkingOptions<ReactNavigation.RootParamList> = {
         },
       },
       ModerationTab: {
+        initialRouteName: 'ModerationList',
         screens: {
           ModerationList: 'moderation',
           // Listed before the :projectId route so the literal segment wins the match.
@@ -68,6 +78,7 @@ export const linking: LinkingOptions<ReactNavigation.RootParamList> = {
         },
       },
       ProfileTab: {
+        initialRouteName: 'Profile',
         screens: {
           Profile: 'profile',
           EditProfile: 'profile/edit',
