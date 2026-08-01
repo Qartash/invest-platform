@@ -1321,5 +1321,255 @@
       "paid": "Հասանելի",
       "cancelled": "Չեղարկված"
     }
+  },
+  "notifications": {
+    "title": "Ծանուցումներ",
+    "profileSub": "Ամեն ինչ, ինչ տեղի է ունեցել ձեր բացակայության ընթացքում",
+    "markAllRead": "Նշել բոլորը կարդացված",
+    "empty": "Դեռ ոչինչ չկա",
+    "unreadCount": "չկարդացած՝ {{count}}",
+    "aProject": "նախագիծ",
+    "items": {
+      "unknown": {
+        "title": "Ծանուցում",
+        "body": "Հարթակում ինչ-որ բան տեղի է ունեցել։"
+      },
+      "tickets_purchased": {
+        "title": "Տոմսերը գնված են",
+        "body": "{{quantity}} տոմս «{{project}}»-ում՝ {{amount}}։"
+      },
+      "listing_sold": {
+        "title": "Ձեր լոտը վաճառվեց",
+        "body": "«{{project}}»-ում ձեզնից գնեցին {{quantity}} տոմս՝ {{amount}}։"
+      },
+      "listing_bought": {
+        "title": "Գնում երկրորդային շուկայում",
+        "body": "{{quantity}} տոմս «{{project}}»-ում՝ {{amount}}։"
+      },
+      "project_funded": {
+        "title": "Նախագիծը հավաքեց ամբողջ գումարը",
+        "body": "«{{project}}»-ի բոլոր տոմսերը վաճառված են։"
+      },
+      "financial_report_published": {
+        "title": "Նոր ֆինանսական հաշվետվություն",
+        "body": "«{{project}}»-ը հրապարակել է {{period}}-ի հաշվետվությունը։"
+      },
+      "dividends_received": {
+        "title": "Շահաբաժինները վճարված են",
+        "body": "{{amount}} {{period}}-ի համար «{{project}}»-ից։"
+      },
+      "project_refunded": {
+        "title": "Գումարը վերադարձված է",
+        "body": "«{{project}}»-ը փակվեց։ {{amount}} վերադարձել է ձեր դրամապանակ։"
+      },
+      "project_closed": {
+        "title": "Նախագիծը փակված է",
+        "body": "«{{project}}»-ը փակվել է մոդերատորի կողմից։"
+      },
+      "project_deleted": {
+        "title": "Նախագիծը ջնջված է",
+        "body": "«{{project}}»-ը ջնջվել է։"
+      },
+      "project_risk_changed": {
+        "title": "Ռիսկի մակարդակը փոխվել է",
+        "body": "«{{project}}»-ի ռիսկն այժմ՝ {{risk}}։ {{comment}}"
+      },
+      "project_admin_edited": {
+        "title": "Նախագիծը խմբագրվել է մոդերատորի կողմից",
+        "body": "{{actor}}-ը փոփոխություն է կատարել «{{project}}»-ում։"
+      },
+      "project_approved": {
+        "title": "Նախագիծը հաստատված է",
+        "body": "«{{project}}»-ը հրապարակված է։ {{comment}}"
+      },
+      "project_rejected": {
+        "title": "Նախագիծը մերժված է",
+        "body": "«{{project}}»՝ {{comment}}"
+      },
+      "project_deletion_approved": {
+        "title": "Ջնջումը հաստատված է",
+        "body": "«{{project}}»-ը ջնջվել է։"
+      },
+      "project_deletion_rejected": {
+        "title": "Ջնջումը մերժված է",
+        "body": "«{{project}}»՝ {{comment}}"
+      },
+      "investment_received": {
+        "title": "Նոր ներդրում",
+        "body": "«{{project}}»-ում գնվել է {{quantity}} տոմս՝ {{amount}}։"
+      },
+      "fund_release_approved": {
+        "title": "Փուլը բացված է",
+        "body": "{{amount}}՝ «{{stage}}» փուլի համար, հասանելի է «{{project}}»-ում։ {{comment}}"
+      },
+      "fund_release_rejected": {
+        "title": "Փուլի բացումը մերժված է",
+        "body": "«{{stage}}» փուլը «{{project}}»-ում՝ {{comment}}"
+      },
+      "work_application_received": {
+        "title": "Նոր հայտ",
+        "body": "«{{project}}»-ի «{{work}}» առաջադրանքին արձագանքել են։"
+      },
+      "work_submitted": {
+        "title": "Աշխատանքը հանձնված է",
+        "body": "«{{project}}»-ի «{{work}}»-ը սպասում է ստուգման։"
+      },
+      "work_milestone_submitted": {
+        "title": "Փուլը հանձնված է",
+        "body": "«{{work}}»-ի «{{milestone}}» փուլը սպասում է ստուգման։"
+      },
+      "work_application_selected": {
+        "title": "Ձեզ ընտրել են",
+        "body": "«{{project}}»-ի «{{work}}»-ը ձերն է՝ {{amount}}։"
+      },
+      "work_application_rejected": {
+        "title": "Հայտը մերժված է",
+        "body": "«{{project}}»-ի «{{work}}»։ {{comment}}"
+      },
+      "work_accepted": {
+        "title": "Աշխատանքն ընդունված է",
+        "body": "«{{work}}»-ի համար վճարվել է {{amount}}։"
+      },
+      "work_milestone_accepted": {
+        "title": "Փուլն ընդունված է",
+        "body": "«{{milestone}}»-ի համար վճարվել է {{amount}}։"
+      },
+      "work_cancelled": {
+        "title": "Աշխատանքը չեղարկված է",
+        "body": "«{{project}}»-ի «{{work}}»-ը չեղարկվել է։"
+      },
+      "work_review_received": {
+        "title": "Ձեզ գնահատել են",
+        "body": "{{rating}}/5՝ «{{work}}»-ի համար։ {{comment}}"
+      },
+      "work_dispute_opened": {
+        "title": "Բացվել է վեճ",
+        "body": "«{{project}}»-ի «{{work}}»-ի շուրջ բացվել է վեճ։"
+      },
+      "work_dispute_resolved": {
+        "title": "Վեճը լուծված է",
+        "body": "«{{work}}»՝ {{amount}} էսքրոուն բաշխված է։"
+      },
+      "wallet_deposited": {
+        "title": "Դրամապանակը համալրված է",
+        "body": "Մուտքագրվել է {{amount}}։ Մնացորդը՝ {{balance}}։"
+      },
+      "wallet_withdrawn": {
+        "title": "Միջոցների ելք",
+        "body": "Դուրս է բերվել {{amount}}։ Մնացորդը՝ {{balance}}։"
+      },
+      "project_funds_withdrawn": {
+        "title": "Նախագծի միջոցները դուրս են բերվել",
+        "body": "{{amount}} փոխանցվել է «{{project}}»-ից ձեր դրամապանակ։"
+      },
+      "referral_joined": {
+        "title": "Ձեր հրավերով գրանցվել են",
+        "body": "Ձեր կոդն օգտագործվել է հաշիվ ստեղծելու համար։"
+      },
+      "referral_earning_accrued": {
+        "title": "Հաշվարկվել է ռեֆերալ բոնուս",
+        "body": "{{amount}} հասունանում է և կմուտքագրվի սպասման ժամկետից հետո։"
+      },
+      "referral_earning_paid": {
+        "title": "Ռեֆերալ բոնուսը մուտքագրված է",
+        "body": "{{amount}} ավելացվել է ձեր ներդրումային կրեդիտին։"
+      },
+      "referral_earning_cancelled": {
+        "title": "Ռեֆերալ բոնուսը չեղարկված է",
+        "body": "{{amount}} չի վճարվի։"
+      },
+      "partner_application_approved": {
+        "title": "Դուք գործընկեր եք",
+        "body": "Հայտը հաստատված է։ {{comment}}"
+      },
+      "partner_application_rejected": {
+        "title": "Գործընկերության հայտը մերժված է",
+        "body": "{{comment}}"
+      },
+      "partner_application_changes_requested": {
+        "title": "Հայտը լրացման կարիք ունի",
+        "body": "{{comment}}"
+      },
+      "partner_revoked": {
+        "title": "Գործընկերությունը հետ է կանչված",
+        "body": "Արդեն վաստակածը մնում է ձեզ։"
+      },
+      "partner_payout_settled": {
+        "title": "Գործընկերային վճարումը կատարված է",
+        "body": "{{amount}} փոխանցվել է։"
+      },
+      "streak_rewarded": {
+        "title": "Մրցաշարի պարգև",
+        "body": "{{streak}} օր անընդմեջ՝ {{amount}}։"
+      },
+      "daily_draw_won": {
+        "title": "Դուք շահեցիք օրական խաղարկությունում",
+        "body": "{{amount}} ավելացվել է ձեր ներդրումային կրեդիտին։"
+      },
+      "quest_rewarded": {
+        "title": "Առաջադրանքի պարգև",
+        "body": "{{amount}} մուտքագրվել է կատարված առաջադրանքի համար։"
+      },
+      "project_quest_added": {
+        "title": "Նոր վճարովի առաջադրանք",
+        "body": "«{{project}}»-ի «{{quest}}»՝ {{amount}}։"
+      },
+      "account_banned": {
+        "title": "Հաշիվը արգելափակված է",
+        "body": "Եթե սա սխալ է, գրեք աջակցության ծառայությանը։"
+      },
+      "account_unbanned": {
+        "title": "Հաշիվն ապաարգելափակված է",
+        "body": "Հասանելիությունը լիովին վերականգնված է։"
+      },
+      "account_deleted": {
+        "title": "Հաշիվը ջնջված է",
+        "body": "Ձեր հաշիվը ջնջվել է մոդերատորի կողմից։"
+      },
+      "account_restored": {
+        "title": "Հաշիվը վերականգնված է",
+        "body": "Հաշիվը կրկին ակտիվ է։"
+      },
+      "account_edited_by_admin": {
+        "title": "Հաշվի տվյալները փոխվել են",
+        "body": "Մոդերատորը փոխել է՝ {{fields}}։"
+      },
+      "mod_project_submitted": {
+        "title": "Նախագիծը սպասում է ստուգման",
+        "body": "«{{project}}»-ը մոդերացիայի հերթում է։ {{comment}}"
+      },
+      "mod_project_deletion_requested": {
+        "title": "Ջնջման հայտ",
+        "body": "«{{project}}»-ը խնդրում է ջնջում։"
+      },
+      "mod_fund_release_requested": {
+        "title": "Փուլի բացման հայտ",
+        "body": "{{amount}}՝ «{{project}}»-ի «{{stage}}» փուլի համար։"
+      },
+      "mod_work_disputed": {
+        "title": "Վեճ աշխատանքի շուրջ",
+        "body": "«{{project}}»-ի «{{work}}»-ը սպասում է որոշման։"
+      },
+      "mod_partner_applied": {
+        "title": "Նոր գործընկերության հայտ",
+        "body": "Հայտը սպասում է քննարկման։"
+      },
+      "mod_partner_payout_due": {
+        "title": "Կան գործընկերային վճարումներ",
+        "body": "Գործընկերներ՝ {{partners}}, վճարման ենթակա՝ {{amount}}։"
+      },
+      "mod_referral_pool_empty": {
+        "title": "Ռեֆերալ ֆոնդը չի կարող վճարել",
+        "body": "Սպասում են վճարման՝ {{count}}։"
+      },
+      "mod_dividend_ledger_mismatch": {
+        "title": "Շահաբաժինները կասեցված են",
+        "body": "Նախագծում պահվում է {{ticketsHeld}} տոմս՝ թողարկված {{ticketsIssued}}-ի դիմաց։"
+      },
+      "mod_demo_seeded": {
+        "title": "Ավելացվել են դեմո տվյալներ",
+        "body": "{{actor}}-ը ստեղծել է դեմո նախագիծը։"
+      }
+    }
   }
 }

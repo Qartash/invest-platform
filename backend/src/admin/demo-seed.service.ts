@@ -16,6 +16,8 @@ import { ExpenseCategory, KycStatus, UserRole, WorkPaymentType } from '../common
 import { hashPassword } from '../auth/password';
 import { invalidateAllCached } from '../common/response-cache';
 import { gradientPng } from './demo-image';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notification-types';
 
 /**
  * Builds one project that exercises the whole platform, and the cast of accounts around it.
@@ -62,6 +64,7 @@ export class DemoSeedService {
     private readonly financeService: ProjectFinanceService,
     private readonly worksService: ProjectWorksService,
     private readonly fundingService: ProjectFundingService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async seed(adminId: string, adminName: string): Promise<DemoSeedResult> {
@@ -94,6 +97,15 @@ export class DemoSeedService {
 
     invalidateAllCached();
     this.logger.log(`Demo project seeded by admin ${adminId}: ${project.id}`);
+
+    // The seeder drives the real services, so the other administrators are about
+    // to find several genuine-looking items in their queue. Saying where they
+    // came from is cheaper than working it out.
+    await this.notifications.notifyAdmins(
+      NotificationType.MOD_DEMO_SEEDED,
+      { projectId: project.id, actorName: adminName },
+      { exceptUserId: adminId },
+    );
 
     return {
       projectId: project.id,

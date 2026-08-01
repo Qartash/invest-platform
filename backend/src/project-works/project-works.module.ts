@@ -8,9 +8,13 @@ import { Project } from '../projects/entities/project.entity';
 import { Wallet } from '../wallets/entities/wallet.entity';
 import { ProjectWorksService } from './project-works.service';
 import { ProjectWorksController, WorksMiscController, WorkDisputesController } from './project-works.controller';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProjectWork, WorkApplication, WorkReview, WorkMilestone, Project, Wallet])],
+  imports: [
+    TypeOrmModule.forFeature([ProjectWork, WorkApplication, WorkReview, WorkMilestone, Project, Wallet]),
+    NotificationsModule,
+  ],
   providers: [ProjectWorksService],
   controllers: [ProjectWorksController, WorksMiscController, WorkDisputesController],
   exports: [ProjectWorksService],

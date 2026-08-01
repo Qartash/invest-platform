@@ -7,6 +7,8 @@ import { RewardsService } from './rewards.service';
 import { ReferralEarningsService } from '../referrals/referral-earnings.service';
 import { TransactionType } from '../common/enums';
 import { countStreak, ymd } from './streak';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notification-types';
 
 // The engagement half of referral qualification, plus the streak reward.
 @Injectable()
@@ -23,6 +25,7 @@ export class ActivityService {
     private readonly usersRepository: Repository<User>,
     private readonly rewardsService: RewardsService,
     private readonly referralEarningsService: ReferralEarningsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // Records that the user opened the app today and returns the current streak.
@@ -57,6 +60,15 @@ export class ActivityService {
         `${ActivityService.STREAK_TARGET}-day streak`,
         TransactionType.QUEST_REWARD,
       );
+    }
+    if (rewarded > 0) {
+      // The check-in screen shows this too, but the reward is paid whenever the
+      // app is opened — including on a day the streak card is never looked at.
+      await this.notifications.notify({
+        userId,
+        type: NotificationType.STREAK_REWARDED,
+        payload: { amount: rewarded, streak },
+      });
     }
     if (firstToday && streak >= ActivityService.STREAK_TARGET) {
       // Idempotent inside — an invitee who already qualified earns no second ladder.

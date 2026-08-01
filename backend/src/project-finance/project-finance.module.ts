@@ -11,9 +11,16 @@ import {
   ProjectFinancialReportsController,
 } from './project-finance.controller';
 import { ProjectsModule } from '../projects/projects.module';
+import { TicketsModule } from '../tickets/tickets.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ProjectExpense, ProjectIncome, ProjectFinancialReport, ReportPayout]), ProjectsModule],
+  imports: [
+    TypeOrmModule.forFeature([ProjectExpense, ProjectIncome, ProjectFinancialReport, ReportPayout]),
+    ProjectsModule,
+    TicketsModule,
+    NotificationsModule,
+  ],
   providers: [ProjectFinanceService],
   exports: [ProjectFinanceService],
   controllers: [ProjectExpensesController, ProjectIncomesController, ProjectFinancialReportsController],

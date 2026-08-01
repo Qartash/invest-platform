@@ -30,6 +30,7 @@ export type IconName =
   | 'clock'
   | 'users'
   | 'star'
+  | 'bell'
   | 'unlock';
 
 interface Props {
@@ -242,6 +243,13 @@ function renderPaths(name: IconName, common: any, color: string) {
         <>
           <Rect x="4.5" y="10.5" width="15" height="9.5" rx="2" {...common} />
           <Path d="M8.2 10.5V7.8a3.8 3.8 0 0 1 7.4-1.3" {...common} />
+        </>
+      );
+    case 'bell':
+      return (
+        <>
+          <Path d="M18 9.4a6 6 0 1 0-12 0c0 4.6-1.6 5.9-1.6 5.9h15.2S18 14 18 9.4Z" {...common} />
+          <Path d="M13.7 18.4a2 2 0 0 1-3.4 0" {...common} />
         </>
       );
     // Partners: the one tab about singling someone out rather than about a queue

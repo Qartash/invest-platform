@@ -1024,5 +1024,255 @@
       "paid": "Доступно",
       "cancelled": "Отменено"
     }
+  },
+  "notifications": {
+    "title": "Уведомления",
+    "profileSub": "Всё, что произошло, пока вас не было",
+    "markAllRead": "Прочитать всё",
+    "empty": "Пока пусто",
+    "unreadCount": "непрочитанных: {{count}}",
+    "aProject": "проект",
+    "items": {
+      "unknown": {
+        "title": "Уведомление",
+        "body": "На платформе что-то произошло."
+      },
+      "tickets_purchased": {
+        "title": "Тикеты куплены",
+        "body": "{{quantity}} тикет(ов) в «{{project}}» на {{amount}}."
+      },
+      "listing_sold": {
+        "title": "Ваш лот продан",
+        "body": "У вас купили {{quantity}} тикет(ов) в «{{project}}» за {{amount}}."
+      },
+      "listing_bought": {
+        "title": "Покупка на вторичном рынке",
+        "body": "{{quantity}} тикет(ов) в «{{project}}» за {{amount}}."
+      },
+      "project_funded": {
+        "title": "Проект собрал всю сумму",
+        "body": "В «{{project}}» проданы все тикеты."
+      },
+      "financial_report_published": {
+        "title": "Новый финансовый отчёт",
+        "body": "«{{project}}» опубликовал отчёт за {{period}}."
+      },
+      "dividends_received": {
+        "title": "Дивиденды начислены",
+        "body": "{{amount}} за {{period}} от «{{project}}»."
+      },
+      "project_refunded": {
+        "title": "Деньги возвращены",
+        "body": "«{{project}}» закрыт. {{amount}} вернулись на кошелёк."
+      },
+      "project_closed": {
+        "title": "Проект закрыт",
+        "body": "«{{project}}» закрыт модератором."
+      },
+      "project_deleted": {
+        "title": "Проект удалён",
+        "body": "«{{project}}» удалён."
+      },
+      "project_risk_changed": {
+        "title": "Изменён уровень риска",
+        "body": "У «{{project}}» теперь риск {{risk}}. {{comment}}"
+      },
+      "project_admin_edited": {
+        "title": "Проект изменён модератором",
+        "body": "{{actor}} внёс(ла) изменения в «{{project}}»."
+      },
+      "project_approved": {
+        "title": "Проект одобрен",
+        "body": "«{{project}}» опубликован. {{comment}}"
+      },
+      "project_rejected": {
+        "title": "Проект отклонён",
+        "body": "«{{project}}»: {{comment}}"
+      },
+      "project_deletion_approved": {
+        "title": "Удаление одобрено",
+        "body": "«{{project}}» удалён."
+      },
+      "project_deletion_rejected": {
+        "title": "Удаление отклонено",
+        "body": "«{{project}}»: {{comment}}"
+      },
+      "investment_received": {
+        "title": "Новая инвестиция",
+        "body": "В «{{project}}» куплено {{quantity}} тикет(ов) на {{amount}}."
+      },
+      "fund_release_approved": {
+        "title": "Транш одобрен",
+        "body": "{{amount}} на этап «{{stage}}» доступны в «{{project}}». {{comment}}"
+      },
+      "fund_release_rejected": {
+        "title": "Транш отклонён",
+        "body": "Этап «{{stage}}» в «{{project}}»: {{comment}}"
+      },
+      "work_application_received": {
+        "title": "Новая заявка",
+        "body": "На задачу «{{work}}» в «{{project}}» откликнулись."
+      },
+      "work_submitted": {
+        "title": "Работа сдана",
+        "body": "«{{work}}» в «{{project}}» ждёт проверки."
+      },
+      "work_milestone_submitted": {
+        "title": "Этап сдан",
+        "body": "«{{milestone}}» в задаче «{{work}}» ждёт проверки."
+      },
+      "work_application_selected": {
+        "title": "Вас выбрали",
+        "body": "Задача «{{work}}» в «{{project}}» ваша, за {{amount}}."
+      },
+      "work_application_rejected": {
+        "title": "Заявка отклонена",
+        "body": "«{{work}}» в «{{project}}». {{comment}}"
+      },
+      "work_accepted": {
+        "title": "Работа принята",
+        "body": "{{amount}} выплачено за «{{work}}»."
+      },
+      "work_milestone_accepted": {
+        "title": "Этап принят",
+        "body": "{{amount}} выплачено за «{{milestone}}»."
+      },
+      "work_cancelled": {
+        "title": "Работа отменена",
+        "body": "«{{work}}» в «{{project}}» отменена."
+      },
+      "work_review_received": {
+        "title": "Вам поставили оценку",
+        "body": "{{rating}}/5 за «{{work}}». {{comment}}"
+      },
+      "work_dispute_opened": {
+        "title": "Открыт спор",
+        "body": "По задаче «{{work}}» в «{{project}}» открыт спор."
+      },
+      "work_dispute_resolved": {
+        "title": "Спор решён",
+        "body": "«{{work}}»: эскроу {{amount}} распределён."
+      },
+      "wallet_deposited": {
+        "title": "Кошелёк пополнен",
+        "body": "Зачислено {{amount}}. Баланс: {{balance}}."
+      },
+      "wallet_withdrawn": {
+        "title": "Вывод средств",
+        "body": "Выведено {{amount}}. Баланс: {{balance}}."
+      },
+      "project_funds_withdrawn": {
+        "title": "Средства проекта выведены",
+        "body": "{{amount}} переведены из «{{project}}» на ваш кошелёк."
+      },
+      "referral_joined": {
+        "title": "По вашему приглашению зарегистрировались",
+        "body": "Вашим кодом воспользовались для создания аккаунта."
+      },
+      "referral_earning_accrued": {
+        "title": "Начислен реферальный бонус",
+        "body": "{{amount}} зреют и будут зачислены после холда."
+      },
+      "referral_earning_paid": {
+        "title": "Реферальный бонус зачислен",
+        "body": "{{amount}} добавлены в инвест-кредит."
+      },
+      "referral_earning_cancelled": {
+        "title": "Реферальный бонус отменён",
+        "body": "{{amount}} выплачены не будут."
+      },
+      "partner_application_approved": {
+        "title": "Вы стали партнёром",
+        "body": "Заявка одобрена. {{comment}}"
+      },
+      "partner_application_rejected": {
+        "title": "Заявка в партнёры отклонена",
+        "body": "{{comment}}"
+      },
+      "partner_application_changes_requested": {
+        "title": "Нужны правки в заявке",
+        "body": "{{comment}}"
+      },
+      "partner_revoked": {
+        "title": "Партнёрство отозвано",
+        "body": "Всё, что уже заработано, остаётся за вами."
+      },
+      "partner_payout_settled": {
+        "title": "Партнёрская выплата проведена",
+        "body": "{{amount}} переведены."
+      },
+      "streak_rewarded": {
+        "title": "Награда за серию",
+        "body": "{{streak}} дней подряд — {{amount}}."
+      },
+      "daily_draw_won": {
+        "title": "Вы выиграли в ежедневном розыгрыше",
+        "body": "{{amount}} добавлены в инвест-кредит."
+      },
+      "quest_rewarded": {
+        "title": "Награда за задание",
+        "body": "{{amount}} зачислены за выполненное задание."
+      },
+      "project_quest_added": {
+        "title": "Новое оплачиваемое задание",
+        "body": "«{{quest}}» в «{{project}}» — {{amount}}."
+      },
+      "account_banned": {
+        "title": "Аккаунт заблокирован",
+        "body": "Если это ошибка, напишите в поддержку."
+      },
+      "account_unbanned": {
+        "title": "Аккаунт разблокирован",
+        "body": "Доступ восстановлен полностью."
+      },
+      "account_deleted": {
+        "title": "Аккаунт удалён",
+        "body": "Ваш аккаунт удалён модератором."
+      },
+      "account_restored": {
+        "title": "Аккаунт восстановлен",
+        "body": "Аккаунт снова активен."
+      },
+      "account_edited_by_admin": {
+        "title": "Данные аккаунта изменены",
+        "body": "Модератор изменил: {{fields}}."
+      },
+      "mod_project_submitted": {
+        "title": "Проект ждёт проверки",
+        "body": "«{{project}}» в очереди модерации. {{comment}}"
+      },
+      "mod_project_deletion_requested": {
+        "title": "Запрос на удаление",
+        "body": "«{{project}}» просит удаления."
+      },
+      "mod_fund_release_requested": {
+        "title": "Запрос на транш",
+        "body": "{{amount}} на этап «{{stage}}» в «{{project}}»."
+      },
+      "mod_work_disputed": {
+        "title": "Спор по работе",
+        "body": "«{{work}}» в «{{project}}» ждёт решения."
+      },
+      "mod_partner_applied": {
+        "title": "Новая заявка в партнёры",
+        "body": "Заявка ждёт рассмотрения."
+      },
+      "mod_partner_payout_due": {
+        "title": "Есть партнёрские выплаты",
+        "body": "Партнёров: {{partners}}, к выплате {{amount}}."
+      },
+      "mod_referral_pool_empty": {
+        "title": "Реферальный пул не может платить",
+        "body": "Ждут выплаты: {{count}}."
+      },
+      "mod_dividend_ledger_mismatch": {
+        "title": "Дивиденды приостановлены",
+        "body": "В проекте держат {{ticketsHeld}} тикетов при выпущенных {{ticketsIssued}}."
+      },
+      "mod_demo_seeded": {
+        "title": "Залиты демо-данные",
+        "body": "{{actor}} создал(а) демо-проект."
+      }
+    }
   }
 }

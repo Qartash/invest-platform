@@ -59,14 +59,24 @@ function makeService(project: Project) {
     create: jest.fn((v: unknown) => v),
     save: jest.fn(async (v: unknown) => v),
   };
+  // Stubbed for the same reason as in review-status.spec: an edit raises
+  // notifications, and none of the assertions here are about them.
+  const notifications = {
+    notify: jest.fn(async () => undefined),
+    notifyMany: jest.fn(async () => undefined),
+    notifyAdmins: jest.fn(async () => undefined),
+  };
+  const ticketsService = { holderIds: jest.fn(async () => []) };
   const service = new ProjectsService(
     projectsRepository as never,
     logsRepository as never,
     {} as never,
     {} as never,
     {} as never,
+    ticketsService as never,
+    notifications as never,
   );
-  return { service, saved, projectsRepository };
+  return { service, saved, projectsRepository, notifications };
 }
 
 describe('editing a project that has sold tickets', () => {

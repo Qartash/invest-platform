@@ -8,6 +8,16 @@ import { ReferralEarningsService } from '../referrals/referral-earnings.service'
 import { PARTNER_FLAT, PARTNER_PERCENT, PARTNER_PERCENT_CAP } from '../referrals/ladder';
 import { ApplyPartnerDto } from './dto/apply-partner.dto';
 import { ReviewPartnerDto } from './dto/review-partner.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notification-types';
+
+// The application outcome each review decision is announced as. `pending` is not
+// a decision, so it is not announced at all.
+const REVIEW_NOTIFICATION: Partial<Record<PartnerApplicationStatus, NotificationType>> = {
+  [PartnerApplicationStatus.APPROVED]: NotificationType.PARTNER_APPLICATION_APPROVED,
+  [PartnerApplicationStatus.REJECTED]: NotificationType.PARTNER_APPLICATION_REJECTED,
+  [PartnerApplicationStatus.CHANGES_REQUESTED]: NotificationType.PARTNER_APPLICATION_CHANGES_REQUESTED,
+};
 
 @Injectable()
 export class PartnersService {
@@ -17,6 +27,7 @@ export class PartnersService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly earningsService: ReferralEarningsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // The rates a partner is offered, served from the same constants the earnings
@@ -41,7 +52,15 @@ export class PartnersService {
     });
     if (open) throw new ConflictException('You already have an application in progress');
 
-    return this.applicationsRepository.save(this.applicationsRepository.create({ ...dto, userId }));
+    const saved = await this.applicationsRepository.save(
+      this.applicationsRepository.create({ ...dto, userId }),
+    );
+    await this.notifications.notifyAdmins(NotificationType.MOD_PARTNER_APPLIED, {
+      applicationId: saved.id,
+      channelType: saved.channelType,
+      audienceSize: saved.audienceSize,
+    });
+    return saved;
   }
 
   // The viewer's own state: the offer's terms, their latest application, and — if
@@ -114,6 +133,14 @@ export class PartnersService {
     if (dto.status === PartnerApplicationStatus.APPROVED) {
       await this.usersRepository.update(application.userId, { partnerSince: new Date() });
     }
+    const type = REVIEW_NOTIFICATION[dto.status];
+    if (type) {
+      await this.notifications.notify({
+        userId: application.userId,
+        type,
+        payload: { applicationId: application.id, comment: application.reviewerNote },
+      });
+    }
     return application;
   }
 
@@ -123,6 +150,7 @@ export class PartnersService {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     await this.usersRepository.update(userId, { partnerSince: null });
+    await this.notifications.notify({ userId, type: NotificationType.PARTNER_REVOKED });
     return { userId, isPartner: false };
   }
 

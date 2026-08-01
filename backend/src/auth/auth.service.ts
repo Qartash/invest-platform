@@ -10,6 +10,8 @@ import { UserRole } from '../common/enums';
 import { toPublicUser } from '../users/public-user';
 import { hashPassword, isHashed, verifyPassword } from './password';
 import { GoogleVerifier } from './google-verifier';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notification-types';
 
 // New accounts without a photo get a random emoji avatar so people are never
 // shown a blank placeholder. Keep in sync with the mobile avatar picker list.
@@ -23,7 +25,20 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly googleVerifier: GoogleVerifier,
     private readonly inviteEligibility: InviteEligibilityService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  /**
+   * Tells the inviter their code was used.
+   *
+   * Deliberately says nothing about who used it. The referral tree masks the
+   * names of people who have not chosen to be visible, and a notification that
+   * named them would walk straight around that.
+   */
+  private async announceInvitee(referrer: User | null): Promise<void> {
+    if (!referrer) return;
+    await this.notifications.notify({ userId: referrer.id, type: NotificationType.REFERRAL_JOINED });
+  }
 
   /**
    * @param options.skipInviteCheck Creates the account without an invite. For the seeders
@@ -55,6 +70,7 @@ export class AuthService {
       referrerPath: referrer?.referralPath ?? null,
     });
     await this.walletsService.createForUser(user.id);
+    await this.announceInvitee(referrer);
     return this.buildAuthResponse(user);
   }
 
@@ -141,6 +157,7 @@ export class AuthService {
         referrerPath: referrer?.referralPath ?? null,
       });
       await this.walletsService.createForUser(user.id);
+      await this.announceInvitee(referrer);
     }
 
     if (user.bannedAt) {

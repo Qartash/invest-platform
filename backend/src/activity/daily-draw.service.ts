@@ -8,6 +8,8 @@ import { User } from '../users/entities/user.entity';
 import { RewardsService } from './rewards.service';
 import { TransactionType, UserRole } from '../common/enums';
 import { ymd } from './streak';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notification-types';
 
 /**
  * The draw that replaces attributing a code-less sign-up to a random stranger.
@@ -35,6 +37,7 @@ export class DailyDrawService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly rewardsService: RewardsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // Late in the day, so "active today" means most of the day has happened.
@@ -78,6 +81,14 @@ export class DailyDrawService {
         }),
       );
       paid += 1;
+      // The draw runs at ten at night against people who are not looking. Without
+      // this, a win is only ever discovered by opening the quests screen the next
+      // day and noticing the balance.
+      await this.notifications.notify({
+        userId,
+        type: NotificationType.DAILY_DRAW_WON,
+        payload: { amount, drawDate: day },
+      });
     }
 
     if (paid > 0) {

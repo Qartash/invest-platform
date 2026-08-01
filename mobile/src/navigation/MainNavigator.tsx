@@ -7,6 +7,7 @@ import { ProjectsStackNavigator } from './FounderNavigator';
 import { ProfileStackNavigator } from './ProfileNavigator';
 import { lazyScreen } from './lazyScreen';
 import { useAuthStore } from '../store/authStore';
+import { useNotificationsStore } from '../store/notificationsStore';
 import { logEvent } from '../utils/logger';
 import { TabBarIcon, TabIconName } from '../components/TabBarIcon';
 import { BottomDock } from '../components/BottomDock';
@@ -45,6 +46,11 @@ export function MainNavigator() {
   // referral without a deposit. Best-effort: a failure never blocks the app.
   useEffect(() => {
     checkIn().catch(() => {});
+    // Primes the unread badge for the whole session. The bell refreshes it
+    // whenever its screen is focused, but the profile row only reads the count —
+    // without this, signing in and going straight to the profile would show a
+    // zero regardless of what is waiting.
+    void useNotificationsStore.getState().refreshUnread();
   }, []);
 
   return (

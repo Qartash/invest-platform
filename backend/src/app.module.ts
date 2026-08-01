@@ -46,6 +46,8 @@ import { DailyDrawAward } from './activity/entities/daily-draw-award.entity';
 import { Quest } from './quests/entities/quest.entity';
 import { QuestCompletion } from './quests/entities/quest-completion.entity';
 import { PartnerApplication } from './partners/entities/partner-application.entity';
+import { Notification } from './notifications/entities/notification.entity';
+import { NotificationsModule } from './notifications/notifications.module';
 import { ProjectFundingModule } from './project-funding/project-funding.module';
 import { ProjectWorksModule } from './project-works/project-works.module';
 import { ReferralsModule } from './referrals/referrals.module';
@@ -105,6 +107,7 @@ import { AdminModule } from './admin/admin.module';
             Quest,
             QuestCompletion,
             PartnerApplication,
+            Notification,
             SystemLog,
             LogSettings,
           ],
@@ -130,6 +133,7 @@ import { AdminModule } from './admin/admin.module';
     ActivityModule,
     QuestsModule,
     PartnersModule,
+    NotificationsModule,
     AdminModule,
     StatsModule,
     LogsModule,

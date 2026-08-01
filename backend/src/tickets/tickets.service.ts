@@ -8,10 +8,27 @@ import { BuyTicketDto } from './dto/buy-ticket.dto';
 import { ProjectStatus, TicketStatus, TransactionStatus, TransactionType } from '../common/enums';
 import { computeTicketPricing, computeTicketPurchaseCost } from '../projects/pricing';
 import { lockProject, lockWallet, lockWallets } from '../common/row-locks';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType, NotifyInput } from '../notifications/notification-types';
 
 @Injectable()
 export class TicketsService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  // Everyone currently holding a ticket in a project, each id once. Used to tell
+  // a project's investors about something that happened to all of them at once.
+  async holderIds(projectId: string): Promise<string[]> {
+    const rows: Array<{ ownerId: string }> = await this.dataSource
+      .getRepository(Ticket)
+      .createQueryBuilder('ticket')
+      .select('DISTINCT ticket.owner_id', 'ownerId')
+      .where('ticket.project_id = :projectId', { projectId })
+      .getRawMany();
+    return rows.map((row) => row.ownerId);
+  }
 
   // The valuation feed is a flat placeholder: a ticket's snapshot value always
   // equals its purchase price (zero return until a real feed exists). So whenever
@@ -24,7 +41,7 @@ export class TicketsService {
   }
 
   async buyTicket(userId: string, dto: BuyTicketDto): Promise<Ticket> {
-    return this.dataSource.transaction(async (manager) => {
+    const outcome = await this.dataSource.transaction(async (manager) => {
       // Held FOR UPDATE for the whole purchase: ticketsSold, the tier the price is read
       // from and the treasury are all read-modify-write. Unlocked, parallel buys read the
       // same ticketsSold and overwrite each other's increment while every one of them still
@@ -60,7 +77,11 @@ export class TicketsService {
       // the founder — it's released to spendable per stage by a moderator.
       project.treasuryBalance = (parseFloat(project.treasuryBalance) + totalCost).toFixed(2);
       project.ticketsSold += dto.quantity;
-      if (project.ticketsSold >= project.totalTickets) {
+      // This purchase is the one that closed the raise. Only ever true once: the
+      // check at the top of the transaction refuses to sell into anything but an
+      // ACTIVE project, and the row is locked for the whole of it.
+      const justFunded = project.ticketsSold >= project.totalTickets;
+      if (justFunded) {
         project.status = ProjectStatus.FUNDED;
       }
       await manager.save(project);
@@ -83,8 +104,43 @@ export class TicketsService {
       });
       await manager.save(transaction);
 
-      return savedTicket;
+      return { ticket: savedTicket, project, totalCost, justFunded };
     });
+
+    const { ticket, project, totalCost, justFunded } = outcome;
+    const about = { projectId: project.id, projectTitle: project.title };
+
+    // Sent only now the transaction has committed. Inside it, a failed insert
+    // would roll the purchase back, and a successful one would have announced a
+    // purchase that a later failure undid.
+    const messages: NotifyInput[] = [
+      {
+        userId,
+        type: NotificationType.TICKETS_PURCHASED,
+        payload: { ...about, quantity: ticket.quantity, amount: totalCost },
+      },
+      {
+        userId: project.founderId,
+        type: NotificationType.INVESTMENT_RECEIVED,
+        payload: { ...about, quantity: ticket.quantity, amount: totalCost },
+      },
+    ];
+
+    if (justFunded) {
+      // The founder and everyone holding a ticket, the buyer included: the raise
+      // closing is the project's news, not one investor's.
+      const holders = await this.holderIds(project.id);
+      for (const holderId of new Set([project.founderId, ...holders])) {
+        messages.push({
+          userId: holderId,
+          type: NotificationType.PROJECT_FUNDED,
+          payload: { ...about, amount: parseFloat(project.collectedAmount) },
+        });
+      }
+    }
+
+    await this.notifications.notifyMany(messages);
+    return ticket;
   }
 
   findByOwner(ownerId: string): Promise<Ticket[]> {
@@ -292,7 +348,7 @@ export class TicketsService {
   // or they simply want fewer). A partial buy splits the listing: the bought portion becomes
   // a new ACTIVE ticket for the buyer, and the remainder stays LISTED_FOR_SALE under the seller.
   async buyListing(listingId: string, buyerId: string, quantity?: number): Promise<Ticket> {
-    return this.dataSource.transaction(async (manager) => {
+    const outcome = await this.dataSource.transaction(async (manager) => {
       // FOR UPDATE so two buyers cannot both pass the status check on the same listing, and
       // so a seller cancelling mid-sale queues behind the transfer instead of overwriting it.
       const ticket = await manager.findOne(Ticket, {
@@ -398,8 +454,31 @@ export class TicketsService {
         }),
       );
 
-      return purchasedTicket;
+      return { ticket: purchasedTicket, sellerId, price, purchaseQuantity, isFullPurchase };
     });
+
+    const { ticket, sellerId, price, purchaseQuantity, isFullPurchase } = outcome;
+    // Read after the sale rather than inside it: the title is only wanted so the
+    // notification can name the project, and holding the listing's lock while
+    // fetching it would make every resale wait on a read nothing depends on.
+    const project = await this.dataSource
+      .getRepository(Project)
+      .findOne({ where: { id: ticket.projectId }, select: { id: true, title: true } });
+    const about = { projectId: ticket.projectId, projectTitle: project?.title ?? null };
+
+    await this.notifications.notifyMany([
+      {
+        userId: sellerId,
+        type: NotificationType.LISTING_SOLD,
+        payload: { ...about, quantity: purchaseQuantity, amount: price, partial: !isFullPurchase },
+      },
+      {
+        userId: buyerId,
+        type: NotificationType.LISTING_BOUGHT,
+        payload: { ...about, quantity: purchaseQuantity, amount: price },
+      },
+    ]);
+    return ticket;
   }
 
   async findActiveProjectsForOwner(ownerId: string) {

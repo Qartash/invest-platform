@@ -8,9 +8,14 @@ import { Project } from '../projects/entities/project.entity';
 import { QuestsService } from './quests.service';
 import { QuestsController } from './quests.controller';
 import { ActivityModule } from '../activity/activity.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Quest, QuestCompletion, User, Ticket, Project]), ActivityModule],
+  imports: [
+    TypeOrmModule.forFeature([Quest, QuestCompletion, User, Ticket, Project]),
+    ActivityModule,
+    NotificationsModule,
+  ],
   providers: [QuestsService],
   controllers: [QuestsController],
   exports: [QuestsService],

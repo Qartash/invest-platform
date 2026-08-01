@@ -5,9 +5,10 @@ import { WalletsService } from './wallets.service';
 import { WalletsController } from './wallets.controller';
 import { TransactionsModule } from '../transactions/transactions.module';
 import { ReferralsModule } from '../referrals/referrals.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Wallet]), TransactionsModule, ReferralsModule],
+  imports: [TypeOrmModule.forFeature([Wallet]), TransactionsModule, ReferralsModule, NotificationsModule],
   providers: [WalletsService],
   controllers: [WalletsController],
   exports: [WalletsService],
