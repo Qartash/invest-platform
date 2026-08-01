@@ -20,6 +20,16 @@ import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateIncomeDto } from './dto/create-income.dto';
 import { CreateFinancialReportDto } from './dto/create-financial-report.dto';
 import { FinancialReportStatus, TransactionStatus, TransactionType, UserRole } from '../common/enums';
+import { TicketsService } from '../tickets/tickets.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType, NotifyInput } from '../notifications/notification-types';
+
+// More tickets held than the project ever issued — the state that puts a
+// dividend run on hold until a person has looked at it.
+interface LedgerMismatch {
+  ticketsIssued: number;
+  ticketsHeld: number;
+}
 
 @Injectable()
 export class ProjectFinanceService {
@@ -33,6 +43,8 @@ export class ProjectFinanceService {
     @InjectRepository(ReportPayout)
     private readonly payoutsRepository: Repository<ReportPayout>,
     private readonly projectsService: ProjectsService,
+    private readonly ticketsService: TicketsService,
+    private readonly notifications: NotificationsService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -191,7 +203,7 @@ export class ProjectFinanceService {
   }
 
   async addReport(projectId: string, userId: string, userRole: UserRole, dto: CreateFinancialReportDto) {
-    await this.assertCanEdit(projectId, userId, userRole);
+    const project = await this.assertCanEdit(projectId, userId, userRole);
     const currentPeriod = new Date().toISOString().slice(0, 7);
     if (dto.period > currentPeriod) {
       throw new BadRequestException('Cannot publish a report for a future month');
@@ -214,6 +226,24 @@ export class ProjectFinanceService {
       publishedAt: new Date(),
     });
     const saved = await this.reportsRepository.save(report);
+    // Investors are told a month's books are closed, not what they will be paid:
+    // publishing a report and paying its dividends are two separate acts, and the
+    // founder may never take the second one.
+    const holders = await this.ticketsService.holderIds(projectId);
+    await this.notifications.notifyMany(
+      holders
+        .filter((holderId) => holderId !== project.founderId)
+        .map((holderId) => ({
+          userId: holderId,
+          type: NotificationType.FINANCIAL_REPORT_PUBLISHED,
+          payload: {
+            projectId,
+            projectTitle: project.title,
+            period: saved.period,
+            netProfit: parseFloat(saved.netProfit),
+          },
+        })),
+    );
     return this.toReportView(saved, null);
   }
 
@@ -256,7 +286,12 @@ export class ProjectFinanceService {
   // unsold tickets and the equity the founder never offered stay with the founder.
   // Cent remainders from flooring also stay with the founder.
   async payReport(projectId: string, reportId: string, userId: string) {
-    return this.dataSource.transaction(async (manager) => {
+    // Set inside the transaction, read after it has rolled back: the mismatch
+    // below is refused, so the only way to tell anyone about it is to carry the
+    // fact out past the exception.
+    let ledgerMismatch: LedgerMismatch | null = null;
+    const run = () =>
+      this.dataSource.transaction(async (manager) => {
       const report = await manager.findOne(ProjectFinancialReport, {
         where: { id: reportId, projectId },
         lock: { mode: 'pessimistic_write' },
@@ -316,6 +351,10 @@ export class ProjectFinanceService {
       // reconcile instead of overpaying.
       const maxPayableCents = (netCents * equityHundredths) / 10000n;
       if (payoutTotalCents > maxPayableCents) {
+        ledgerMismatch = {
+          ticketsIssued: project.totalTickets,
+          ticketsHeld: [...ticketsByOwner.values()].reduce((sum, quantity) => sum + quantity, 0),
+        };
         throw new ConflictException(
           'Ticket holdings for this project exceed its issued tickets; dividends are on hold until the ledger is reconciled',
         );
@@ -371,7 +410,48 @@ export class ProjectFinanceService {
       report.paidAt = new Date();
       report.payoutTotal = payoutTotal.toFixed(2);
       const saved = await manager.save(report);
-      return this.toReportView(saved, null);
-    });
+        return {
+          view: this.toReportView(saved, null),
+          period: saved.period,
+          projectTitle: project.title,
+          paid: holders.map((holder) => ({
+            ownerId: holder.ownerId,
+            amount: Number(holder.amountCents) / 100,
+          })),
+        };
+      });
+
+    let outcome: Awaited<ReturnType<typeof run>>;
+    try {
+      outcome = await run();
+    } catch (err) {
+      // A project whose ticket ledger says more tickets exist than were ever
+      // issued is a moderation problem, not the founder's: they tapped pay and
+      // were refused, and nobody else would ever hear about it.
+      // Re-stated rather than read straight: the compiler follows the assignment
+      // no further than the closure it happens in, and reads the variable here as
+      // the null it was declared with.
+      const mismatch = ledgerMismatch as LedgerMismatch | null;
+      if (mismatch) {
+        await this.notifications.notifyAdmins(NotificationType.MOD_DIVIDEND_LEDGER_MISMATCH, {
+          projectId,
+          ...mismatch,
+        });
+      }
+      throw err;
+    }
+
+    const messages: NotifyInput[] = outcome.paid.map((holder) => ({
+      userId: holder.ownerId,
+      type: NotificationType.DIVIDENDS_RECEIVED,
+      payload: {
+        projectId,
+        projectTitle: outcome.projectTitle,
+        period: outcome.period,
+        amount: holder.amount,
+      },
+    }));
+    await this.notifications.notifyMany(messages);
+    return outcome.view;
   }
 }

@@ -19,6 +19,9 @@ import { SetRiskDto } from './dto/set-risk.dto';
 import { SetPriorityDto } from './dto/set-priority.dto';
 import { BudgetItemStatus, ProjectPriority, ProjectReviewAction, ProjectStatus, UserRole } from '../common/enums';
 import { deriveBaseTicketPrice } from './pricing';
+import { TicketsService } from '../tickets/tickets.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType, NotifyInput } from '../notifications/notification-types';
 
 const MAX_ATTACHMENTS_PER_PROJECT = 10;
 
@@ -35,7 +38,34 @@ export class ProjectsService {
     private readonly budgetItemsRepository: Repository<ProjectBudgetItem>,
     @InjectRepository(ProjectTeamMember)
     private readonly teamMembersRepository: Repository<ProjectTeamMember>,
+    private readonly ticketsService: TicketsService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  // The two shapes every notification about a project carries: which project, and
+  // what it is called. The title is copied into the payload rather than joined at
+  // read time so the notice still names the project after it is deleted.
+  private static about(project: Project) {
+    return { projectId: project.id, projectTitle: project.title };
+  }
+
+  // Tells a project's investors something, skipping the founder — they are told
+  // separately, in words that fit their side of it.
+  private async notifyHolders(
+    project: Project,
+    type: NotificationType,
+    payload: Record<string, unknown> = {},
+  ): Promise<void> {
+    const holders = await this.ticketsService.holderIds(project.id);
+    const messages: NotifyInput[] = holders
+      .filter((holderId) => holderId !== project.founderId)
+      .map((holderId) => ({
+        userId: holderId,
+        type,
+        payload: { ...ProjectsService.about(project), ...payload },
+      }));
+    await this.notifications.notifyMany(messages);
+  }
 
   private logReview(
     projectId: string,
@@ -168,6 +198,12 @@ export class ProjectsService {
         await this.budgetItemsRepository.save(items);
       }
     }
+    // A new project goes straight into the review queue, which until now nobody
+    // was told about — a moderator had to open the tab and look.
+    await this.notifications.notifyAdmins(NotificationType.MOD_PROJECT_SUBMITTED, {
+      ...ProjectsService.about(saved),
+      firstSubmission: true,
+    });
     return saved;
   }
 
@@ -439,6 +475,10 @@ export class ProjectsService {
         project.pendingChangeReason = dto.changeReason?.trim() || null;
         const saved = await this.projectsRepository.save(project);
         await this.logReview(saved.id, ProjectReviewAction.SUBMITTED, { comment: project.pendingChangeReason });
+        await this.notifications.notifyAdmins(NotificationType.MOD_PROJECT_SUBMITTED, {
+          ...ProjectsService.about(saved),
+          comment: saved.pendingChangeReason,
+        });
         return saved;
       }
       return project;
@@ -458,6 +498,10 @@ export class ProjectsService {
     }
     const saved = await this.projectsRepository.save(project);
     await this.logReview(saved.id, ProjectReviewAction.SUBMITTED, { changes, comment: project.pendingChangeReason });
+    await this.notifications.notifyAdmins(NotificationType.MOD_PROJECT_SUBMITTED, {
+      ...ProjectsService.about(saved),
+      comment: saved.pendingChangeReason,
+    });
     return saved;
   }
 
@@ -496,6 +540,14 @@ export class ProjectsService {
       moderatorId,
       moderatorName,
     });
+    // A moderator editing a live project changes something its investors bought
+    // into, so they hear about it too and not only the founder.
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_ADMIN_EDITED,
+      payload: { ...ProjectsService.about(saved), actorName: moderatorName },
+    });
+    await this.notifyHolders(saved, NotificationType.PROJECT_ADMIN_EDITED, { actorName: moderatorName });
     return saved;
   }
 
@@ -541,6 +593,10 @@ export class ProjectsService {
       project.deletionRequestedAt = new Date();
       const saved = await this.projectsRepository.save(project);
       await this.logReview(saved.id, ProjectReviewAction.DELETION_REQUESTED);
+      await this.notifications.notifyAdmins(NotificationType.MOD_PROJECT_DELETION_REQUESTED, {
+        ...ProjectsService.about(saved),
+        ticketsSold: saved.ticketsSold,
+      });
       return saved;
     }
 
@@ -588,6 +644,14 @@ export class ProjectsService {
     project.deletedAt = new Date();
     const saved = await this.projectsRepository.save(project);
     await this.logReview(saved.id, ProjectReviewAction.DELETION_APPROVED, { moderatorId, moderatorName });
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_DELETION_APPROVED,
+      payload: { ...ProjectsService.about(saved), actorName: moderatorName },
+    });
+    // Their money is already out — approval is refused while any is still held —
+    // but a project they hold tickets in disappearing is worth being told about.
+    await this.notifyHolders(saved, NotificationType.PROJECT_DELETED);
     return saved;
   }
 
@@ -599,6 +663,11 @@ export class ProjectsService {
     project.deletionRequestedAt = null;
     const saved = await this.projectsRepository.save(project);
     await this.logReview(saved.id, ProjectReviewAction.DELETION_REJECTED, { comment, moderatorId, moderatorName });
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_DELETION_REJECTED,
+      payload: { ...ProjectsService.about(saved), comment, actorName: moderatorName },
+    });
     return saved;
   }
 
@@ -695,6 +764,11 @@ export class ProjectsService {
     project.reviewComment = comment;
     const saved = await this.projectsRepository.save(project);
     await this.logReview(saved.id, ProjectReviewAction.APPROVED, { comment, moderatorId, moderatorName });
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_APPROVED,
+      payload: { ...ProjectsService.about(saved), comment, actorName: moderatorName },
+    });
     return saved;
   }
 
@@ -712,6 +786,13 @@ export class ProjectsService {
     project.reviewComment = comment;
     const saved = await this.projectsRepository.save(project);
     await this.logReview(saved.id, ProjectReviewAction.REJECTED, { comment, moderatorId, moderatorName });
+    // The moderator's comment is the whole point of this one: it is the only
+    // place the founder is told what to fix.
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_REJECTED,
+      payload: { ...ProjectsService.about(saved), comment, actorName: moderatorName },
+    });
     return saved;
   }
 
@@ -722,7 +803,17 @@ export class ProjectsService {
     project.riskSetByName = moderatorName;
     project.riskSetByUserId = moderatorId;
     project.riskSetAt = new Date();
-    return this.projectsRepository.save(project);
+    const saved = await this.projectsRepository.save(project);
+    // Everyone with a stake in it: the risk rating is a judgement on what they
+    // are holding, and the founder is judged by it.
+    const payload = { riskLevel: saved.riskLevel, comment: saved.riskReason, actorName: moderatorName };
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_RISK_CHANGED,
+      payload: { ...ProjectsService.about(saved), ...payload },
+    });
+    await this.notifyHolders(saved, NotificationType.PROJECT_RISK_CHANGED, payload);
+    return saved;
   }
 
   async setPriority(

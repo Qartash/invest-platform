@@ -10,6 +10,7 @@ import { useCachedQuery } from '../../api/useCachedQuery';
 import { Project } from '../../types';
 import { maxWidth, spacing, ThemeColors, typography, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
 import { HelpButton, TourTarget } from '../../onboarding';
+import { NotificationBell } from '../../components/NotificationBell';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
 
 type Props = NativeStackScreenProps<InvestorHomeStackParamList, 'Home'>;
@@ -43,7 +44,10 @@ export function HomeScreen({ navigation }: Props) {
       <PageContainer maxWidth={maxWidth.page}>
         <TourTarget id="home.header" style={styles.headerRow}>
           <Text style={styles.header}>{t('home.title')}</Text>
-          <HelpButton topic="home" tour="investor" />
+          <View style={styles.headerActions}>
+            <NotificationBell onPress={() => navigation.navigate('Notifications')} />
+            <HelpButton topic="home" tour="investor" />
+          </View>
         </TourTarget>
 
         <TourTarget id="home.tabs" style={styles.tabsWrap}>
@@ -115,6 +119,13 @@ const createStyles = (c: ThemeColors) =>
       paddingHorizontal: spacing.md,
       paddingTop: spacing.md,
       paddingBottom: spacing.sm + 4,
+    },
+    // The bell and the `?` sit together at the right end of the title row; the
+    // gap is wide enough that the bell's badge never touches the `?`.
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.sm,
     },
     header: {
       ...typography.display,

@@ -13,10 +13,12 @@ import { ReferralEarningsScreen } from '../screens/referrals/ReferralEarningsScr
 import { QuestsScreen } from '../screens/referrals/QuestsScreen';
 import { PartnerScreen } from '../screens/referrals/PartnerScreen';
 import { GuideScreen } from '../screens/GuideScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { useAuthStore } from '../store/authStore';
 
 export type ProfileStackParamList = {
   Profile: undefined;
+  Notifications: undefined;
   EditProfile: undefined;
   Wallet: undefined;
   Portfolio: undefined;
@@ -57,6 +59,9 @@ export function ProfileStackNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      {/* Draws its own header, like Profile itself — see the note on the same
+          screen in the home stack. */}
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen
         name="EditProfile"
         component={EditProfileScreen}

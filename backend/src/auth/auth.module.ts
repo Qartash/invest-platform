@@ -9,12 +9,14 @@ import { GoogleVerifier } from './google-verifier';
 import { UsersModule } from '../users/users.module';
 import { WalletsModule } from '../wallets/wallets.module';
 import { InviteEligibilityModule } from '../referrals/invite-eligibility.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     UsersModule,
     WalletsModule,
     InviteEligibilityModule,
+    NotificationsModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

@@ -5,12 +5,15 @@ import { User } from './entities/user.entity';
 import { UserRole } from '../common/enums';
 import { AdminUpdateUserDto } from './dto/admin-update-user.dto';
 import { hashPassword } from '../auth/password';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notification-types';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    private readonly notifications: NotificationsService,
   ) {}
 
   findByUsername(username: string): Promise<User | null> {
@@ -185,18 +188,39 @@ export class UsersService {
     if (password) {
       user.passwordHash = await hashPassword(password);
     }
-    return this.usersRepository.save(user);
+    const saved = await this.usersRepository.save(user);
+    // Somebody else changed the details this account signs in with. Which fields
+    // moved, never their values — a notification is not the place to restate an
+    // email address or hint at a password.
+    await this.notifications.notify({
+      userId: saved.id,
+      type: NotificationType.ACCOUNT_EDITED_BY_ADMIN,
+      payload: { fields: Object.keys(rest).concat(password ? ['password'] : []) },
+    });
+    return saved;
   }
 
   async setBanned(id: string, banned: boolean, actingAdminId: string): Promise<User> {
     const user = await this.findModerationTarget(id, actingAdminId);
     user.bannedAt = banned ? new Date() : null;
-    return this.usersRepository.save(user);
+    const saved = await this.usersRepository.save(user);
+    // A banned account can still sign in far enough to read this — being told is
+    // the difference between a ban and the app appearing to break.
+    await this.notifications.notify({
+      userId: saved.id,
+      type: banned ? NotificationType.ACCOUNT_BANNED : NotificationType.ACCOUNT_UNBANNED,
+    });
+    return saved;
   }
 
   async setDeleted(id: string, deleted: boolean, actingAdminId: string): Promise<User> {
     const user = await this.findModerationTarget(id, actingAdminId);
     user.deletedAt = deleted ? new Date() : null;
-    return this.usersRepository.save(user);
+    const saved = await this.usersRepository.save(user);
+    await this.notifications.notify({
+      userId: saved.id,
+      type: deleted ? NotificationType.ACCOUNT_DELETED : NotificationType.ACCOUNT_RESTORED,
+    });
+    return saved;
   }
 }

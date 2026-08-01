@@ -1024,5 +1024,255 @@
       "paid": "Available",
       "cancelled": "Voided"
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "profileSub": "Everything that happened while you were away",
+    "markAllRead": "Mark all read",
+    "empty": "Nothing yet",
+    "unreadCount": "{{count}} unread",
+    "aProject": "a project",
+    "items": {
+      "unknown": {
+        "title": "Notification",
+        "body": "Something happened on the platform."
+      },
+      "tickets_purchased": {
+        "title": "Tickets bought",
+        "body": "{{quantity}} ticket(s) in “{{project}}” for {{amount}}."
+      },
+      "listing_sold": {
+        "title": "Your listing sold",
+        "body": "{{quantity}} of your tickets in “{{project}}” were bought for {{amount}}."
+      },
+      "listing_bought": {
+        "title": "Bought on the resale market",
+        "body": "{{quantity}} ticket(s) in “{{project}}” for {{amount}}."
+      },
+      "project_funded": {
+        "title": "Project fully funded",
+        "body": "“{{project}}” has sold every ticket."
+      },
+      "financial_report_published": {
+        "title": "New financial report",
+        "body": "“{{project}}” published its books for {{period}}."
+      },
+      "dividends_received": {
+        "title": "Dividends paid",
+        "body": "{{amount}} for {{period}} from “{{project}}”."
+      },
+      "project_refunded": {
+        "title": "Money returned",
+        "body": "“{{project}}” was closed. {{amount}} is back in your wallet."
+      },
+      "project_closed": {
+        "title": "Project closed",
+        "body": "“{{project}}” has been closed by a moderator."
+      },
+      "project_deleted": {
+        "title": "Project removed",
+        "body": "“{{project}}” has been deleted."
+      },
+      "project_risk_changed": {
+        "title": "Risk level changed",
+        "body": "“{{project}}” is now rated {{risk}}. {{comment}}"
+      },
+      "project_admin_edited": {
+        "title": "Project edited by a moderator",
+        "body": "{{actor}} changed “{{project}}”."
+      },
+      "project_approved": {
+        "title": "Project approved",
+        "body": "“{{project}}” is live. {{comment}}"
+      },
+      "project_rejected": {
+        "title": "Project rejected",
+        "body": "“{{project}}”: {{comment}}"
+      },
+      "project_deletion_approved": {
+        "title": "Deletion approved",
+        "body": "“{{project}}” has been deleted."
+      },
+      "project_deletion_rejected": {
+        "title": "Deletion refused",
+        "body": "“{{project}}”: {{comment}}"
+      },
+      "investment_received": {
+        "title": "New investment",
+        "body": "{{quantity}} ticket(s) in “{{project}}” sold for {{amount}}."
+      },
+      "fund_release_approved": {
+        "title": "Stage released",
+        "body": "{{amount}} for “{{stage}}” is now spendable in “{{project}}”. {{comment}}"
+      },
+      "fund_release_rejected": {
+        "title": "Stage release refused",
+        "body": "“{{stage}}” in “{{project}}”: {{comment}}"
+      },
+      "work_application_received": {
+        "title": "New application",
+        "body": "Someone applied to “{{work}}” in “{{project}}”."
+      },
+      "work_submitted": {
+        "title": "Work submitted",
+        "body": "“{{work}}” in “{{project}}” is ready for review."
+      },
+      "work_milestone_submitted": {
+        "title": "Milestone submitted",
+        "body": "“{{milestone}}” in “{{work}}” is ready for review."
+      },
+      "work_application_selected": {
+        "title": "You were selected",
+        "body": "“{{work}}” in “{{project}}” is yours, for {{amount}}."
+      },
+      "work_application_rejected": {
+        "title": "Application declined",
+        "body": "“{{work}}” in “{{project}}”. {{comment}}"
+      },
+      "work_accepted": {
+        "title": "Work accepted",
+        "body": "{{amount}} paid for “{{work}}”."
+      },
+      "work_milestone_accepted": {
+        "title": "Milestone accepted",
+        "body": "{{amount}} paid for “{{milestone}}”."
+      },
+      "work_cancelled": {
+        "title": "Work cancelled",
+        "body": "“{{work}}” in “{{project}}” was cancelled."
+      },
+      "work_review_received": {
+        "title": "You were rated",
+        "body": "{{rating}}/5 for “{{work}}”. {{comment}}"
+      },
+      "work_dispute_opened": {
+        "title": "Dispute opened",
+        "body": "A dispute was opened on “{{work}}” in “{{project}}”."
+      },
+      "work_dispute_resolved": {
+        "title": "Dispute resolved",
+        "body": "“{{work}}”: the escrow of {{amount}} has been settled."
+      },
+      "wallet_deposited": {
+        "title": "Wallet topped up",
+        "body": "{{amount}} added. Balance: {{balance}}."
+      },
+      "wallet_withdrawn": {
+        "title": "Withdrawal",
+        "body": "{{amount}} withdrawn. Balance: {{balance}}."
+      },
+      "project_funds_withdrawn": {
+        "title": "Project funds withdrawn",
+        "body": "{{amount}} moved from “{{project}}” to your wallet."
+      },
+      "referral_joined": {
+        "title": "Someone joined by your invite",
+        "body": "Your invite code was used to create an account."
+      },
+      "referral_earning_accrued": {
+        "title": "Referral bonus earned",
+        "body": "{{amount}} is maturing and will be credited once the hold ends."
+      },
+      "referral_earning_paid": {
+        "title": "Referral bonus credited",
+        "body": "{{amount}} added to your invest credit."
+      },
+      "referral_earning_cancelled": {
+        "title": "Referral bonus voided",
+        "body": "{{amount}} will not be paid."
+      },
+      "partner_application_approved": {
+        "title": "You are a partner",
+        "body": "Your partner application was approved. {{comment}}"
+      },
+      "partner_application_rejected": {
+        "title": "Partner application declined",
+        "body": "{{comment}}"
+      },
+      "partner_application_changes_requested": {
+        "title": "Changes requested",
+        "body": "{{comment}}"
+      },
+      "partner_revoked": {
+        "title": "Partner status withdrawn",
+        "body": "Anything already earned is still owed to you."
+      },
+      "partner_payout_settled": {
+        "title": "Partner payout settled",
+        "body": "{{amount}} has been transferred."
+      },
+      "streak_rewarded": {
+        "title": "Streak reward",
+        "body": "{{streak}} days in a row — {{amount}}."
+      },
+      "daily_draw_won": {
+        "title": "You won the daily draw",
+        "body": "{{amount}} added to your invest credit."
+      },
+      "quest_rewarded": {
+        "title": "Quest reward",
+        "body": "{{amount}} credited for a completed task."
+      },
+      "project_quest_added": {
+        "title": "New paid task",
+        "body": "“{{quest}}” in “{{project}}” — {{amount}}."
+      },
+      "account_banned": {
+        "title": "Account blocked",
+        "body": "Contact support if you think this is a mistake."
+      },
+      "account_unbanned": {
+        "title": "Account unblocked",
+        "body": "You have full access again."
+      },
+      "account_deleted": {
+        "title": "Account deleted",
+        "body": "Your account was deleted by a moderator."
+      },
+      "account_restored": {
+        "title": "Account restored",
+        "body": "Your account is active again."
+      },
+      "account_edited_by_admin": {
+        "title": "Account details changed",
+        "body": "A moderator changed: {{fields}}."
+      },
+      "mod_project_submitted": {
+        "title": "Project awaiting review",
+        "body": "“{{project}}” is in the moderation queue. {{comment}}"
+      },
+      "mod_project_deletion_requested": {
+        "title": "Deletion requested",
+        "body": "“{{project}}” is asking to be deleted."
+      },
+      "mod_fund_release_requested": {
+        "title": "Stage release requested",
+        "body": "{{amount}} for “{{stage}}” in “{{project}}”."
+      },
+      "mod_work_disputed": {
+        "title": "Work dispute",
+        "body": "“{{work}}” in “{{project}}” needs a decision."
+      },
+      "mod_partner_applied": {
+        "title": "New partner application",
+        "body": "A partner application is waiting for review."
+      },
+      "mod_partner_payout_due": {
+        "title": "Partner payouts due",
+        "body": "{{partners}} partner(s) are owed {{amount}}."
+      },
+      "mod_referral_pool_empty": {
+        "title": "Referral pool cannot pay",
+        "body": "{{count}} matured earning(s) are waiting to be funded."
+      },
+      "mod_dividend_ledger_mismatch": {
+        "title": "Dividends on hold",
+        "body": "A project holds {{ticketsHeld}} tickets but issued {{ticketsIssued}}."
+      },
+      "mod_demo_seeded": {
+        "title": "Demo data seeded",
+        "body": "{{actor}} created the demo project."
+      }
+    }
   }
 }

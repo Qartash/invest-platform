@@ -5,9 +5,10 @@ import { User } from '../users/entities/user.entity';
 import { PartnersService } from './partners.service';
 import { PartnersController } from './partners.controller';
 import { ReferralsModule } from '../referrals/referrals.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PartnerApplication, User]), ReferralsModule],
+  imports: [TypeOrmModule.forFeature([PartnerApplication, User]), ReferralsModule, NotificationsModule],
   providers: [PartnersService],
   controllers: [PartnersController],
   exports: [PartnersService],

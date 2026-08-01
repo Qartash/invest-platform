@@ -16,6 +16,7 @@ import {
   useThemeStyles,
 } from '../theme';
 import { useAuthStore } from '../store/authStore';
+import { useNotificationsStore } from '../store/notificationsStore';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Avatar } from '../components/Avatar';
 import { RichTextView } from '../components/RichTextView';
@@ -40,6 +41,9 @@ export function ProfileScreen({ navigation }: Props) {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  // Kept fresh by whichever bell was on screen last; the profile only reads it,
+  // so opening this tab never costs a request of its own.
+  const unread = useNotificationsStore((s) => s.unread);
   // The balance key sits under the same `wallet:` prefix the wallet screen invalidates, so a
   // deposit made there retires this copy too. The portfolio key is the very one that screen
   // reads, which is what makes stepping between the two instant.
@@ -154,6 +158,17 @@ export function ProfileScreen({ navigation }: Props) {
         )}
       </ListGroup>
       </TourTarget>
+
+      <SectionHeader title={t('notifications.title')} spaced />
+      <ListGroup>
+        <ListRow
+          icon="bell"
+          label={t('notifications.title')}
+          sublabel={t('notifications.profileSub')}
+          right={unread > 0 ? <Pill label={String(unread)} tone="danger" /> : undefined}
+          onPress={() => navigation.navigate('Notifications')}
+        />
+      </ListGroup>
 
       <SectionHeader title={t('referrals.communitySection')} spaced />
       <TourTarget id="profile.community">

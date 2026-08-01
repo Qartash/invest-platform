@@ -15,10 +15,12 @@ import { TicketsModule } from '../tickets/tickets.module';
 import { ProjectFinanceModule } from '../project-finance/project-finance.module';
 import { ProjectWorksModule } from '../project-works/project-works.module';
 import { ProjectFundingModule } from '../project-funding/project-funding.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Wallet, Project]),
+    NotificationsModule,
     AuthModule,
     LogsModule,
     QuestsModule,

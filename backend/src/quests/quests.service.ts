@@ -16,6 +16,8 @@ import { Ticket } from '../tickets/entities/ticket.entity';
 import { Project } from '../projects/entities/project.entity';
 import { RewardsService } from '../activity/rewards.service';
 import { QuestScope, QuestVerification, UserRole } from '../common/enums';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notification-types';
 
 // The quests every account gets, seeded once. Keys are what the app translates,
 // so the wording lives in the locale files rather than in the database.
@@ -41,6 +43,7 @@ export class QuestsService implements OnModuleInit {
     @InjectRepository(Project)
     private readonly projectsRepository: Repository<Project>,
     private readonly rewardsService: RewardsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // Idempotent: only keys that aren't there yet are inserted, so a redeploy adds
@@ -145,6 +148,16 @@ export class QuestsService implements OnModuleInit {
     const paid = await this.rewardsService.award(userId, amount, quest.key ?? quest.title ?? 'Quest reward');
     completion.amount = paid.toFixed(2);
     await this.completionsRepository.save(completion);
+    // Covers both routes into a payout. The self-completed ones the user is
+    // watching happen; the admin-verified ones — a bug bounty, say — are decided
+    // days later by somebody else, and this is the only word of it they get.
+    if (paid > 0) {
+      await this.notifications.notify({
+        userId,
+        type: NotificationType.QUEST_REWARDED,
+        payload: { amount: paid, questKey: quest.key, questTitle: quest.title, questId: quest.id },
+      });
+    }
     return { questId: quest.id, awarded: paid };
   }
 
@@ -178,7 +191,7 @@ export class QuestsService implements OnModuleInit {
     if (data.reward <= 0 || data.reward > QuestsService.MAX_PROJECT_REWARD) {
       throw new BadRequestException(`Reward must be between 1 and ${QuestsService.MAX_PROJECT_REWARD}`);
     }
-    return this.questsRepository.save(
+    const saved = await this.questsRepository.save(
       this.questsRepository.create({
         key: null,
         scope: QuestScope.PROJECT,
@@ -191,6 +204,30 @@ export class QuestsService implements OnModuleInit {
         projectId: data.projectId,
       }),
     );
+
+    // Offered to the project's own investors: they are the people already
+    // following it, and a paid task is worth nothing unheard.
+    const holders: Array<{ ownerId: string }> = await this.ticketsRepository
+      .createQueryBuilder('ticket')
+      .select('DISTINCT ticket.owner_id', 'ownerId')
+      .where('ticket.project_id = :projectId', { projectId: data.projectId })
+      .getRawMany();
+    await this.notifications.notifyMany(
+      holders
+        .filter((holder) => holder.ownerId !== project.founderId)
+        .map((holder) => ({
+          userId: holder.ownerId,
+          type: NotificationType.PROJECT_QUEST_ADDED,
+          payload: {
+            projectId: project.id,
+            projectTitle: project.title,
+            questId: saved.id,
+            questTitle: saved.title,
+            amount: parseFloat(saved.reward),
+          },
+        })),
+    );
+    return saved;
   }
 
   // Small by design: these are payments for attention, not for investing.

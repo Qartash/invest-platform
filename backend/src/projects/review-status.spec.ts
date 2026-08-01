@@ -47,14 +47,24 @@ function makeService(project: Project) {
     create: jest.fn((v: unknown) => v),
     save: jest.fn(async (v: unknown) => v),
   };
+  // Notifications are a side effect of every review step; stubbed so the status
+  // assertions below stay about statuses.
+  const notifications = {
+    notify: jest.fn(async () => undefined),
+    notifyMany: jest.fn(async () => undefined),
+    notifyAdmins: jest.fn(async () => undefined),
+  };
+  const ticketsService = { holderIds: jest.fn(async () => []) };
   const service = new ProjectsService(
     projectsRepository as never,
     logsRepository as never,
     {} as never,
     {} as never,
     {} as never,
+    ticketsService as never,
+    notifications as never,
   );
-  return { service, projectsRepository };
+  return { service, projectsRepository, notifications };
 }
 
 describe('a live project with an edit awaiting review', () => {

@@ -8,9 +8,10 @@ import { RewardsService } from './rewards.service';
 import { DailyDrawService } from './daily-draw.service';
 import { ActivityController } from './activity.controller';
 import { ReferralsModule } from '../referrals/referrals.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DailyCheckin, DailyDrawAward, User]), ReferralsModule],
+  imports: [TypeOrmModule.forFeature([DailyCheckin, DailyDrawAward, User]), ReferralsModule, NotificationsModule],
   providers: [ActivityService, RewardsService, DailyDrawService],
   controllers: [ActivityController],
   // RewardsService is exported so the quest catalog credits rewards through the

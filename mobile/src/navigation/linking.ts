@@ -54,6 +54,7 @@ export const linking: LinkingOptions<ReactNavigation.RootParamList> = {
           ProjectDetail: 'projects/:projectId',
           ProjectFinance: 'projects/:projectId/finance',
           ProjectWorks: 'projects/:projectId/works',
+          Notifications: 'notifications',
         },
       },
       ProjectsTab: {
@@ -81,6 +82,10 @@ export const linking: LinkingOptions<ReactNavigation.RootParamList> = {
         initialRouteName: 'Profile',
         screens: {
           Profile: 'profile',
+          // The same screen is registered in the home stack at `/notifications`;
+          // two routes cannot share a path, so the copy reached from the profile
+          // gets its own address under it.
+          Notifications: 'profile/notifications',
           EditProfile: 'profile/edit',
           Wallet: 'wallet',
           Portfolio: 'portfolio',

@@ -8,6 +8,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { TransactionType } from '../common/enums';
 import { User } from '../users/entities/user.entity';
 import { ReferralEarningsService } from '../referrals/referral-earnings.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/notification-types';
 
 @UseGuards(JwtAuthGuard)
 @Controller('wallet')
@@ -16,6 +18,7 @@ export class WalletsController {
     private readonly walletsService: WalletsService,
     private readonly transactionsService: TransactionsService,
     private readonly referralEarningsService: ReferralEarningsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   @Get()
@@ -40,6 +43,11 @@ export class WalletsController {
     // first, pays the direct referrer 1%. The accrual is a held ledger entry, not
     // money moving now, so it stays out of the wallet lock above.
     await this.referralEarningsService.handleDeposit(user.id, dto.amount, tx.id);
+    await this.notifications.notify({
+      userId: user.id,
+      type: NotificationType.WALLET_DEPOSITED,
+      payload: { amount: dto.amount, balance: parseFloat(wallet.balance) },
+    });
     return wallet;
   }
 
@@ -50,6 +58,11 @@ export class WalletsController {
       userId: user.id,
       type: TransactionType.WITHDRAW,
       amount: dto.amount,
+    });
+    await this.notifications.notify({
+      userId: user.id,
+      type: NotificationType.WALLET_WITHDRAWN,
+      payload: { amount: dto.amount, balance: parseFloat(wallet.balance) },
     });
     return wallet;
   }
