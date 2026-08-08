@@ -31,11 +31,28 @@ export function completeQuest(id: string) {
   return apiClient.post<{ questId: string; awarded: number }>(`/quests/${id}/complete`).then((r) => r.data);
 }
 
-export interface DailyBonus {
-  pool: number;
-  share: number;
-  wonToday: number;
+/** One day of the draw. Past days are described by what was paid, not by the pot. */
+export interface DailyDrawDay {
+  date: string;
+  /** People who registered that day with nobody's code — what funds the pot. */
   organicArrivals: number;
+  pool: number;
+  /** How many winners the pot can pay. Against `participants` it is the odds. */
+  seats: number;
+  participants: number;
+  winners: number;
+  /** Whether the draw has already run for this day. */
+  drawn: boolean;
+  youWon: number;
+  youIn: boolean;
+}
+
+export interface DailyBonus {
+  share: number;
+  /** What the platform puts up per code-less arrival — the rate the card explains. */
+  perArrival: number;
+  today: DailyDrawDay;
+  yesterday: DailyDrawDay;
 }
 
 export function fetchDailyBonus() {
