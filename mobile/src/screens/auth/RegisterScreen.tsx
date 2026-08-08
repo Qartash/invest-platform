@@ -100,7 +100,7 @@ export function RegisterScreen({ navigation }: Props) {
                 thing offered when creating an account. */}
             {isGoogleSignInConfigured && (
               <>
-                <GoogleSignInButton label={t('auth.signUpWithGoogle')} />
+                <GoogleSignInButton label={t('auth.signUpWithGoogle')} referralCode={referralCode} />
                 <OrDivider label={t('auth.orWithEmail')} />
               </>
             )}

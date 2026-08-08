@@ -8,6 +8,7 @@ import { radius, spacing, ThemeColors, typography, useTheme, useThemeStyles } fr
 import { loginWithGoogle } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
 import { useReferralStore } from '../store/referralStore';
+import { apiErrorMessage } from '../utils/apiError';
 import { logEvent } from '../utils/logger';
 
 // Closes the popup and hands the result back to the hook once Google redirects.
@@ -25,9 +26,16 @@ export const isGoogleSignInConfigured = Object.values(CLIENT_IDS).some(Boolean);
 interface Props {
   /** Wording differs between the sign-in and sign-up screens. */
   label: string;
+  /**
+   * The invite code typed into the sign-up form, for the screen that has such a field.
+   * Only a code that arrived in the URL lives in the store, so without this a visitor
+   * who was handed their code by hand could fill it in, press this button, and be
+   * refused by a gate their own screen had already satisfied.
+   */
+  referralCode?: string;
 }
 
-export function GoogleSignInButton({ label }: Props) {
+export function GoogleSignInButton({ label, referralCode }: Props) {
   const styles = useThemeStyles(createStyles);
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -53,15 +61,18 @@ export function GoogleSignInButton({ label }: Props) {
     }
     let cancelled = false;
     setExchanging(true);
-    loginWithGoogle(idToken, pendingCode ?? undefined)
+    loginWithGoogle(idToken, referralCode?.trim() || pendingCode || undefined)
       .then((session) => {
         if (!cancelled) {
           clearPendingCode();
           setSession(session.accessToken, session.user);
         }
       })
-      .catch(() => {
-        if (!cancelled) setError(t('auth.googleFailed'));
+      .catch((e) => {
+        // Google's part succeeded — this is our own API refusing, and it knows why.
+        // "Could not sign in with Google" over a missing invite code sends someone
+        // back to Google, which is the one place the problem is not.
+        if (!cancelled) setError(apiErrorMessage(e, t));
       })
       .finally(() => {
         if (!cancelled) setExchanging(false);
@@ -69,7 +80,7 @@ export function GoogleSignInButton({ label }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [response, setSession, t, pendingCode, clearPendingCode]);
+  }, [response, setSession, t, pendingCode, clearPendingCode, referralCode]);
 
   if (!isGoogleSignInConfigured) {
     return null;
