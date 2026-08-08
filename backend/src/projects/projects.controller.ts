@@ -1,7 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Put, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { ProjectsService } from './projects.service';
 import { TicketsService } from '../tickets/tickets.service';
 import { ProjectWorksService } from '../project-works/project-works.service';
@@ -22,22 +20,16 @@ import { Project } from './entities/project.entity';
 import { KycStatus, ProjectStatus, UserRole } from '../common/enums';
 import { toProjectResponse } from './project-response';
 import { cached } from '../common/response-cache';
+import {
+  ATTACHMENT_UPLOAD_TYPES,
+  IMAGE_UPLOAD_TYPES,
+  displayFileName,
+  uploadOptions,
+} from '../common/upload-storage';
 
 // Matches the client's own cache window, so a figure never looks stale on one side and
 // fresh on the other.
 const PROJECT_LIST_TTL_MS = 30_000;
-
-const ALLOWED_ATTACHMENT_MIME_TYPES = [
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'image/jpeg',
-  'image/png',
-];
 
 @Controller('projects')
 export class ProjectsController {
@@ -267,21 +259,10 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard)
   @Post(':id/cover-image')
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/projects',
-        filename: (req, file, cb) => {
-          cb(null, `${req.params.id}-${Date.now()}${extname(file.originalname)}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
-          return cb(new BadRequestException('Only image files are allowed'), false);
-        }
-        cb(null, true);
-      },
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
+    FileInterceptor(
+      'file',
+      uploadOptions({ destination: './uploads/projects', accept: IMAGE_UPLOAD_TYPES, maxBytes: 5 * 1024 * 1024 }),
+    ),
   )
   async uploadCoverImage(
     @CurrentUser() user: User,
@@ -304,21 +285,14 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard)
   @Post(':id/attachments')
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
+    FileInterceptor(
+      'file',
+      uploadOptions({
         destination: './uploads/attachments',
-        filename: (req, file, cb) => {
-          cb(null, `${req.params.id}-${Date.now()}${extname(file.originalname)}`);
-        },
+        accept: ATTACHMENT_UPLOAD_TYPES,
+        maxBytes: 20 * 1024 * 1024,
       }),
-      fileFilter: (req, file, cb) => {
-        if (!ALLOWED_ATTACHMENT_MIME_TYPES.includes(file.mimetype)) {
-          return cb(new BadRequestException('Unsupported file type'), false);
-        }
-        cb(null, true);
-      },
-      limits: { fileSize: 20 * 1024 * 1024 },
-    }),
+    ),
   )
   async uploadAttachment(
     @CurrentUser() user: User,
@@ -332,7 +306,9 @@ export class ProjectsController {
       id,
       user.id,
       {
-        fileName: file.originalname,
+        // What the uploader called it, kept for the download link and shown as-is in the
+        // attachment list — so it is flattened first (see displayFileName).
+        fileName: displayFileName(file.originalname),
         fileUrl: `/uploads/attachments/${file.filename}`,
         fileSize: file.size,
         mimeType: file.mimetype ?? null,
@@ -370,21 +346,10 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard)
   @Post(':id/team-photo')
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/team',
-        filename: (req, file, cb) => {
-          cb(null, `${req.params.id}-${Date.now()}${extname(file.originalname)}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
-          return cb(new BadRequestException('Only image files are allowed'), false);
-        }
-        cb(null, true);
-      },
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
+    FileInterceptor(
+      'file',
+      uploadOptions({ destination: './uploads/team', accept: IMAGE_UPLOAD_TYPES, maxBytes: 5 * 1024 * 1024 }),
+    ),
   )
   async uploadTeamPhoto(
     @CurrentUser() user: User,

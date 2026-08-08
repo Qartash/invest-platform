@@ -8,7 +8,7 @@ import { LoginDto } from './dto/login.dto';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../common/enums';
 import { toPublicUser } from '../users/public-user';
-import { hashPassword, isHashed, verifyPassword } from './password';
+import { hashPassword, verifyPassword } from './password';
 import { GoogleVerifier } from './google-verifier';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/notification-types';
@@ -187,12 +187,6 @@ export class AuthService {
     }
     if (user.bannedAt) {
       throw new UnauthorizedException('Account is banned');
-    }
-    // A correct password on a legacy plaintext row is the one moment we hold the
-    // cleartext and know it's right — upgrade the row in place so it never
-    // needs the plaintext comparison again.
-    if (!isHashed(user.passwordHash)) {
-      await this.usersService.setPasswordHash(user.id, await hashPassword(dto.password));
     }
     return this.buildAuthResponse(user);
   }

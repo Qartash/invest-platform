@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { resolveJwtSecret } from './jwt-secret';
 import { GoogleVerifier } from './google-verifier';
 import { UsersModule } from '../users/users.module';
 import { WalletsModule } from '../wallets/wallets.module';
@@ -22,7 +23,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET', 'dev-secret-change-me'),
+        secret: resolveJwtSecret(configService),
         signOptions: { expiresIn: '7d' },
       }),
     }),
