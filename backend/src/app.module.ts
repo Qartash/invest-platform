@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -122,6 +123,10 @@ import { AdminModule } from './admin/admin.module';
       },
     }),
     ScheduleModule.forRoot(),
+    // The ceiling every route inherits unless it names its own. Nothing enforces it on
+    // its own — the guard is mounted on AuthController and nowhere else (see the note
+    // there) — so this is the floor those routes sit on rather than a platform-wide cap.
+    ThrottlerModule.forRoot([{ ttl: 60 * 1000, limit: 60 }]),
     AuthModule,
     UsersModule,
     WalletsModule,

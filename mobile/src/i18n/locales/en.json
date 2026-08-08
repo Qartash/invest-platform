@@ -827,6 +827,7 @@
     }
   },
   "errors": {
+    "tooManyAttempts": "Too many attempts. Give it a little while and try again.",
     "insufficientFunds": "Not enough money in your wallet for this.",
     "insufficientFundsDividends": "The wallet does not hold enough to pay these dividends.",
     "amountMustBePositive": "Enter an amount greater than zero.",
