@@ -19,7 +19,14 @@ import { ProjectsService } from '../projects/projects.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateIncomeDto } from './dto/create-income.dto';
 import { CreateFinancialReportDto } from './dto/create-financial-report.dto';
-import { FinancialReportStatus, TransactionStatus, TransactionType, UserRole } from '../common/enums';
+import {
+  FinancialReportStatus,
+  MovementKind,
+  TransactionStatus,
+  TransactionType,
+  UserRole,
+} from '../common/enums';
+import { LedgerService, userBalance } from '../ledger/ledger.service';
 import { TicketsService } from '../tickets/tickets.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType, NotifyInput } from '../notifications/notification-types';
@@ -45,6 +52,7 @@ export class ProjectFinanceService {
     private readonly projectsService: ProjectsService,
     private readonly ticketsService: TicketsService,
     private readonly notifications: NotificationsService,
+    private readonly ledger: LedgerService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -380,7 +388,7 @@ export class ProjectFinanceService {
           wallet.balance = (parseFloat(wallet.balance) + amount).toFixed(2);
           await manager.save(wallet);
 
-          await manager.save(
+          const payout = await manager.save(
             manager.create(Transaction, {
               userId: holder.ownerId,
               type: TransactionType.DIVIDEND,
@@ -389,6 +397,18 @@ export class ProjectFinanceService {
               status: TransactionStatus.COMPLETED,
             }),
           );
+
+          // Both ends, at last. The holder's side had a transaction row; the
+          // founder's side was a wallet quietly dropping by the size of the whole
+          // run, with nothing anywhere to say the money had been paid out.
+          await this.ledger.record(manager, {
+            kind: MovementKind.DIVIDEND,
+            amount,
+            from: userBalance(project.founderId),
+            to: userBalance(holder.ownerId),
+            transactionId: payout.id,
+            description: `Dividend on ${holder.quantity} ticket(s)`,
+          });
 
           await manager.save(
             manager.create(ReportPayout, {

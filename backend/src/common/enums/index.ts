@@ -193,3 +193,50 @@ export enum ProjectReviewAction {
   PRIORITY_CHANGED = 'priority_changed',
   ADMIN_EDITED = 'admin_edited',
 }
+
+/**
+ * The kinds of place money can sit on this platform. Every movement in the
+ * ledger names one of these on each side, which is what makes "where did this
+ * come from" a question the database can answer.
+ *
+ * EXTERNAL is the outside world. Until a payment provider exists, a deposit is
+ * money appearing and a withdrawal is money leaving, with nothing on the other
+ * side — pointing both at EXTERNAL says exactly that, rather than letting the
+ * sum arrive from nowhere.
+ *
+ * WORK_ESCROW is an account in all but name: the amount frozen for one job lives
+ * on the work row itself, so a movement into it names the work rather than a
+ * balance column.
+ */
+export enum LedgerAccount {
+  EXTERNAL = 'external',
+  PLATFORM = 'platform',
+  USER_BALANCE = 'user_balance',
+  USER_INVEST = 'user_invest',
+  PROJECT_TREASURY = 'project_treasury',
+  PROJECT_SPENDABLE = 'project_spendable',
+  WORK_ESCROW = 'work_escrow',
+}
+
+/**
+ * Why money moved. Deliberately finer-grained than TransactionType: the ledger
+ * has to tell a stage release apart from a founder's withdrawal even though
+ * neither of them is a transaction any user sees in their wallet history.
+ */
+export enum MovementKind {
+  DEPOSIT = 'deposit',
+  WITHDRAWAL = 'withdrawal',
+  TICKET_PURCHASE = 'ticket_purchase',
+  TICKET_RESALE = 'ticket_resale',
+  STAGE_RELEASE = 'stage_release',
+  FOUNDER_WITHDRAWAL = 'founder_withdrawal',
+  PROJECT_REFUND = 'project_refund',
+  WORK_ESCROW_HOLD = 'work_escrow_hold',
+  WORK_PAYMENT = 'work_payment',
+  WORK_ESCROW_RETURN = 'work_escrow_return',
+  DIVIDEND = 'dividend',
+  REWARD = 'reward',
+  REFERRAL_BONUS = 'referral_bonus',
+  PARTNER_SETTLEMENT = 'partner_settlement',
+  PLATFORM_FUNDING = 'platform_funding',
+}

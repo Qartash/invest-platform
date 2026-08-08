@@ -5,9 +5,10 @@ import { EarningsSnapshot } from '../earnings/entities/earnings-snapshot.entity'
 import { Project } from '../projects/entities/project.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { BuyTicketDto } from './dto/buy-ticket.dto';
-import { ProjectStatus, TicketStatus, TransactionStatus, TransactionType } from '../common/enums';
+import { MovementKind, ProjectStatus, TicketStatus, TransactionStatus, TransactionType } from '../common/enums';
 import { computeTicketPricing, computeTicketPurchaseCost } from '../projects/pricing';
 import { lockProject, lockWallet, lockWallets } from '../common/row-locks';
+import { LedgerService, projectTreasury, userBalance, userInvest } from '../ledger/ledger.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType, NotifyInput } from '../notifications/notification-types';
 
@@ -16,6 +17,7 @@ export class TicketsService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly notifications: NotificationsService,
+    private readonly ledger: LedgerService,
   ) {}
 
   // Everyone currently holding a ticket in a project, each id once. Used to tell
@@ -103,6 +105,27 @@ export class TicketsService {
         status: TransactionStatus.COMPLETED,
       });
       await manager.save(transaction);
+
+      // Two movements when the purchase was split between the two buckets, because
+      // it was two different kinds of money: invest credit the platform granted and
+      // cash the investor put in. One row for the pair would hide which was which,
+      // and the panel's whole job is telling them apart.
+      await this.ledger.recordMany(
+        manager,
+        [
+          { spent: fromCredit, from: userInvest(userId) },
+          { spent: totalCost - fromCredit, from: userBalance(userId) },
+        ]
+          .filter((part) => part.spent > 0)
+          .map((part) => ({
+            kind: MovementKind.TICKET_PURCHASE,
+            amount: part.spent,
+            from: part.from,
+            to: projectTreasury(project.id),
+            transactionId: transaction.id,
+            description: `${dto.quantity} ticket(s)`,
+          })),
+      );
 
       return { ticket: savedTicket, project, totalCost, justFunded };
     });
@@ -443,7 +466,7 @@ export class TicketsService {
           status: TransactionStatus.COMPLETED,
         }),
       );
-      await manager.save(
+      const buyerTransaction = await manager.save(
         manager.create(Transaction, {
           userId: buyerId,
           type: TransactionType.BUY,
@@ -453,6 +476,19 @@ export class TicketsService {
           status: TransactionStatus.COMPLETED,
         }),
       );
+
+      // A resale is between two investors and never touches the project: the money
+      // does not reach its treasury and the project raised nothing by it. The
+      // project is still named on the movement so a moderator can ask "what
+      // happened around this project" and see the secondary market too.
+      await this.ledger.record(manager, {
+        kind: MovementKind.TICKET_RESALE,
+        amount: price,
+        from: userBalance(buyerId),
+        to: userBalance(sellerId),
+        transactionId: buyerTransaction.id,
+        description: `${purchaseQuantity} ticket(s) resold`,
+      });
 
       return { ticket: purchasedTicket, sellerId, price, purchaseQuantity, isFullPurchase };
     });

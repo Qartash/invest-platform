@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useFocusEffect } from '@react-navigation/native';
 import { maxWidth, radius, spacing, tabularNums, ThemeColors, typography, useTheme, useThemeStyles } from '../../theme';
-import { Card, PageContainer, Pill, SectionHeader } from '../../components/ui';
+import { Card, PageContainer, Pill, SectionHeader, StatStrip } from '../../components/ui';
 import { completeQuest, DailyBonus, fetchDailyBonus, fetchQuests, Quest } from '../../api/quests';
 import { checkIn, StreakState } from '../../api/activity';
 import { invalidateQuery, useCachedQuery } from '../../api/useCachedQuery';
@@ -47,6 +47,13 @@ export function QuestsScreen() {
   );
 
   const money = (v: number) => `${v.toLocaleString()} ${t('common.currency')}`;
+
+  // Seats over participants, rounded to a whole percent and never below one — a
+  // real chance shown as "0%" is a lie in the direction that costs us trust.
+  const chancePercent = (seats: number, participants: number) => {
+    if (participants <= 0 || seats <= 0) return 0;
+    return Math.max(1, Math.round(Math.min(seats / participants, 1) * 100));
+  };
 
   // Platform quests are translated from their key; project quests show whatever
   // the founder wrote.
@@ -157,15 +164,75 @@ export function QuestsScreen() {
         </Card>
         </TourTarget>
 
-        {/* The draw that stands in for attributing a code-less sign-up to a stranger. */}
-        {bonus && bonus.wonToday > 0 && (
-          <Card accented style={styles.bonusCard}>
-            <Text style={styles.bonusTitle}>{t('quests.dailyBonusWonTitle')}</Text>
-            <Text style={styles.bonusText}>
-              {t('quests.dailyBonusWonText', { count: bonus.organicArrivals, pool: bonus.pool })}
+        {/* The draw that stands in for attributing a code-less sign-up to a stranger.
+            Shown every day rather than only on a win: the odds are the whole point, and
+            a draw whose result is never visible reads as one that never runs. */}
+        {bonus && (
+          <>
+            <SectionHeader title={t('quests.draw.title')} spaced />
+            <Card accented={bonus.today.youWon > 0}>
+              {bonus.today.youWon > 0 && (
+                <View style={styles.drawWon}>
+                  <Text style={styles.drawWonTitle}>{t('quests.draw.wonToday')}</Text>
+                  <Text style={styles.drawWonAmount}>+{bonus.today.youWon.toLocaleString()} ֏</Text>
+                </View>
+              )}
+
+              <View style={styles.drawHead}>
+                <Text style={styles.drawPoolLabel}>{t('quests.draw.poolLabel')}</Text>
+                <Text style={styles.drawPool}>{money(bonus.today.pool)}</Text>
+              </View>
+
+              {bonus.today.pool > 0 ? (
+                <>
+                  <StatStrip
+                    stats={[
+                      {
+                        label: t('quests.draw.participants'),
+                        value: bonus.today.participants.toLocaleString(),
+                      },
+                      { label: t('quests.draw.seats'), value: bonus.today.seats.toLocaleString() },
+                      // Once the evening draw has run, the odds are history and the
+                      // count of winners is the honest thing to put in their place.
+                      bonus.today.drawn
+                        ? {
+                            label: t('quests.draw.winners'),
+                            value: bonus.today.winners.toLocaleString(),
+                            tone: colors.success,
+                          }
+                        : {
+                            label: t('quests.draw.chance'),
+                            value: `${chancePercent(bonus.today.seats, bonus.today.participants)}%`,
+                            tone: colors.success,
+                          },
+                    ]}
+                  />
+                  <Text style={styles.drawHint}>
+                    {bonus.today.drawn
+                      ? t('quests.draw.done')
+                      : bonus.today.youIn
+                        ? t('quests.draw.youIn')
+                        : t('quests.draw.notInYet')}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.drawHint}>{t('quests.draw.noPoolToday')}</Text>
+              )}
+
+              <Text style={styles.drawYesterday}>
+                {bonus.yesterday.drawn
+                  ? t('quests.draw.yesterday', {
+                      participants: bonus.yesterday.participants.toLocaleString(),
+                      winners: bonus.yesterday.winners.toLocaleString(),
+                      share: bonus.share.toLocaleString(),
+                    })
+                  : t('quests.draw.yesterdayNone')}
+              </Text>
+            </Card>
+            <Text style={styles.note}>
+              {t('quests.draw.explain', { perArrival: bonus.perArrival.toLocaleString() })}
             </Text>
-            <Text style={styles.bonusAmount}>+{bonus.wonToday.toLocaleString()} ֏</Text>
-          </Card>
+          </>
         )}
 
         {project.length > 0 && (
@@ -210,10 +277,39 @@ const createStyles = (c: ThemeColors) =>
     streakDayTextOn: { color: c.textOnAccent },
     streakHint: { ...typography.micro, color: c.textMuted, marginTop: spacing.sm },
 
-    bonusCard: { marginTop: spacing.md, alignItems: 'center' },
-    bonusTitle: { ...typography.bodyStrong, color: c.text },
-    bonusText: { ...typography.caption, color: c.textMuted, textAlign: 'center', marginTop: spacing.xs },
-    bonusAmount: { ...typography.title, ...tabularNums, color: c.success, marginTop: spacing.sm },
+    // The win banner sits above the day's figures rather than replacing them: what you
+    // got and what the odds were are two different things, and both are worth reading.
+    drawWon: {
+      alignItems: 'center',
+      paddingBottom: spacing.md,
+      marginBottom: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    drawWonTitle: { ...typography.bodyStrong, color: c.text },
+    drawWonAmount: { ...typography.title, ...tabularNums, color: c.success, marginTop: spacing.xs },
+
+    drawHead: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'baseline',
+      gap: spacing.sm,
+      marginBottom: spacing.sm + 2,
+    },
+    drawPoolLabel: { ...typography.captionStrong, color: c.textMuted, flexShrink: 1 },
+    drawPool: { ...typography.title, ...tabularNums, color: c.text },
+    drawHint: { ...typography.micro, color: c.textMuted, lineHeight: 18, marginTop: spacing.sm },
+    // Yesterday's result is what makes today's odds believable, so it is fenced off as
+    // its own line rather than blended into the hint above it.
+    drawYesterday: {
+      ...typography.micro,
+      color: c.textMuted,
+      lineHeight: 18,
+      marginTop: spacing.sm + 2,
+      paddingTop: spacing.sm + 2,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
 
     quest: { marginBottom: spacing.sm },
     questDone: { opacity: 0.6 },

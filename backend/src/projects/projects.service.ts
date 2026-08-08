@@ -838,13 +838,4 @@ export class ProjectsService {
     return saved;
   }
 
-  async incrementFunding(id: string, amount: number, ticketsCount: number): Promise<Project> {
-    const project = await this.findOne(id);
-    project.collectedAmount = (parseFloat(project.collectedAmount) + amount).toFixed(2);
-    project.ticketsSold += ticketsCount;
-    if (project.ticketsSold >= project.totalTickets) {
-      project.status = ProjectStatus.FUNDED;
-    }
-    return this.projectsRepository.save(project);
-  }
 }

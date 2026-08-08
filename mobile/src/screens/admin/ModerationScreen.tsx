@@ -34,12 +34,13 @@ import { LogsScreen } from './LogsScreen';
 import { ModerationReleasesScreen } from './ModerationReleasesScreen';
 import { ModerationDisputesScreen } from './ModerationDisputesScreen';
 import { ModerationPartnersScreen } from './ModerationPartnersScreen';
+import { ModerationFinanceScreen } from './ModerationFinanceScreen';
 
 type Props = NativeStackScreenProps<ModerationStackParamList, 'ModerationList'>;
 
-type Tab = 'pending' | 'all' | 'users' | 'partners' | 'releases' | 'disputes' | 'logs';
+type Tab = 'pending' | 'all' | 'users' | 'partners' | 'releases' | 'disputes' | 'finance' | 'logs';
 
-// Seven destinations do not fit as text on a phone — the labels used to overlap each
+// Eight destinations do not fit as text on a phone — the labels used to overlap each
 // other. The row is icons only, with the active one's name spelled out underneath so
 // the screen still says where you are.
 const TABS: Array<{ key: Tab; icon: IconName; labelKey: string }> = [
@@ -49,6 +50,7 @@ const TABS: Array<{ key: Tab; icon: IconName; labelKey: string }> = [
   { key: 'partners', icon: 'star', labelKey: 'partners.admin.tab' },
   { key: 'releases', icon: 'unlock', labelKey: 'moderation.releases.tab' },
   { key: 'disputes', icon: 'flag', labelKey: 'works.disputesTab' },
+  { key: 'finance', icon: 'wallet', labelKey: 'ledger.tab' },
   { key: 'logs', icon: 'history', labelKey: 'moderation.logs.title' },
 ];
 
@@ -208,6 +210,15 @@ export function ModerationScreen({ navigation }: Props) {
       <View style={styles.container}>
         {head}
         <ModerationPartnersScreen />
+      </View>
+    );
+  }
+
+  if (tab === 'finance') {
+    return (
+      <View style={styles.container}>
+        {head}
+        <ModerationFinanceScreen />
       </View>
     );
   }
