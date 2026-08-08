@@ -116,7 +116,13 @@ import { AdminModule } from './admin/admin.module';
             SystemLog,
             LogSettings,
           ],
-          synchronize: configService.get<string>('NODE_ENV') !== 'production',
+          // Schema auto-sync, which drops and rewrites columns to match the entities. It
+          // has to be asked for by name now: it used to be on for anything that was not
+          // exactly NODE_ENV=production, so a box where that variable was unset or
+          // misspelled — a shell, a one-off script, a new deploy target — pointed at the
+          // live database would rewrite its schema on boot and take the data with it.
+          // Opting in is a thing you do on purpose; inheriting it from a typo is not.
+          synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
           logging: true,
           logger: new DbQueryLogger(),
         };

@@ -17,6 +17,10 @@ export interface LogFilters {
 
 const SETTINGS_ID = 1;
 const MAX_METADATA_LENGTH = 4000;
+// Ceilings on the shape of a metadata object, not just on the strings inside it.
+const MAX_METADATA_DEPTH = 6;
+const MAX_METADATA_ITEMS = 50;
+const MAX_METADATA_BYTES = 16_000;
 
 @Injectable()
 export class LogsService implements OnModuleInit {
@@ -121,7 +125,7 @@ export class LogsService implements OnModuleInit {
     metadata?: Record<string, any> | null,
     userId?: string | null,
   ): void {
-    const safeMetadata = metadata ? JSON.parse(JSON.stringify(metadata, jsonReplacer)) : null;
+    const safeMetadata = boundMetadata(metadata);
     const entry = this.logsRepository.create({
       source,
       level,
@@ -162,4 +166,43 @@ function jsonReplacer(_key: string, value: any) {
     return `${value.slice(0, MAX_METADATA_LENGTH)}…`;
   }
   return value;
+}
+
+/**
+ * Metadata as it is safe to store: bounded in depth and in total size.
+ *
+ * `metadata` on POST /logs/client is an `@IsObject()` and nothing more, so the shape is the
+ * caller's to choose. Truncating strings — which is all this did — leaves both the depth and
+ * the number of keys unbounded, and a body of a few tens of kilobytes can hold tens of
+ * thousands of them: expensive to walk on the way in, stored forever as jsonb, and read back
+ * by an admin screen that then has to render it.
+ *
+ * Depth is cut first, because that is what makes the walk itself cheap, and the result is
+ * measured whole: past the ceiling the metadata is dropped for a note saying so, which keeps
+ * a log row honest about the fact that something was there.
+ */
+function boundMetadata(metadata?: Record<string, any> | null): Record<string, any> | null {
+  if (!metadata) return null;
+  try {
+    const pruned = pruneDepth(metadata, MAX_METADATA_DEPTH);
+    const serialised = JSON.stringify(pruned, jsonReplacer);
+    if (!serialised || serialised.length > MAX_METADATA_BYTES) {
+      return { note: 'metadata omitted: too large' };
+    }
+    return JSON.parse(serialised) as Record<string, any>;
+  } catch {
+    // Circular, or something that throws from a getter on the way through. Either way it is
+    // not worth a row, and logging must never be the thing that fails.
+    return { note: 'metadata omitted: not serialisable' };
+  }
+}
+
+function pruneDepth(value: unknown, depth: number): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  if (depth <= 0) return '[deep]';
+  if (Array.isArray(value)) {
+    return value.slice(0, MAX_METADATA_ITEMS).map((item) => pruneDepth(item, depth - 1));
+  }
+  const entries = Object.entries(value as Record<string, unknown>).slice(0, MAX_METADATA_ITEMS);
+  return Object.fromEntries(entries.map(([key, item]) => [key, pruneDepth(item, depth - 1)]));
 }

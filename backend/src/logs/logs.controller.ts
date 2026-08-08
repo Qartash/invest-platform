@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Headers, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { LogsService } from './logs.service';
 import { ClientLogDto } from './dto/client-log.dto';
 import { UpdateLogSettingsDto } from './dto/update-log-settings.dto';
@@ -19,6 +20,15 @@ export class LogsController {
   // Public and unauthenticated by design: the frontend must be able to log actions taken
   // before login (e.g. on the login screen itself). If a valid token is present, the log
   // is attributed to that user; otherwise it's recorded anonymously.
+  //
+  // Which also makes it the one route where an anonymous caller writes rows to the database,
+  // and it was uncounted: a loop against it fills system_logs for as long as it is left
+  // running, and on a free Postgres the platform runs out of storage rather than the script
+  // running out of patience. Sixty a minute per address is more than the app produces on its
+  // busiest screen and is a wall for anything automated. Logging is fire-and-forget, so a
+  // refusal here costs the caller nothing but the row.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 60, ttl: 60 * 1000 } })
   @Post('client')
   logClientEvent(@Body() dto: ClientLogDto, @Headers('authorization') authHeader?: string) {
     const userId = this.tryExtractUserId(authHeader);

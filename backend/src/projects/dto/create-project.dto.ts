@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -10,15 +11,22 @@ import {
   IsPositive,
   IsString,
   Max,
+  MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class BudgetItemInputDto {
   @IsString()
+  @MaxLength(300)
   title: string;
 
+  // Bounded above as well as below: the column is decimal(14,2), so a larger figure is not
+  // a big budget line, it is a 500 from the driver on the way in.
   @IsNumber()
   @IsPositive()
+  @Max(1_000_000_000_000)
   amount: number;
 }
 
@@ -105,7 +113,12 @@ export class CreateProjectDto {
   @IsOptional()
   payoutStartDays?: number;
 
+  // Same as AddBudgetItemsDto: the element type is what makes the rules on
+  // BudgetItemInputDto apply at all, and what lets whitelisting strip unknown keys.
   @IsArray()
   @IsOptional()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => BudgetItemInputDto)
   budgetItems?: BudgetItemInputDto[];
 }
