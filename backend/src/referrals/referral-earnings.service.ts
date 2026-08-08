@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, LessThanOrEqual, Repository } from 'typeorm';
@@ -6,15 +6,17 @@ import { ReferralEarning } from './entities/referral-earning.entity';
 import { User } from '../users/entities/user.entity';
 import {
   EarningChannel,
+  MovementKind,
   ReferralEarningStatus,
   ReferralEarningType,
   TransactionAccount,
   TransactionType,
-  UserRole,
 } from '../common/enums';
 import { REFERRAL_HOLD_DAYS, firstDepositCut, priceForAncestor } from './ladder';
-import { lockWallets } from '../common/row-locks';
+import { lockWallet } from '../common/row-locks';
 import { Transaction } from '../transactions/entities/transaction.entity';
+import { LedgerService, external, platform, userInvest } from '../ledger/ledger.service';
+import { PlatformAccountService } from '../ledger/platform-account.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType, NotifyInput } from '../notifications/notification-types';
 
@@ -28,6 +30,8 @@ export class ReferralEarningsService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly notifications: NotificationsService,
+    private readonly platformAccount: PlatformAccountService,
+    private readonly ledger: LedgerService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -165,18 +169,11 @@ export class ReferralEarningsService {
     });
     if (due.length === 0) return;
 
-    const admin = await this.getFundingAdmin();
-    if (!admin) {
-      this.logger.warn(`${due.length} referral earning(s) matured but no admin account funds them`);
-      await this.warnPoolStuck(due.length, 'no_admin');
-      return;
-    }
-
     const notices: NotifyInput[] = [];
     let paid = 0;
     for (const earning of due) {
       try {
-        const payment = await this.payOne(earning.id, admin.id);
+        const payment = await this.payOne(earning.id);
         if (payment) {
           paid += 1;
           notices.push({
@@ -217,6 +214,10 @@ export class ReferralEarningsService {
   // Deduped on the reason, so an hourly job that keeps finding the same empty
   // pool leaves one unread warning rather than twenty-four. Marking it read is
   // what re-arms it: the next run after a moderator has looked warns again.
+  //
+  // 'no_admin' is kept in the type for the notices already sitting in people's
+  // inboxes from before the pool became an account of its own. It can no longer
+  // be raised: there is no admin to be missing.
   private warnPoolStuck(count: number, reason: 'no_admin' | 'unfunded'): Promise<void> {
     return this.notifications.notifyAdmins(
       NotificationType.MOD_REFERRAL_POOL_EMPTY,
@@ -225,13 +226,10 @@ export class ReferralEarningsService {
     );
   }
 
-  // Pays a single earning inside one locked transaction. Returns false (leaving it
-  // PENDING to retry) when the admin can't fund it; cancels it when the
+  // Pays a single earning inside one locked transaction. Returns null (leaving it
+  // PENDING to retry) when the pool can't fund it; cancels it when the
   // beneficiary is gone.
-  private async payOne(
-    earningId: string,
-    adminId: string,
-  ): Promise<{ beneficiaryId: string; amount: number } | null> {
+  private async payOne(earningId: string): Promise<{ beneficiaryId: string; amount: number } | null> {
     return this.dataSource.transaction(async (manager) => {
       const earning = await manager.findOne(ReferralEarning, {
         where: { id: earningId },
@@ -248,17 +246,16 @@ export class ReferralEarningsService {
       }
 
       const amount = parseFloat(earning.amount);
-      const wallets = await lockWallets(manager, [adminId, earning.beneficiaryId]);
-      const adminWallet = wallets.get(adminId)!;
-      const beneficiaryWallet = wallets.get(earning.beneficiaryId)!;
+      // Bonuses are the platform's marketing spend, so they come out of its own
+      // account and never from invitees' money. That account used to be the
+      // oldest admin's wallet, which made the budget spendable as pocket money
+      // and stopped every payout the day that account was banned.
+      const funded = await this.platformAccount.debit(manager, amount);
+      if (!funded) return null; // pool is dry — try again next run
 
-      if (parseFloat(adminWallet.balance) < amount) {
-        return null; // admin out of funds — try again next run
-      }
-
-      adminWallet.balance = (parseFloat(adminWallet.balance) - amount).toFixed(2);
+      const beneficiaryWallet = await lockWallet(manager, earning.beneficiaryId);
       beneficiaryWallet.investCredit = (parseFloat(beneficiaryWallet.investCredit) + amount).toFixed(2);
-      await manager.save([adminWallet, beneficiaryWallet]);
+      await manager.save(beneficiaryWallet);
 
       // The beneficiary's credit is the auditable side; anchor the earning to it.
       const credit = await manager.save(
@@ -270,30 +267,20 @@ export class ReferralEarningsService {
           description: 'Referral reward',
         }),
       );
-      // The admin's funding side, so the pool's outflow is visible too.
-      await manager.save(
-        manager.create(Transaction, {
-          userId: adminId,
-          type: TransactionType.REFERRAL_BONUS,
-          amount: (-amount).toFixed(2),
-          account: TransactionAccount.BALANCE,
-          description: 'Referral pool payout',
-        }),
-      );
+      // The pool's outflow, named as the pool rather than as whoever was holding it.
+      await this.ledger.record(manager, {
+        kind: MovementKind.REFERRAL_BONUS,
+        amount,
+        from: platform(),
+        to: userInvest(earning.beneficiaryId),
+        transactionId: credit.id,
+        description: `Referral reward, level ${earning.level}`,
+      });
 
       earning.status = ReferralEarningStatus.PAID;
       earning.payoutTransactionId = credit.id;
       await manager.save(earning);
       return { beneficiaryId: earning.beneficiaryId, amount };
-    });
-  }
-
-  // The account the pool draws from: the oldest admin. Bonuses are the platform's
-  // marketing spend, so they come out of its own balance, never from invitees'.
-  private getFundingAdmin(): Promise<User | null> {
-    return this.usersRepository.findOne({
-      where: { role: UserRole.ADMIN },
-      order: { createdAt: 'ASC' },
     });
   }
 
@@ -387,24 +374,55 @@ export class ReferralEarningsService {
   // money, it only records that a person did.
   async settlePartnerEarnings(earningIds: string[]): Promise<number> {
     if (earningIds.length === 0) return 0;
-    // Same reason as the cancellation above: the rows have to be read while they
-    // still say PENDING to know whose payout this settles.
-    const settling = await this.earningsRepository.find({
-      where: { id: In(earningIds), status: ReferralEarningStatus.PENDING, channel: EarningChannel.CARD },
-      select: { id: true, beneficiaryId: true, amount: true },
+
+    const { affected, byPartner } = await this.dataSource.transaction(async (manager) => {
+      // Same reason as the cancellation above: the rows have to be read while they
+      // still say PENDING to know whose payout this settles.
+      const settling = await manager.find(ReferralEarning, {
+        where: { id: In(earningIds), status: ReferralEarningStatus.PENDING, channel: EarningChannel.CARD },
+        select: { id: true, beneficiaryId: true, amount: true },
+      });
+
+      const perPartner = new Map<string, number>();
+      for (const earning of settling) {
+        perPartner.set(
+          earning.beneficiaryId,
+          (perPartner.get(earning.beneficiaryId) ?? 0) + parseFloat(earning.amount),
+        );
+      }
+      const total = [...perPartner.values()].reduce((sum, amount) => sum + amount, 0);
+
+      // A partner is paid by bank transfer, outside this system — but it is still
+      // the platform's money going out, so it comes off the platform account like
+      // every other payout. Refusing an unfunded settlement is the point: it is
+      // what stops the panel from showing a budget that was never really there.
+      if (total > 0) {
+        const funded = await this.platformAccount.debit(manager, total);
+        if (!funded) {
+          throw new BadRequestException(
+            'The platform account cannot cover these payouts — fund it before recording the transfer',
+          );
+        }
+        await this.ledger.record(manager, {
+          kind: MovementKind.PARTNER_SETTLEMENT,
+          amount: total,
+          from: platform(),
+          to: external(),
+          description: `Partner payouts settled off-platform for ${perPartner.size} partner(s)`,
+        });
+      }
+
+      const result = await manager.update(
+        ReferralEarning,
+        { id: In(earningIds), status: ReferralEarningStatus.PENDING, channel: EarningChannel.CARD },
+        { status: ReferralEarningStatus.PAID },
+      );
+      return { affected: result.affected ?? 0, byPartner: perPartner };
     });
-    const { affected } = await this.earningsRepository.update(
-      { id: In(earningIds), status: ReferralEarningStatus.PENDING, channel: EarningChannel.CARD },
-      { status: ReferralEarningStatus.PAID },
-    );
 
     // The transfer happened off-platform, so this notice is the only thing that
     // tells a partner the money is on its way. One line per partner rather than
     // per earning — they were paid once.
-    const byPartner = new Map<string, number>();
-    for (const earning of settling) {
-      byPartner.set(earning.beneficiaryId, (byPartner.get(earning.beneficiaryId) ?? 0) + parseFloat(earning.amount));
-    }
     await this.notifications.notifyMany(
       [...byPartner].map(([beneficiaryId, amount]) => ({
         userId: beneficiaryId,
@@ -412,7 +430,7 @@ export class ReferralEarningsService {
         payload: { amount: Math.round(amount * 100) / 100 },
       })),
     );
-    return affected ?? 0;
+    return affected;
   }
 
   // The earnings ledger for the history screen, newest first.

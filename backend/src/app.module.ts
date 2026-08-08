@@ -46,6 +46,9 @@ import { Quest } from './quests/entities/quest.entity';
 import { QuestCompletion } from './quests/entities/quest-completion.entity';
 import { PartnerApplication } from './partners/entities/partner-application.entity';
 import { Notification } from './notifications/entities/notification.entity';
+import { MoneyMovement } from './ledger/entities/money-movement.entity';
+import { PlatformAccount } from './ledger/entities/platform-account.entity';
+import { LedgerModule } from './ledger/ledger.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ProjectFundingModule } from './project-funding/project-funding.module';
 import { ProjectWorksModule } from './project-works/project-works.module';
@@ -107,6 +110,8 @@ import { AdminModule } from './admin/admin.module';
             QuestCompletion,
             PartnerApplication,
             Notification,
+            MoneyMovement,
+            PlatformAccount,
             SystemLog,
             LogSettings,
           ],
@@ -133,6 +138,7 @@ import { AdminModule } from './admin/admin.module';
     QuestsModule,
     PartnersModule,
     NotificationsModule,
+    LedgerModule,
     AdminModule,
     StatsModule,
     LogsModule,

@@ -3,12 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { Wallet } from './entities/wallet.entity';
 import { lockWallet } from '../common/row-locks';
+import { LedgerService, external, userBalance } from '../ledger/ledger.service';
+import { MovementKind } from '../common/enums';
 
 @Injectable()
 export class WalletsService {
   constructor(
     @InjectRepository(Wallet)
     private readonly walletsRepository: Repository<Wallet>,
+    private readonly ledger: LedgerService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -27,11 +30,24 @@ export class WalletsService {
   // concurrent calls used to read the same balance and overwrite each other, so ten parallel
   // deposits credited two and ten parallel withdrawals debited one — while answering success
   // to every one of them.
+  //
+  // The ledger movement is written by the same transaction, so a balance can never
+  // change without a record of where the money came from. There is no payment
+  // provider yet, so that source really is "outside the platform" — saying so is
+  // the point: the finance panel adds these up as money entering and leaving, and
+  // what it cannot account for that way is money that appeared from nowhere.
   deposit(userId: string, amount: number): Promise<Wallet> {
     return this.dataSource.transaction(async (manager) => {
       const wallet = await lockWallet(manager, userId);
       wallet.balance = (parseFloat(wallet.balance) + amount).toFixed(2);
-      return manager.save(wallet);
+      const saved = await manager.save(wallet);
+      await this.ledger.record(manager, {
+        kind: MovementKind.DEPOSIT,
+        amount,
+        from: external(),
+        to: userBalance(userId),
+      });
+      return saved;
     });
   }
 
@@ -44,7 +60,14 @@ export class WalletsService {
         throw new BadRequestException('Insufficient funds');
       }
       wallet.balance = newBalance.toFixed(2);
-      return manager.save(wallet);
+      const saved = await manager.save(wallet);
+      await this.ledger.record(manager, {
+        kind: MovementKind.WITHDRAWAL,
+        amount,
+        from: userBalance(userId),
+        to: external(),
+      });
+      return saved;
     });
   }
 }

@@ -19,6 +19,7 @@ import { ApplyWorkDto } from './dto/apply-work.dto';
 import {
   ExpenseCategory,
   MilestoneStatus,
+  MovementKind,
   TransactionAccount,
   TransactionStatus,
   TransactionType,
@@ -28,6 +29,13 @@ import {
 } from '../common/enums';
 import { EntityManager } from 'typeorm';
 import { lockProject, lockWallet } from '../common/row-locks';
+import {
+  LedgerService,
+  projectSpendable,
+  userBalance,
+  userInvest,
+  workEscrow,
+} from '../ledger/ledger.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType, NotifyInput } from '../notifications/notification-types';
 
@@ -45,6 +53,7 @@ export class ProjectWorksService {
     @InjectRepository(Project)
     private readonly projectsRepository: Repository<Project>,
     private readonly notifications: NotificationsService,
+    private readonly ledger: LedgerService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -97,19 +106,27 @@ export class ProjectWorksService {
 
     // And a wallet transaction for the worker so the money has a visible source
     // in their operations history.
-    await manager.save(
+    const paidToTickets = work.assigneePayment === WorkPaymentType.TICKETS;
+    const transaction = await manager.save(
       manager.create(Transaction, {
         userId: work.assigneeId!,
         type: TransactionType.WORK_PAYMENT,
         amount: amount.toFixed(2),
         status: TransactionStatus.COMPLETED,
         description: work.title,
-        account:
-          work.assigneePayment === WorkPaymentType.TICKETS
-            ? TransactionAccount.INVEST
-            : TransactionAccount.BALANCE,
+        account: paidToTickets ? TransactionAccount.INVEST : TransactionAccount.BALANCE,
       }),
     );
+
+    await this.ledger.record(manager, {
+      kind: MovementKind.WORK_PAYMENT,
+      amount,
+      from: workEscrow(work.projectId),
+      to: paidToTickets ? userInvest(work.assigneeId!) : userBalance(work.assigneeId!),
+      workId: work.id,
+      transactionId: transaction.id,
+      description: work.title,
+    });
   }
 
   private async assertFounder(projectId: string, userId: string): Promise<Project> {
@@ -414,6 +431,17 @@ export class ProjectWorksService {
 
       project.spendableBalance = (parseFloat(project.spendableBalance) - amount).toFixed(2);
       await manager.save(project);
+      // Escrow is an account in all but name — the frozen sum lives on the work
+      // row — so freezing it is a real movement of the project's money even
+      // though no wallet changes and no transaction was ever written for it.
+      await this.ledger.record(manager, {
+        kind: MovementKind.WORK_ESCROW_HOLD,
+        amount,
+        from: projectSpendable(project.id),
+        to: workEscrow(project.id),
+        workId: work.id,
+        description: work.title,
+      });
 
       work.assigneeId = application.applicantId;
       work.assigneePayment = payment;
@@ -528,8 +556,17 @@ export class ProjectWorksService {
       if (work.status === WorkStatus.ACCEPTED) throw new ConflictException('An accepted work cannot be cancelled');
 
       if (work.escrowAmount !== null) {
-        project.spendableBalance = (parseFloat(project.spendableBalance) + parseFloat(work.escrowAmount)).toFixed(2);
+        const returned = parseFloat(work.escrowAmount);
+        project.spendableBalance = (parseFloat(project.spendableBalance) + returned).toFixed(2);
         await manager.save(project);
+        await this.ledger.record(manager, {
+          kind: MovementKind.WORK_ESCROW_RETURN,
+          amount: returned,
+          from: workEscrow(project.id),
+          to: projectSpendable(project.id),
+          workId: work.id,
+          description: `${work.title} — cancelled`,
+        });
       }
       const workerId = work.assigneeId;
       work.status = WorkStatus.CANCELLED;
@@ -696,6 +733,14 @@ export class ProjectWorksService {
         if (escrow > 0) {
           project.spendableBalance = (parseFloat(project.spendableBalance) + escrow).toFixed(2);
           await manager.save(project);
+          await this.ledger.record(manager, {
+            kind: MovementKind.WORK_ESCROW_RETURN,
+            amount: escrow,
+            from: workEscrow(project.id),
+            to: projectSpendable(project.id),
+            workId: work.id,
+            description: `${work.title} — dispute resolved for the project`,
+          });
         }
         work.status = WorkStatus.CANCELLED;
       }

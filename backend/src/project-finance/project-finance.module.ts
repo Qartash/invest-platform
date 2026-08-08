@@ -13,6 +13,7 @@ import {
 import { ProjectsModule } from '../projects/projects.module';
 import { TicketsModule } from '../tickets/tickets.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { LedgerModule } from '../ledger/ledger.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     ProjectsModule,
     TicketsModule,
     NotificationsModule,
+    LedgerModule,
   ],
   providers: [ProjectFinanceService],
   exports: [ProjectFinanceService],

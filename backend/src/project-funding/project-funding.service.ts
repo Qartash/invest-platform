@@ -13,8 +13,9 @@ import { ProjectBudgetItem } from '../projects/entities/project-budget-item.enti
 import { Ticket } from '../tickets/entities/ticket.entity';
 import { RequestReleaseDto } from './dto/request-release.dto';
 import { DecideReleaseDto } from './dto/decide-release.dto';
-import { FundReleaseStatus, ProjectStatus, TicketStatus } from '../common/enums';
+import { FundReleaseStatus, MovementKind, ProjectStatus, TicketStatus } from '../common/enums';
 import { lockProject, lockWallet, lockWallets } from '../common/row-locks';
+import { LedgerService, projectSpendable, projectTreasury, userBalance } from '../ledger/ledger.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType, NotifyInput } from '../notifications/notification-types';
 import { TicketsService } from '../tickets/tickets.service';
@@ -32,6 +33,7 @@ export class ProjectFundingService {
     private readonly ticketsRepository: Repository<Ticket>,
     private readonly ticketsService: TicketsService,
     private readonly notifications: NotificationsService,
+    private readonly ledger: LedgerService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -127,6 +129,18 @@ export class ProjectFundingService {
       project.spendableBalance = (parseFloat(project.spendableBalance) + amount).toFixed(2);
       await manager.save(project);
 
+      // No user's wallet changes here, which is exactly why this movement had no
+      // record before: `transactions` has nowhere to put a transfer between two of
+      // a project's own accounts. It is still the moment investors' money stops
+      // being frozen, so it is the one a moderator most needs to be able to find.
+      await this.ledger.record(manager, {
+        kind: MovementKind.STAGE_RELEASE,
+        amount,
+        from: projectTreasury(project.id),
+        to: projectSpendable(project.id),
+        description: `Stage release approved by moderator`,
+      });
+
       const item = await manager.findOne(ProjectBudgetItem, { where: { id: request.budgetItemId } });
       if (item) {
         item.released = true;
@@ -177,6 +191,18 @@ export class ProjectFundingService {
       wallet.balance = (parseFloat(wallet.balance) + amount).toFixed(2);
       await manager.save(project);
       await manager.save(wallet);
+
+      // Money leaving a project's books for a personal wallet, and until now the
+      // one movement on the platform that nobody signed off on and nothing wrote
+      // down. The founder's balance simply grew.
+      await this.ledger.record(manager, {
+        kind: MovementKind.FOUNDER_WITHDRAWAL,
+        amount,
+        from: projectSpendable(project.id),
+        to: userBalance(userId),
+        description: 'Founder moved released project funds to their wallet',
+      });
+
       return {
         spendableBalance: parseFloat(project.spendableBalance),
         walletBalance: parseFloat(wallet.balance),
@@ -230,6 +256,13 @@ export class ProjectFundingService {
           const wallet = wallets.get(userId)!;
           wallet.balance = (parseFloat(wallet.balance) + amount).toFixed(2);
           await manager.save(wallet);
+          await this.ledger.record(manager, {
+            kind: MovementKind.PROJECT_REFUND,
+            amount,
+            from: projectTreasury(projectId),
+            to: userBalance(userId),
+            description: `Refund of ${qty} ticket(s) after the project closed`,
+          });
           refundedCents += share;
           refunds.push({ userId, amount });
         }
