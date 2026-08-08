@@ -65,6 +65,12 @@ const MESSAGE_PATTERNS: Array<[RegExp, string]> = [
  * which is another way English used to reach the screen.
  */
 export function apiErrorMessage(err: any, t: TFunction): string {
+  // The rate limiter in front of /auth answers 429, and it is the one refusal a person
+  // fixes by doing nothing for a while — worth saying so rather than letting it fall
+  // through to "the server refused", which invites another attempt and another block.
+  // Matched on the status: the text the guard throws is its own, not one of ours below.
+  if (err?.response?.status === 429) return t('errors.tooManyAttempts');
+
   const raw = err?.response?.data?.message;
   const message = Array.isArray(raw) ? raw[0] : raw;
 

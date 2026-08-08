@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -42,8 +43,16 @@ export function LoginScreen({ navigation }: Props) {
     try {
       const response = await login(identifier.trim(), password);
       setSession(response.accessToken, response.user);
-    } catch {
-      setError(t('auth.invalidCredentials'));
+    } catch (e) {
+      // Every other failure this screen can get means the same thing to the person typing,
+      // so they all read as wrong credentials. A 429 does not: the password may well be
+      // right, and telling them to check it while the limiter is counting only earns them
+      // another attempt against the block.
+      setError(
+        axios.isAxiosError(e) && e.response?.status === 429
+          ? t('errors.tooManyAttempts')
+          : t('auth.invalidCredentials'),
+      );
     } finally {
       setLoading(false);
     }
