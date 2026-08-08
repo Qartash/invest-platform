@@ -26,6 +26,14 @@ services:
     envVars:
       - key: EXPO_PUBLIC_API_URL
         value: https://invest-platform-api-7msz.onrender.com/api
+      # Not a secret: an OAuth client id ships inside every browser bundle by
+      # design. The client's secret stays in the Google console and is never
+      # used here — the web flow asks for an id_token directly, which needs no
+      # exchange. What guards the id is the origin list in the console, not this
+      # file. The API checks the same id as the token's audience, so the two
+      # values must stay in step.
+      - key: EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+        value: 667517489426-dnh5kvr9qebeip89llqj8vrdnppk46q7.apps.googleusercontent.com
 
   - type: web
     name: invest-platform-api
@@ -62,3 +70,8 @@ services:
       # moderation panel). Leave it unset and the endpoint refuses every call.
       - key: ADMIN_WIPE_PASSWORD
         sync: false
+      # The audience every Google id_token is checked against. Same value the web
+      # build is compiled with above; if they ever diverge, sign-in fails with
+      # "Invalid Google token" and nothing else explains why.
+      - key: GOOGLE_WEB_CLIENT_ID
+        value: 667517489426-dnh5kvr9qebeip89llqj8vrdnppk46q7.apps.googleusercontent.com
