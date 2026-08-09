@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   focusRing,
@@ -104,6 +105,7 @@ export function NotificationsScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const navigation = useNavigation();
   const setUnread = useNotificationsStore((s) => s.setUnread);
 
   // Pages after the first are appended here. The first page stays in the query
@@ -201,7 +203,26 @@ export function NotificationsScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <PageContainer maxWidth={maxWidth.page}>
         <View style={styles.headerRow}>
-          <Text style={styles.header}>{t('notifications.title')}</Text>
+          <View style={styles.headerLeft}>
+            {/* This screen shows no native header, and until now it drew nothing in its
+                place: opening it from the bell left the tab bar as the only control on
+                screen, and a reload restored the same URL. Its own arrow is the fix that
+                does not depend on which of the two stacks the screen was opened in. */}
+            <Pressable
+              onPress={() => navigation.goBack()}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+              style={({ pressed, hovered, focused }: PressableState) => [
+                styles.back,
+                (pressed || hovered) && styles.backActive,
+                focused && styles.backFocused,
+              ]}
+            >
+              <Icon name="chevronLeft" color={colors.text} size={22} />
+            </Pressable>
+            <Text style={styles.header}>{t('notifications.title')}</Text>
+          </View>
           {unread > 0 && (
             <Pressable
               onPress={readAll}
@@ -349,11 +370,28 @@ const createStyles = (c: ThemeColors) =>
       paddingHorizontal: spacing.md,
       marginBottom: spacing.sm,
     },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      flexShrink: 1,
+    },
     header: {
       ...typography.display,
       color: c.text,
       flexShrink: 1,
     },
+    // Pulled left by its own padding so the arrow lines up with the rows below it rather
+    // than sitting a tap target's worth further in than the title it belongs to.
+    back: {
+      marginLeft: -spacing.xs,
+      padding: spacing.xs,
+      borderRadius: radius.pill,
+    },
+    backActive: {
+      backgroundColor: c.surfaceSunken,
+    },
+    backFocused: focusRing(c),
     readAll: {
       paddingVertical: spacing.xs,
       paddingHorizontal: spacing.sm,

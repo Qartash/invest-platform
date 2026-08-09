@@ -4,6 +4,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { BrandMark } from './BrandMark';
 import { radius, spacing, ThemeColors, typography, useTheme, useThemeStyles } from '../theme';
 import { TourTarget } from '../onboarding/TourTarget';
+import { pressTab } from '../navigation/tabPress';
 
 /**
  * The same four tabs as {@link BottomDock}, laid down the left edge for a desktop window.
@@ -22,7 +23,8 @@ import { TourTarget } from '../onboarding/TourTarget';
  * `BottomTabBarProps` is honoured exactly as the dock honours it, so the navigator cannot
  * tell which of the two it is rendering.
  */
-export function SideRail({ state, descriptors, navigation, insets }: BottomTabBarProps) {
+export function SideRail(props: BottomTabBarProps) {
+  const { state, descriptors, navigation, insets } = props;
   const styles = useThemeStyles(createStyles);
 
   return (
@@ -50,20 +52,13 @@ export function SideRail({ state, descriptors, navigation, insets }: BottomTabBa
           const { options } = descriptors[route.key];
           const focused = state.index === index;
 
-          const onPress = () => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!focused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
-            }
-          };
-
           return (
             <RailTab
               key={route.key}
               focused={focused}
               label={options.title ?? route.name}
               icon={options.tabBarIcon}
-              onPress={onPress}
+              onPress={() => pressTab(props, index)}
               onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
             />
           );
