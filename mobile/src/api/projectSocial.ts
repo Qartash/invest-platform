@@ -189,8 +189,15 @@ export function editUpdate(
   return apiClient.patch<ProjectUpdate>(`/updates/${updateId}`, input).then((r) => r.data);
 }
 
-export function markUpdateRead(updateId: string) {
-  return apiClient.post(`/updates/${updateId}/read`).then((r) => r.data);
+/**
+ * Reports the posts this reader has seen. A list because a person opens a feed
+ * rather than a post, and the server counts people rather than requests — so
+ * calling this again on a revisit changes nothing.
+ */
+export function markUpdatesRead(projectId: string, updateIds: string[]) {
+  return apiClient
+    .post<{ counted: number }>(`/projects/${projectId}/updates/read`, { updateIds })
+    .then((r) => r.data);
 }
 
 // ── Reporting and moderation ─────────────────────────────────────────────────

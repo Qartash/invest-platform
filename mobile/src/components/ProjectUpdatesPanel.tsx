@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   ProjectUpdate,
   fetchUpdates,
-  markUpdateRead,
+  markUpdatesRead,
   postUpdate,
   voteOn,
 } from '../api/projectSocial';
@@ -56,10 +56,12 @@ export function ProjectUpdatesPanel({ project }: Props) {
     try {
       const page = await fetchUpdates(project.id);
       setPosts(page.items);
-      // Counting a read is the founder's only signal that anyone is listening.
-      // Fired for the top post only, and never awaited: it must not delay or
-      // break the render.
-      if (page.items[0]) void markUpdateRead(page.items[0].id).catch(() => undefined);
+      // Everything the feed just rendered counts as seen, not only the newest
+      // post — reporting the top one alone left every older post reading zero
+      // forever. The server counts people, so a reader who comes back adds
+      // nothing. Never awaited: a read counter must not delay the screen.
+      const ids = page.items.map((item) => item.id);
+      if (ids.length > 0) void markUpdatesRead(project.id, ids).catch(() => undefined);
     } catch {
       setPosts([]);
     } finally {

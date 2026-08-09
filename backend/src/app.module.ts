@@ -50,6 +50,7 @@ import { Notification } from './notifications/entities/notification.entity';
 import { ProjectQuestion } from './project-social/entities/project-question.entity';
 import { ProjectAnswer } from './project-social/entities/project-answer.entity';
 import { ProjectUpdate } from './project-social/entities/project-update.entity';
+import { UpdateRead } from './project-social/entities/update-read.entity';
 import { ContentVote } from './project-social/entities/content-vote.entity';
 import { ContentReport } from './project-social/entities/content-report.entity';
 import { QuestionFollow } from './project-social/entities/question-follow.entity';
@@ -121,6 +122,7 @@ import { ProjectSocialModule } from './project-social/project-social.module';
             ProjectQuestion,
             ProjectAnswer,
             ProjectUpdate,
+            UpdateRead,
             ContentVote,
             ContentReport,
             QuestionFollow,

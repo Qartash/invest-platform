@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { ProjectUpdate } from './entities/project-update.entity';
+import { UpdateRead } from './entities/update-read.entity';
 import { ProjectQuestion } from './entities/project-question.entity';
 import { Project } from '../projects/entities/project.entity';
 import { User } from '../users/entities/user.entity';
@@ -36,6 +37,8 @@ export class UpdatesService {
   constructor(
     @InjectRepository(ProjectUpdate)
     private readonly updatesRepository: Repository<ProjectUpdate>,
+    @InjectRepository(UpdateRead)
+    private readonly readsRepository: Repository<UpdateRead>,
     @InjectRepository(Project)
     private readonly projectsRepository: Repository<Project>,
     @InjectRepository(ProjectQuestion)
@@ -187,14 +190,55 @@ export class UpdatesService {
   }
 
   /**
-   * Counts one holder having opened a post. Deliberately crude — it is the
-   * founder's only signal that anyone is reading, not an analytics product — and
-   * it does not try to tell the same person twice apart, which is why the number
-   * is shown as "read by 68 of 94" rather than as a percentage anyone would
-   * defend.
+   * Records that this person has seen these posts, and keeps `read_count` equal
+   * to the number of people who have.
+   *
+   * Takes a list because a reader opens a feed, not a post: everything rendered
+   * on the screen has been seen, and reporting only the newest one left every
+   * older post reading zero forever.
+   *
+   * The insert is what decides whether anything is counted — a second visit by
+   * the same person hits the unique index, is ignored, and increments nothing.
+   * The counter used to be an increment per request, which made a post on a
+   * two-investor project read "by 9" after the founder opened the tab nine
+   * times. A number a founder uses to decide whether anyone is listening cannot
+   * be inflated by the founder looking at it.
    */
-  async markRead(updateId: string): Promise<void> {
-    await this.updatesRepository.increment({ id: updateId }, 'readCount', 1);
+  async markRead(userId: string, updateIds: string[]): Promise<{ counted: number }> {
+    if (updateIds.length === 0) return { counted: 0 };
+
+    // The author reading their own post is not a reader. A founder opens their
+    // feed far more often than any investor does, and counting that would put
+    // the number back where it started — high for reasons that say nothing
+    // about whether anyone is listening.
+    const mine = await this.updatesRepository.find({
+      where: { id: In(updateIds), authorId: userId },
+      select: { id: true },
+    });
+    const own = new Set(mine.map((post) => post.id));
+    const readable = updateIds.filter((id) => !own.has(id));
+    if (readable.length === 0) return { counted: 0 };
+
+    const inserted = await this.readsRepository
+      .createQueryBuilder()
+      .insert()
+      .into(UpdateRead)
+      .values(readable.map((updateId) => ({ updateId, userId })))
+      .orIgnore()
+      .returning(['updateId'])
+      .execute();
+
+    // Only the rows that were new: the ones the index rejected are visits by
+    // somebody already counted. The column name comes back in whichever case
+    // the driver used, so both are accepted.
+    const firstTime = ((inserted.raw as Array<{ update_id?: string; updateId?: string }>) ?? [])
+      .map((row) => row.updateId ?? row.update_id)
+      .filter((id): id is string => !!id);
+
+    if (firstTime.length > 0) {
+      await this.updatesRepository.increment({ id: In(firstTime) }, 'readCount', 1);
+    }
+    return { counted: firstTime.length };
   }
 
   // ── Nudges ─────────────────────────────────────────────────────────────────

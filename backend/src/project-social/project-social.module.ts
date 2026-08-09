@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProjectQuestion } from './entities/project-question.entity';
 import { ProjectAnswer } from './entities/project-answer.entity';
 import { ProjectUpdate } from './entities/project-update.entity';
+import { UpdateRead } from './entities/update-read.entity';
 import { ContentVote } from './entities/content-vote.entity';
 import { ContentReport } from './entities/content-report.entity';
 import { QuestionFollow } from './entities/question-follow.entity';
@@ -21,6 +22,7 @@ import { TicketsModule } from '../tickets/tickets.module';
       ProjectQuestion,
       ProjectAnswer,
       ProjectUpdate,
+      UpdateRead,
       ContentVote,
       ContentReport,
       QuestionFollow,

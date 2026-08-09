@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 
 export const MAX_UPDATE_TITLE_LENGTH = 120;
 export const MAX_UPDATE_BODY_LENGTH = 2000;
@@ -28,6 +28,16 @@ export class CreateUpdateDto {
   // is a post nobody reads.
   @IsOptional()
   notifyHolders?: boolean;
+}
+
+// A screenful at a time; the feed's own page size is the real bound.
+const MAX_READ_BATCH = 50;
+
+export class MarkUpdatesReadDto {
+  @IsArray()
+  @ArrayMaxSize(MAX_READ_BATCH)
+  @IsUUID('4', { each: true })
+  updateIds: string[];
 }
 
 export class EditUpdateDto {

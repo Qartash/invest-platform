@@ -35,7 +35,7 @@ import {
   ResolveReportDto,
   VoteDto,
 } from './dto/question.dto';
-import { CreateUpdateDto, EditUpdateDto } from './dto/update.dto';
+import { CreateUpdateDto, EditUpdateDto, MarkUpdatesReadDto } from './dto/update.dto';
 
 /**
  * Everything public about a project that is written by people rather than by the
@@ -221,9 +221,14 @@ export class ProjectSocialController {
     return { url: `/uploads/updates/${file.filename}` };
   }
 
-  @Post('updates/:id/read')
-  readUpdate(@Param('id', ParseUUIDPipe) id: string) {
-    return this.updates.markRead(id).then(() => ({ ok: true }));
+  /**
+   * The posts this reader has now seen. A list rather than one id because a
+   * person opens a feed, not a post — and because reporting only the newest one
+   * left every older post permanently reading zero.
+   */
+  @Post('projects/:projectId/updates/read')
+  readUpdates(@CurrentUser() user: User, @Body() dto: MarkUpdatesReadDto) {
+    return this.updates.markRead(user.id, dto.updateIds);
   }
 
   // ── Reporting ──────────────────────────────────────────────────────────────
