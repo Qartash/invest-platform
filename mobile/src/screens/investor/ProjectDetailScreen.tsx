@@ -69,6 +69,8 @@ import { BuyListingModal } from '../../components/BuyListingModal';
 import { RoundLadder } from '../../components/RoundLadder';
 import { TeamMemberCard } from '../../components/TeamMemberCard';
 import { Card, HeroScrim, Icon, ListGroup, ListRow, Pill, SectionHeader, SegmentedTabs } from '../../components/ui';
+import { ProjectQuestionsPanel } from '../../components/ProjectQuestionsPanel';
+import { ProjectUpdatesPanel } from '../../components/ProjectUpdatesPanel';
 import { HelpButton, TourTarget } from '../../onboarding';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
 
@@ -87,7 +89,7 @@ const FUNDING_CARD_OVERLAP = 20;
 // underneath. This is roughly the bar's height plus a breath of air above the section.
 const STICKY_TABS_CLEARANCE = 64;
 
-type TabKey = 'about' | 'team' | 'market' | 'activity';
+type TabKey = 'about' | 'updates' | 'questions' | 'team' | 'market' | 'activity';
 
 function extractYoutubeVideoId(url: string): string | null {
   const match = url.trim().match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -157,7 +159,7 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
   const attachments = attachmentsQuery.data ?? [];
   const team = teamQuery.data ?? [];
   const wallet = walletQuery.data;
-  const [tab, setTab] = useState<TabKey>('about');
+  const [tab, setTab] = useState<TabKey>(route.params.openTab ?? 'about');
   const [quantity, setQuantity] = useState('1');
   const [forecastOpen, setForecastOpen] = useState(false);
   const [buying, setBuying] = useState(false);
@@ -855,6 +857,8 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
             onChange={setTab}
             tabs={[
               { key: 'about', label: t('project.tabAbout') },
+              { key: 'updates', label: t('project.tabUpdates') },
+              { key: 'questions', label: t('project.tabQuestions') },
               { key: 'team', label: t('project.tabTeam') },
               { key: 'market', label: t('project.tabMarket') },
               { key: 'activity', label: t('project.tabActivity') },
@@ -862,13 +866,21 @@ export function ProjectDetailScreen({ route, navigation }: Props) {
           />
         </TourTarget>
 
-        {tab === 'about'
-          ? aboutPanel
-          : tab === 'team'
-            ? teamPanel
-            : tab === 'market'
-              ? marketPanel
-              : activityPanel}
+        {tab === 'about' ? (
+          aboutPanel
+        ) : tab === 'updates' ? (
+          <ProjectUpdatesPanel project={project} />
+        ) : tab === 'questions' ? (
+          // Reloads the project after an answer so the responsiveness header
+          // above the list moves with it rather than a screen later.
+          <ProjectQuestionsPanel project={project} onChanged={load} />
+        ) : tab === 'team' ? (
+          teamPanel
+        ) : tab === 'market' ? (
+          marketPanel
+        ) : (
+          activityPanel
+        )}
 
         {/* Not rendered at all once the raise is over. It used to sit open on a
             funded project with a live-looking confirm button that could only fail:

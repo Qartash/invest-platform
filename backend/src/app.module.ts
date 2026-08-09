@@ -47,6 +47,12 @@ import { Quest } from './quests/entities/quest.entity';
 import { QuestCompletion } from './quests/entities/quest-completion.entity';
 import { PartnerApplication } from './partners/entities/partner-application.entity';
 import { Notification } from './notifications/entities/notification.entity';
+import { ProjectQuestion } from './project-social/entities/project-question.entity';
+import { ProjectAnswer } from './project-social/entities/project-answer.entity';
+import { ProjectUpdate } from './project-social/entities/project-update.entity';
+import { ContentVote } from './project-social/entities/content-vote.entity';
+import { ContentReport } from './project-social/entities/content-report.entity';
+import { QuestionFollow } from './project-social/entities/question-follow.entity';
 import { MoneyMovement } from './ledger/entities/money-movement.entity';
 import { PlatformAccount } from './ledger/entities/platform-account.entity';
 import { LedgerModule } from './ledger/ledger.module';
@@ -58,6 +64,7 @@ import { ActivityModule } from './activity/activity.module';
 import { QuestsModule } from './quests/quests.module';
 import { PartnersModule } from './partners/partners.module';
 import { AdminModule } from './admin/admin.module';
+import { ProjectSocialModule } from './project-social/project-social.module';
 
 @Module({
   imports: [
@@ -111,6 +118,12 @@ import { AdminModule } from './admin/admin.module';
             QuestCompletion,
             PartnerApplication,
             Notification,
+            ProjectQuestion,
+            ProjectAnswer,
+            ProjectUpdate,
+            ContentVote,
+            ContentReport,
+            QuestionFollow,
             MoneyMovement,
             PlatformAccount,
             SystemLog,
@@ -148,6 +161,7 @@ import { AdminModule } from './admin/admin.module';
     ActivityModule,
     QuestsModule,
     PartnersModule,
+    ProjectSocialModule,
     NotificationsModule,
     LedgerModule,
     AdminModule,

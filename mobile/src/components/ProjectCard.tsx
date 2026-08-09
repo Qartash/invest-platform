@@ -17,6 +17,7 @@ import {
   useThemeStyles,
 } from '../theme';
 import { HeroScrim, Icon, Pill } from './ui';
+import { ResponsivenessBadge } from './ResponsivenessBadge';
 
 interface Props {
   project: Project;
@@ -112,6 +113,11 @@ export function ProjectCard({ project, onPress, onResalePress, onWorksPress }: P
         <View style={styles.track}>
           <View style={[styles.fill, { width: `${progress * 100}%` }]} />
         </View>
+
+        {/* The one number here that is about the founder rather than the raise.
+            It sits on the card on purpose: knowing that six questions went
+            unanswered is worth more before opening the project than after. */}
+        <ResponsivenessBadge project={project} style={styles.responsiveness} />
 
         <View style={styles.statRow}>
           <View style={styles.stat}>
@@ -233,6 +239,7 @@ const createStyles = (c: ThemeColors) =>
       marginTop: 2,
       marginBottom: spacing.sm + 2,
     },
+    responsiveness: { marginTop: spacing.sm },
     track: {
       height: 6,
       borderRadius: radius.pill,

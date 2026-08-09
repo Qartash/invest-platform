@@ -14,6 +14,7 @@ import { ProjectsModule } from '../projects/projects.module';
 import { TicketsModule } from '../tickets/tickets.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { LedgerModule } from '../ledger/ledger.module';
+import { ProjectSocialModule } from '../project-social/project-social.module';
 
 @Module({
   imports: [
@@ -22,6 +23,8 @@ import { LedgerModule } from '../ledger/ledger.module';
     TicketsModule,
     NotificationsModule,
     LedgerModule,
+    // Publishing a report also posts it to the project's feed.
+    ProjectSocialModule,
   ],
   providers: [ProjectFinanceService],
   exports: [ProjectFinanceService],
