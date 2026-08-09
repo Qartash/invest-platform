@@ -1,4 +1,4 @@
-import { countStreak, ymd } from './streak';
+import { completedDaysBefore, countStreak, ymd } from './streak';
 
 // Builds the set of check-in days as the last `n` consecutive days ending on `end`.
 const consecutive = (end: Date, n: number): Set<string> => {
@@ -47,6 +47,40 @@ describe('countStreak', () => {
   it('does not mutate the date it is handed', () => {
     const today = new Date('2026-07-26T09:00:00Z');
     countStreak(consecutive(today, 4), today);
+    expect(ymd(today)).toBe('2026-07-26');
+  });
+});
+
+describe('completedDaysBefore', () => {
+  // The draw pays out against who was active on a given day, so a day still in progress
+  // must not be in this list — settling it early shuts out everybody who arrives later.
+  it('never includes today', () => {
+    const today = new Date('2026-07-26T09:00:00Z');
+    expect(completedDaysBefore(today, 7)).not.toContain('2026-07-26');
+  });
+
+  it('runs oldest first, so arrears are paid in the order they accrued', () => {
+    const today = new Date('2026-07-26T23:00:00Z');
+    expect(completedDaysBefore(today, 3)).toEqual(['2026-07-23', '2026-07-24', '2026-07-25']);
+  });
+
+  it('crosses a month boundary', () => {
+    const today = new Date('2026-08-02T09:00:00Z');
+    expect(completedDaysBefore(today, 3)).toEqual(['2026-07-30', '2026-07-31', '2026-08-01']);
+  });
+
+  it('crosses a year boundary', () => {
+    const today = new Date('2027-01-02T09:00:00Z');
+    expect(completedDaysBefore(today, 3)).toEqual(['2026-12-30', '2026-12-31', '2027-01-01']);
+  });
+
+  it('asks for nothing when the window is zero', () => {
+    expect(completedDaysBefore(new Date('2026-07-26T09:00:00Z'), 0)).toEqual([]);
+  });
+
+  it('does not mutate the date it is handed', () => {
+    const today = new Date('2026-07-26T09:00:00Z');
+    completedDaysBefore(today, 5);
     expect(ymd(today)).toBe('2026-07-26');
   });
 });

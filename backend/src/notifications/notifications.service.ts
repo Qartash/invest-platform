@@ -1,11 +1,12 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, LessThan, Repository } from 'typeorm';
+import { DataSource, In, IsNull, LessThan, Repository } from 'typeorm';
 import { Notification } from './entities/notification.entity';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../common/enums';
 import { NotificationPayload, NotificationType, NotifyInput } from './notification-types';
+import { withCronLock } from '../common/cron-lock';
 
 // A payload is a handful of ids and figures. This is a backstop against a stray
 // long string (a moderator's comment, a rejection reason) rather than a budget.
@@ -18,7 +19,7 @@ const READ_RETENTION_DAYS = 90;
 const UNREAD_RETENTION_DAYS = 365;
 
 @Injectable()
-export class NotificationsService {
+export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
 
   constructor(
@@ -26,7 +27,15 @@ export class NotificationsService {
     private readonly notificationsRepository: Repository<Notification>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
+    private readonly dataSource: DataSource,
   ) {}
+
+  // Four in the morning is a time this process is frequently not awake for, so the purge
+  // also runs on boot — see the note on `purgeOld`. Not awaited: housekeeping must not be
+  // something starting up can wait on or fail from.
+  onModuleInit(): void {
+    void this.purgeOld();
+  }
 
   // ── Sending ────────────────────────────────────────────────────────────────
   //
@@ -191,20 +200,29 @@ export class NotificationsService {
 
   // ── Housekeeping ───────────────────────────────────────────────────────────
 
-  // Nothing in the app reads a notification from last spring, and every account
-  // adds rows for as long as it is used. Sweeping nightly keeps the table's size
-  // a function of how busy the platform is rather than of how old it is.
+  /**
+   * Nothing in the app reads a notification from last spring, and every account adds rows
+   * for as long as it is used. Sweeping nightly keeps the table's size a function of how
+   * busy the platform is rather than of how old it is.
+   *
+   * "Nightly" was doing less than it looked like: the API sleeps when nothing is calling
+   * it, and four in the morning is the least likely hour of the day for anybody to be
+   * calling it — so on a quiet week this ran zero times, not seven. It runs on boot too
+   * now, which is a moment that genuinely happens.
+   */
   @Cron(CronExpression.EVERY_DAY_AT_4AM)
   async purgeOld(): Promise<void> {
     try {
-      const readBefore = NotificationsService.daysAgo(READ_RETENTION_DAYS);
-      const anyBefore = NotificationsService.daysAgo(UNREAD_RETENTION_DAYS);
-      const read = await this.notificationsRepository.delete({
-        readAt: LessThan(readBefore),
+      await withCronLock(this.dataSource, 'notifications-purge', async () => {
+        const readBefore = NotificationsService.daysAgo(READ_RETENTION_DAYS);
+        const anyBefore = NotificationsService.daysAgo(UNREAD_RETENTION_DAYS);
+        const read = await this.notificationsRepository.delete({
+          readAt: LessThan(readBefore),
+        });
+        const old = await this.notificationsRepository.delete({ createdAt: LessThan(anyBefore) });
+        const removed = (read.affected ?? 0) + (old.affected ?? 0);
+        if (removed > 0) this.logger.log(`Purged ${removed} old notification(s)`);
       });
-      const old = await this.notificationsRepository.delete({ createdAt: LessThan(anyBefore) });
-      const removed = (read.affected ?? 0) + (old.affected ?? 0);
-      if (removed > 0) this.logger.log(`Purged ${removed} old notification(s)`);
     } catch (err) {
       this.logger.error('Failed to purge old notifications', err as Error);
     }
