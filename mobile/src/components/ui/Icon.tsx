@@ -8,6 +8,7 @@ export type IconName =
   | 'dots'
   | 'chevronDown'
   | 'chevronUp'
+  | 'chevronLeft'
   | 'edit'
   | 'trash'
   | 'eye'
@@ -99,6 +100,8 @@ function renderPaths(name: IconName, common: any, color: string) {
       return <Polyline points="6,9.5 12,15.5 18,9.5" {...common} />;
     case 'chevronUp':
       return <Polyline points="6,14.5 12,8.5 18,14.5" {...common} />;
+    case 'chevronLeft':
+      return <Polyline points="14.5,6 8.5,12 14.5,18" {...common} />;
     case 'edit':
       return (
         <>

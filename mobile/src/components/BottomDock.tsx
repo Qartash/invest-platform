@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { shadow, spacing, ThemeColors, ColorSchemeName, useTheme, useThemeStyles } from '../theme';
 import { TourTarget } from '../onboarding/TourTarget';
+import { pressTab } from '../navigation/tabPress';
 
 /**
  * The bottom tab bar, drawn as a floating dock instead of a full-width strip.
@@ -13,7 +14,8 @@ import { TourTarget } from '../onboarding/TourTarget';
  * only affordance telling you which tab you're on, so selection has to be unmistakable —
  * hence a filled pill rather than a tint, and a segment that widens as it fills.
  */
-export function BottomDock({ state, descriptors, navigation }: BottomTabBarProps) {
+export function BottomDock(props: BottomTabBarProps) {
+  const { state, descriptors, navigation } = props;
   const insets = useSafeAreaInsets();
   const styles = useThemeStyles(createStyles);
 
@@ -27,13 +29,6 @@ export function BottomDock({ state, descriptors, navigation }: BottomTabBarProps
           const { options } = descriptors[route.key];
           const focused = state.index === index;
 
-          const onPress = () => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!focused && !event.defaultPrevented) {
-              navigation.navigate(route.name, route.params);
-            }
-          };
-
           return (
             <DockTab
               key={route.key}
@@ -42,7 +37,7 @@ export function BottomDock({ state, descriptors, navigation }: BottomTabBarProps
               // so it carries the whole accessible label.
               label={options.title ?? route.name}
               icon={options.tabBarIcon}
-              onPress={onPress}
+              onPress={() => pressTab(props, index)}
               onLongPress={() => navigation.emit({ type: 'tabLongPress', target: route.key })}
             />
           );
