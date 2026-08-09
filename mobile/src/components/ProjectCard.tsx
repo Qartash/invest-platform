@@ -59,8 +59,12 @@ export function ProjectCard({ project, onPress, onResalePress, onWorksPress }: P
         <HeroScrim />
         {/* Both chips are shortcuts past the card's own destination — resale to the market
             tab, works to the works list. They wrap rather than run off a narrow cover. */}
-        {(hasResale || worksCount > 0) && (
+        {(hasResale || worksCount > 0 || (project.questionsCount ?? 0) > 0) && (
           <View style={styles.chipRow}>
+            {/* The one chip here that is about the founder rather than the
+                raise, and it sits with the others because all three are what a
+                reader takes in before deciding to open the project at all. */}
+            <ResponsivenessBadge project={project} variant="overlay" />
             {hasResale && (
               <Pressable
                 hitSlop={8}
@@ -113,11 +117,6 @@ export function ProjectCard({ project, onPress, onResalePress, onWorksPress }: P
         <View style={styles.track}>
           <View style={[styles.fill, { width: `${progress * 100}%` }]} />
         </View>
-
-        {/* The one number here that is about the founder rather than the raise.
-            It sits on the card on purpose: knowing that six questions went
-            unanswered is worth more before opening the project than after. */}
-        <ResponsivenessBadge project={project} style={styles.responsiveness} />
 
         <View style={styles.statRow}>
           <View style={styles.stat}>
@@ -239,7 +238,6 @@ const createStyles = (c: ThemeColors) =>
       marginTop: 2,
       marginBottom: spacing.sm + 2,
     },
-    responsiveness: { marginTop: spacing.sm },
     track: {
       height: 6,
       borderRadius: radius.pill,

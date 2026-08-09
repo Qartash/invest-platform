@@ -18,7 +18,20 @@ import { invalidateCached } from './response-cache';
  */
 
 // Route prefixes (after the global /api prefix) whose writes can move the project list.
-const WATCHED_PREFIXES = ['/api/projects', '/api/tickets', '/api/project-works', '/api/project-funding'];
+//
+// `/api/questions` and `/api/moderation` are here because the card now carries
+// the founder's answering record, and the two writes that move it most do not
+// live under `/api/projects`: an answer is posted to `/api/questions/:id/answers`
+// and a moderator hides a question through `/api/moderation`. Without them the
+// badge on the list would keep saying "does not answer" after the founder had.
+const WATCHED_PREFIXES = [
+  '/api/projects',
+  '/api/tickets',
+  '/api/project-works',
+  '/api/project-funding',
+  '/api/questions',
+  '/api/moderation',
+];
 
 @Injectable()
 export class ProjectCacheInterceptor implements NestInterceptor {

@@ -7,8 +7,13 @@ import { radius, spacing, ThemeColors, typography, useTheme, useThemeStyles } fr
 
 interface Props {
   project: ResponsivenessInput;
-  /** The card variant is one line; the header one adds the counts underneath. */
-  variant?: 'chip' | 'row';
+  /**
+   * `chip` is one line on a surface, `row` adds the counts underneath for the
+   * questions header, and `overlay` sits on a project's cover photo next to the
+   * resale and works chips — solid tone instead of a tint, because a soft
+   * background disappears against a photograph.
+   */
+  variant?: 'chip' | 'row' | 'overlay';
   style?: ViewStyle;
 }
 
@@ -30,10 +35,21 @@ export function ResponsivenessBadge({ project, variant = 'chip', style }: Props)
   if (badge.tier === 'none') return null;
 
   const tone = badge.tier === 'good' ? 'good' : badge.tier === 'slow' ? 'slow' : 'poor';
-  const iconColor = tone === 'good' ? colors.success : tone === 'slow' ? colors.warning : colors.danger;
+  const toneColor = tone === 'good' ? colors.success : tone === 'slow' ? colors.warning : colors.danger;
+  // Over a photo the tone becomes the fill and the text goes white: coloured
+  // text on a tinted background is legible on a card and unreadable on a cover.
+  const onCover = variant === 'overlay';
+  const iconColor = onCover ? colors.onOverlay : toneColor;
 
   return (
-    <View style={[styles.wrap, styles[tone], variant === 'row' && styles.row, style]}>
+    <View
+      style={[
+        styles.wrap,
+        onCover ? { backgroundColor: toneColor } : styles[tone],
+        variant === 'row' && styles.row,
+        style,
+      ]}
+    >
       <Icon name={badge.tier === 'poor' ? 'flag' : 'comment'} size={12} color={iconColor} />
       <View style={variant === 'row' ? styles.rowText : undefined}>
         <Text style={[styles.label, { color: iconColor }]}>{summary(badge, t)}</Text>
