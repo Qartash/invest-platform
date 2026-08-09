@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, LessThanOrEqual, Repository } from 'typeorm';
@@ -19,9 +19,10 @@ import { LedgerService, external, platform, userInvest } from '../ledger/ledger.
 import { PlatformAccountService } from '../ledger/platform-account.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType, NotifyInput } from '../notifications/notification-types';
+import { withCronLock } from '../common/cron-lock';
 
 @Injectable()
-export class ReferralEarningsService {
+export class ReferralEarningsService implements OnModuleInit {
   private readonly logger = new Logger(ReferralEarningsService.name);
 
   constructor(
@@ -34,6 +35,21 @@ export class ReferralEarningsService {
     private readonly ledger: LedgerService,
     private readonly dataSource: DataSource,
   ) {}
+
+  /**
+   * Pays whatever matured while the process was not running.
+   *
+   * The hourly schedule catches up on its own — an earning past its hold date is still past
+   * it an hour later — but only from the next full hour after the API wakes. Somebody who
+   * opens the app to check on a reward that unlocked overnight would be looking straight at
+   * the process that is about to pay it and still be told it is pending. Starting up is a
+   * fine moment to settle the queue, and it is the moment they caused.
+   */
+  onModuleInit(): void {
+    void this.payMaturedEarnings().catch((err) =>
+      this.logger.error('Referral payout run on boot failed', err as Error),
+    );
+  }
 
   // An accrual is money the beneficiary cannot touch yet — it sits in the hold
   // until it matures — so the notice says what was earned and when it unlocks,
@@ -150,48 +166,58 @@ export class ReferralEarningsService {
 
   // ── Maturation & payout ──────────────────────────────────────────────────
 
-  // Once an hour, pay everything whose hold has ended: move the amount from the
-  // admin account's balance into the beneficiary's invest credit. Each earning is
-  // its own transaction so one underfunded or blocked payout never stalls the rest.
+  /**
+   * Once an hour, pay everything whose hold has ended: move the amount from the admin
+   * account's balance into the beneficiary's invest credit. Each earning is its own
+   * transaction so one underfunded or blocked payout never stalls the rest.
+   *
+   * Held under an advisory lock because two instances running this at the same second
+   * would each read the same queue of matured earnings and each try to pay it. `payOne`
+   * takes the row and the wallet under a lock of their own, so the second attempt would
+   * fail rather than double-pay — but it would fail as a logged error against real money,
+   * every hour, and that is not a thing to leave for someone to discover.
+   */
   @Cron(CronExpression.EVERY_HOUR)
   async payMaturedEarnings(): Promise<void> {
-    await this.flagPartnerPayoutsDue();
+    await withCronLock(this.dataSource, 'referral-payouts', async () => {
+      await this.flagPartnerPayoutsDue();
 
-    const due = await this.earningsRepository.find({
-      // Only invest-credit earnings are paid automatically. A partner's cash is
-      // settled monthly against an invoice by a person, not by this job.
-      where: {
-        status: ReferralEarningStatus.PENDING,
-        channel: EarningChannel.INVEST,
-        maturesAt: LessThanOrEqual(new Date()),
-      },
-      order: { createdAt: 'ASC' },
-    });
-    if (due.length === 0) return;
+      const due = await this.earningsRepository.find({
+        // Only invest-credit earnings are paid automatically. A partner's cash is
+        // settled monthly against an invoice by a person, not by this job.
+        where: {
+          status: ReferralEarningStatus.PENDING,
+          channel: EarningChannel.INVEST,
+          maturesAt: LessThanOrEqual(new Date()),
+        },
+        order: { createdAt: 'ASC' },
+      });
+      if (due.length === 0) return;
 
-    const notices: NotifyInput[] = [];
-    let paid = 0;
-    for (const earning of due) {
-      try {
-        const payment = await this.payOne(earning.id);
-        if (payment) {
-          paid += 1;
-          notices.push({
-            userId: payment.beneficiaryId,
-            type: NotificationType.REFERRAL_EARNING_PAID,
-            payload: { amount: payment.amount, channel: EarningChannel.INVEST },
-          });
+      const notices: NotifyInput[] = [];
+      let paid = 0;
+      for (const earning of due) {
+        try {
+          const payment = await this.payOne(earning.id);
+          if (payment) {
+            paid += 1;
+            notices.push({
+              userId: payment.beneficiaryId,
+              type: NotificationType.REFERRAL_EARNING_PAID,
+              payload: { amount: payment.amount, channel: EarningChannel.INVEST },
+            });
+          }
+        } catch (err) {
+          this.logger.error(`Failed to pay referral earning ${earning.id}`, err as Error);
         }
-      } catch (err) {
-        this.logger.error(`Failed to pay referral earning ${earning.id}`, err as Error);
       }
-    }
-    await this.notifications.notifyMany(notices);
-    if (paid > 0) this.logger.log(`Paid ${paid}/${due.length} matured referral earning(s)`);
-    // Everything matured and nothing could be paid means the pool is dry (or has
-    // nobody to draw from). Until now that was a log line on a server nobody
-    // reads, while people waited on rewards the app had already promised them.
-    if (paid === 0) await this.warnPoolStuck(due.length, 'unfunded');
+      await this.notifications.notifyMany(notices);
+      if (paid > 0) this.logger.log(`Paid ${paid}/${due.length} matured referral earning(s)`);
+      // Everything matured and nothing could be paid means the pool is dry (or has
+      // nobody to draw from). Until now that was a log line on a server nobody
+      // reads, while people waited on rewards the app had already promised them.
+      if (paid === 0) await this.warnPoolStuck(due.length, 'unfunded');
+    });
   }
 
   // A partner's cash never moves on a schedule — a person makes the transfer and

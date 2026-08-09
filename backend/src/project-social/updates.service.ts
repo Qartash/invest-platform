@@ -1,7 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { DataSource, In, IsNull, Repository } from 'typeorm';
 import { ProjectUpdate } from './entities/project-update.entity';
 import { ProjectQuestion } from './entities/project-question.entity';
 import { Project } from '../projects/entities/project.entity';
@@ -9,6 +9,7 @@ import { User } from '../users/entities/user.entity';
 import { ProjectStatus } from '../common/enums';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType, NotifyInput } from '../notifications/notification-types';
+import { withCronLock } from '../common/cron-lock';
 import { TicketsService } from '../tickets/tickets.service';
 import { CreateUpdateDto, EditUpdateDto } from './dto/update.dto';
 import { toAuthor } from './presenters';
@@ -43,6 +44,7 @@ export class UpdatesService {
     private readonly notifications: NotificationsService,
     private readonly tickets: TicketsService,
     private readonly votes: VotesService,
+    private readonly dataSource: DataSource,
   ) {}
 
   // ── Posting ────────────────────────────────────────────────────────────────
@@ -213,8 +215,13 @@ export class UpdatesService {
   @Cron(CronExpression.EVERY_DAY_AT_10AM)
   async sendFounderNudges(): Promise<void> {
     try {
-      await this.nudgeAboutUnansweredQuestions();
-      await this.nudgeAboutSilence();
+      // Both nudges dedupe on a key per project, so a missed day is picked up by the next
+      // run rather than lost — what the lock adds is that two instances firing at ten
+      // o'clock together cannot each send the same founder the same reminder.
+      await withCronLock(this.dataSource, 'founder-nudges', async () => {
+        await this.nudgeAboutUnansweredQuestions();
+        await this.nudgeAboutSilence();
+      });
     } catch (err) {
       this.logger.error('Failed to send founder nudges', err as Error);
     }

@@ -1,16 +1,27 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { DailyDrawAward } from './entities/daily-draw-award.entity';
 import { DailyCheckin } from './entities/daily-checkin.entity';
 import { User } from '../users/entities/user.entity';
 import { RewardsService } from './rewards.service';
 import { TransactionType, UserRole } from '../common/enums';
-import { ymd } from './streak';
+import { completedDaysBefore, ymd } from './streak';
 import { DRAW_SHARE, POOL_PER_ARRIVAL, poolFor, seatsFor } from './draw-pool';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '../notifications/notification-types';
+import { withCronLock } from '../common/cron-lock';
+
+/**
+ * How far back a catch-up run will look for days the draw never happened on.
+ *
+ * A week covers the case this exists for: the API sleeps when nothing is calling it, and
+ * a night with no traffic is a night the ten-o'clock schedule never fires. Longer than
+ * this and a draw would be paid out to people who have long since stopped wondering about
+ * it — past a week, a missed day is history rather than something owed.
+ */
+const CATCH_UP_DAYS = 7;
 
 /** One day of the draw, as it concerns one person. See `statsFor`. */
 export interface DrawDay {
@@ -38,7 +49,7 @@ export interface DrawDay {
  * rather than the size of the crowd, and nothing about the tree is invented.
  */
 @Injectable()
-export class DailyDrawService {
+export class DailyDrawService implements OnModuleInit {
   private readonly logger = new Logger(DailyDrawService.name);
 
   constructor(
@@ -50,12 +61,58 @@ export class DailyDrawService {
     private readonly usersRepository: Repository<User>,
     private readonly rewardsService: RewardsService,
     private readonly notifications: NotificationsService,
+    private readonly dataSource: DataSource,
   ) {}
+
+  /**
+   * The draw is the one job here that a missed run loses for good.
+   *
+   * Everything else on a schedule asks the database a question that stays true until it is
+   * answered — earnings past their hold date are still past it an hour later, an unanswered
+   * question is still unanswered tomorrow — so a run that never happens is a delay. The draw
+   * asked only about *today*, and by the time the next run came round "today" meant a
+   * different day: the missed one was never drawn and never would be. On a service that
+   * sleeps through any night nobody is using it, that is most nights.
+   *
+   * So the schedule is no longer the only thing that starts it. Waking up counts too, and
+   * since waking up is what happens the moment somebody opens the app, the days that were
+   * missed while it slept get drawn shortly after anybody arrives.
+   */
+  onModuleInit(): void {
+    // Deliberately not awaited: boot must not wait on a week of draws, and a failure here
+    // must not take the API down with it. Nothing else depends on it having finished.
+    void this.catchUpMissedDraws().catch((err) =>
+      this.logger.error('Catch-up draw run failed', err as Error),
+    );
+  }
 
   // Late in the day, so "active today" means most of the day has happened.
   @Cron(CronExpression.EVERY_DAY_AT_10PM)
   async runTodaysDraw(): Promise<void> {
-    await this.draw(ymd(new Date()));
+    await withCronLock(this.dataSource, 'daily-draw', () => this.draw(ymd(new Date())));
+  }
+
+  /**
+   * Draws every completed day in the window that has no awards against it.
+   *
+   * Only days that have *ended*: drawing today at nine in the morning would settle it
+   * against whoever happened to have opened the app by breakfast and shut out everyone
+   * who came later, which is worse than not drawing it at all. Today belongs to the
+   * ten-o'clock run.
+   *
+   * Oldest first, so a week of arrears is paid in the order it accrued and the pot for
+   * each day is the one that day earned. `draw` is what makes this safe to call as often
+   * as it likes — a day with awards already recorded returns immediately.
+   */
+  async catchUpMissedDraws(days = CATCH_UP_DAYS): Promise<void> {
+    await withCronLock(this.dataSource, 'daily-draw', async () => {
+      for (const day of completedDaysBefore(new Date(), days)) {
+        const result = await this.draw(day);
+        if (result.winners > 0) {
+          this.logger.log(`Caught up the draw for ${day}: ${result.winners} winner(s)`);
+        }
+      }
+    });
   }
 
   // Split out from the schedule so it can be run for a given day and tested.
