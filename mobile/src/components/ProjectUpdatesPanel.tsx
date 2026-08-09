@@ -184,8 +184,13 @@ export function ProjectUpdatesPanel({ project }: Props) {
             )}
 
             <View style={styles.postFoot}>
+              {/* Voting on your own post is refused by the server, so the button
+                  says so before it is pressed. A founder tapping the tick under
+                  their own update and getting an error dialog is the app asking
+                  a question it already knows the answer to. */}
               <Pressable
                 onPress={() => void onHelpful(post)}
+                disabled={post.mine}
                 hitSlop={6}
                 style={({ pressed }: PressableState) => [
                   styles.vote,
@@ -193,6 +198,7 @@ export function ProjectUpdatesPanel({ project }: Props) {
                     backgroundColor: `${colors.success}22`,
                     borderColor: 'transparent',
                   },
+                  post.mine && styles.voteDisabled,
                   pressed && styles.pressed,
                 ]}
               >
@@ -344,6 +350,7 @@ const createStyles = (c: ThemeColors) =>
       paddingHorizontal: spacing.sm,
       paddingVertical: 5,
     },
+    voteDisabled: { opacity: 0.45 },
     voteLabel: { ...typography.microStrong, color: c.textMuted },
 
     composer: { gap: spacing.sm },

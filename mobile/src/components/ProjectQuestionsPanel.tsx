@@ -389,13 +389,16 @@ function QuestionRow({ question, isFounder, onVote, onVoteAnswer, onChanged }: R
           <Text style={styles.aBody}>{answer.body}</Text>
           <View style={styles.voteRow}>
             {/* Two verdicts, not one. "Helped" alone would let an answer that
-                dodges the question look the same as one that answers it. */}
+                dodges the question look the same as one that answers it.
+                Both are dead on your own answer, matching what the server
+                allows — a founder should see that, not an error dialog. */}
             <VoteButton
               icon="check"
               label={t('social.vote.helped', { count: answer.helpfulCount })}
               active={answer.myVotes.includes('helpful')}
               tone="success"
               onPress={() => onVoteAnswer(answer, 'helpful')}
+              disabled={answer.mine}
             />
             <VoteButton
               icon="flag"
@@ -403,6 +406,7 @@ function QuestionRow({ question, isFounder, onVote, onVoteAnswer, onChanged }: R
               active={answer.myVotes.includes('not_answer')}
               tone="danger"
               onPress={() => onVoteAnswer(answer, 'not_answer')}
+              disabled={answer.mine}
             />
           </View>
         </View>
