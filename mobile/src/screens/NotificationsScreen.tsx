@@ -78,6 +78,14 @@ function targetFor(item: AppNotification): { tab: string; screen: string; params
   if (typeof payload.projectId === 'string' && (item.type.startsWith('work_') || item.type === 'project_quest_added')) {
     return { tab: 'HomeTab', screen: 'ProjectWorks', params: { projectId: payload.projectId } };
   }
+  // Straight to the tab the notification is about: landing on the overview and
+  // making somebody find the questions themselves loses most of them.
+  if (typeof payload.projectId === 'string' && item.type.startsWith('question')) {
+    return { tab: 'HomeTab', screen: 'ProjectDetail', params: { projectId: payload.projectId, openTab: 'questions' } };
+  }
+  if (typeof payload.projectId === 'string' && (item.type === 'project_update_posted' || item.type === 'project_silent')) {
+    return { tab: 'HomeTab', screen: 'ProjectDetail', params: { projectId: payload.projectId, openTab: 'updates' } };
+  }
   if (item.type === 'dividends_received' || item.type === 'financial_report_published') {
     return typeof payload.projectId === 'string'
       ? { tab: 'HomeTab', screen: 'ProjectFinance', params: { projectId: payload.projectId } }
@@ -319,6 +327,9 @@ function buildParams(
     period: typeof payload.period === 'string' ? formatMonth(payload.period, language) : '',
     risk: typeof payload.riskLevel === 'string' ? t(`project.risk.${payload.riskLevel}`) : '',
     comment: (payload.comment as string) || '',
+    // The first line of a question, an answer or a post — enough to recognise
+    // which one this is about without opening it.
+    excerpt: (payload.excerpt as string) || '',
     actor: (payload.actorName as string) || '',
     fields: Array.isArray(payload.fields) ? (payload.fields as string[]).join(', ') : '',
   };

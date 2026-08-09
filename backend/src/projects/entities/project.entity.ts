@@ -126,6 +126,33 @@ export class Project {
   @Column('int', { default: 30, name: 'payout_start_days' })
   payoutStartDays: number;
 
+  // ── How this founder treats the people who asked ──────────────────────────
+  //
+  // Kept on the project, recomputed by ProjectSocialService whenever an answer
+  // lands, and never written by hand. The list screen shows all three as one
+  // badge next to the risk level, which is the only reason the whole questions
+  // feature changes anything: an investor sees "does not answer · 6 questions"
+  // before they open the project, not after they have paid.
+  //
+  // Stored rather than aggregated on read because the catalogue renders dozens
+  // of projects at once, and a median over each one's questions is three joins
+  // per card. The numbers are only ever behind by the length of one request.
+  @Column('int', { default: 0, name: 'questions_count' })
+  questionsCount: number;
+
+  @Column('int', { default: 0, name: 'questions_answered_count' })
+  questionsAnsweredCount: number;
+
+  // Median, not mean: one question left for a month would otherwise drag a
+  // founder who answers everything else in an hour down to "answers in days".
+  @Column('int', { nullable: true, name: 'answer_median_minutes' })
+  answerMedianMinutes: number | null;
+
+  // When the founder last posted an update. Null means never — which for a
+  // funded project is itself the thing a moderator wants to see.
+  @Column({ type: 'timestamptz', nullable: true, name: 'last_update_at' })
+  lastUpdateAt: Date | null;
+
   @OneToMany(() => Ticket, (ticket) => ticket.project)
   tickets: Ticket[];
 

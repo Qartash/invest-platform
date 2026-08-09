@@ -3,7 +3,12 @@ import { KycStatus } from '../common/enums';
 
 // Keeps first and last letter of each word, masks the middle: "Grigor
 // Karamyan" -> "G••••r K••••••n". Short words stay as-is.
-function maskName(name: string | null): string | null {
+//
+// Exported because a name now appears in more places than a profile card — a
+// question, an answer, a post — and all of them have to hide it the same way. A
+// second implementation that rounds differently is a privacy setting that only
+// works on some screens.
+export function maskName(name: string | null): string | null {
   if (!name) return name;
   return name
     .split(/\s+/)

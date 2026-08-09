@@ -166,6 +166,43 @@ export enum MilestoneStatus {
   ACCEPTED = 'accepted',
 }
 
+/**
+ * What a vote or a report points at. Kept as one column plus an id rather than
+ * three nullable foreign keys, because the list will keep growing (a vote on an
+ * update today, on a comment tomorrow) and every addition would otherwise be a
+ * schema change. The cost is that the database cannot enforce the reference —
+ * the service checks the row exists before writing the vote, and a delete of the
+ * target leaves its votes behind, which the counters on the target make harmless.
+ */
+export enum ContentTarget {
+  QUESTION = 'question',
+  ANSWER = 'answer',
+  UPDATE = 'update',
+}
+
+/**
+ * The three things a person can say about a piece of content, and the reason
+ * they are one enum rather than a boolean.
+ *
+ * UP sits on a question and means "I want this answered too" — it is what sorts
+ * the list and what tells a founder where to start. HELPFUL and NOT_ANSWER sit
+ * on an answer (HELPFUL also on an update) and are deliberately separate from
+ * UP: an answer that dodges the question can be popular and useless at once, and
+ * without NOT_ANSWER that dodge is invisible.
+ */
+export enum ContentVoteKind {
+  UP = 'up',
+  HELPFUL = 'helpful',
+  NOT_ANSWER = 'not_answer',
+}
+
+// What a moderator did with a report. PENDING is the queue.
+export enum ContentReportStatus {
+  PENDING = 'pending',
+  HIDDEN = 'hidden',
+  DISMISSED = 'dismissed',
+}
+
 export enum LogSource {
   FRONTEND = 'frontend',
   BACKEND = 'backend',

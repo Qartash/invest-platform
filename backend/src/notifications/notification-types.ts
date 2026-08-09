@@ -70,6 +70,31 @@ export enum NotificationType {
   QUEST_REWARDED = 'quest_rewarded',
   PROJECT_QUEST_ADDED = 'project_quest_added',
 
+  // ── Questions & updates ──────────────────────────────────────────────────
+  /** A founder's copy: somebody asked about their project. */
+  QUESTION_ASKED = 'question_asked',
+  /** The asker's copy: the founder replied. */
+  QUESTION_ANSWERED = 'question_answered',
+  /** Anyone following the thread, when a follow-up lands under it. */
+  QUESTION_THREAD_REPLY = 'question_thread_reply',
+  /**
+   * The asker's copy again, once enough other people have said they want the
+   * same answer. Sent once per question — see the dedupe key at the call site.
+   */
+  QUESTION_TRENDING = 'question_trending',
+  /** Every ticket holder, when the founder posts news. */
+  PROJECT_UPDATE_POSTED = 'project_update_posted',
+  /** The author, when a moderator takes their question or answer out of view. */
+  CONTENT_HIDDEN = 'content_hidden',
+  /**
+   * The founder's nudge: questions are sitting unanswered past the promised
+   * window, or the project has said nothing for a month. Both are the same
+   * message with a different payload, and both are deduped so a daily job
+   * cannot stack them up.
+   */
+  QUESTIONS_AWAITING_ANSWER = 'questions_awaiting_answer',
+  PROJECT_SILENT = 'project_silent',
+
   // ── Account ──────────────────────────────────────────────────────────────
   ACCOUNT_BANNED = 'account_banned',
   ACCOUNT_UNBANNED = 'account_unbanned',
@@ -84,6 +109,7 @@ export enum NotificationType {
   MOD_WORK_DISPUTED = 'mod_work_disputed',
   MOD_PARTNER_APPLIED = 'mod_partner_applied',
   MOD_PARTNER_PAYOUT_DUE = 'mod_partner_payout_due',
+  MOD_CONTENT_REPORTED = 'mod_content_reported',
   MOD_REFERRAL_POOL_EMPTY = 'mod_referral_pool_empty',
   MOD_DIVIDEND_LEDGER_MISMATCH = 'mod_dividend_ledger_mismatch',
   // No counterpart for wiping the platform: a wipe deletes every account except

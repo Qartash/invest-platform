@@ -276,7 +276,9 @@
     "tabTeam": "Team",
     "teamEmpty": "The founder has not introduced the team yet",
     "teamCaption": "The people behind this project.",
-    "buySection": "Buy tickets"
+    "buySection": "Buy tickets",
+    "tabUpdates": "Updates",
+    "tabQuestions": "Questions"
   },
   "portfolio": {
     "title": "My portfolio",
@@ -787,6 +789,35 @@
         "founder": "Founder",
         "admin": "Administrator"
       }
+    },
+    "content": {
+      "tab": "Reports",
+      "reports": "Reported content",
+      "noReports": "Nothing reported.",
+      "neglected": "Projects leaving investors in the dark",
+      "noNeglected": "Every project is answering.",
+      "unanswered": "{{count}} unanswered",
+      "silentDays": "silent for {{count}} days",
+      "neverPosted": "never posted",
+      "reportCount": "{{count}} report(s)",
+      "reasons": "Reasons",
+      "reasonPlaceholder": "Reason shown to the author",
+      "reasonRequired": "Hiding requires a reason — the author is shown it.",
+      "hide": "Hide",
+      "keep": "Keep",
+      "hideNote": "Hiding does not delete: the text stays and the author is told why.",
+      "target": {
+        "question": "question",
+        "answer": "answer",
+        "update": "post"
+      },
+      "reason": {
+        "off_platform": "deal off the platform",
+        "contacts": "contact details",
+        "spam": "spam",
+        "not_an_answer": "not an answer",
+        "other": "other"
+      }
     }
   },
   "reports": {
@@ -1287,6 +1318,42 @@
       "mod_demo_seeded": {
         "title": "Demo data seeded",
         "body": "{{actor}} created the demo project."
+      },
+      "question_asked": {
+        "title": "New question about your project",
+        "body": "“{{excerpt}}” — {{project}}. Answer within 48 hours."
+      },
+      "question_answered": {
+        "title": "Your question was answered",
+        "body": "{{project}} — “{{excerpt}}”"
+      },
+      "question_thread_reply": {
+        "title": "New reply in a thread you follow",
+        "body": "{{project}} — “{{excerpt}}”"
+      },
+      "question_trending": {
+        "title": "Your question has {{quantity}} votes",
+        "body": "{{project}} — other investors want the same answer."
+      },
+      "project_update_posted": {
+        "title": "News from “{{project}}”",
+        "body": "{{excerpt}}"
+      },
+      "content_hidden": {
+        "title": "A moderator hid your post",
+        "body": "Reason: {{comment}}"
+      },
+      "questions_awaiting_answer": {
+        "title": "{{quantity}} question(s) waiting for an answer",
+        "body": "{{project}} — unanswered questions lower the answer rate investors see."
+      },
+      "project_silent": {
+        "title": "Investors have not heard from you in {{quantity}} days",
+        "body": "{{project}} — tell them how it is going. Three sentences is enough."
+      },
+      "mod_content_reported": {
+        "title": "Content reported",
+        "body": "Somebody flagged a question, an answer or a post."
       }
     }
   },
@@ -1348,6 +1415,94 @@
       "referral_bonus": "Referral bonus",
       "partner_settlement": "Partner payout",
       "platform_funding": "Platform account funded"
+    }
+  },
+  "social": {
+    "deletedUser": "Deleted user",
+    "founder": "founder",
+    "answered": "answered",
+    "answerAction": "Answer",
+    "replyAction": "Add a follow-up",
+    "follow": "Follow",
+    "following": "Following",
+    "awaitingAnswer": "The founder has not answered yet",
+    "responsiveness": {
+      "detail": "answered {{answered}} of {{total}} questions",
+      "fast": "answers in {{count}} min",
+      "hours": "answers in {{count}} h",
+      "days": "answers in {{count}} d",
+      "silent": "does not answer · {{count}} questions",
+      "patchy": "leaves questions unanswered · {{count}}"
+    },
+    "header": {
+      "noQuestionsYet": "Nobody has asked anything yet."
+    },
+    "sort": {
+      "top": "Top",
+      "new": "Newest",
+      "unanswered": "Unanswered"
+    },
+    "empty": {
+      "title": "No questions yet",
+      "body": "Ask first — the founder usually answers the same day.",
+      "founderBody": "Investors have not asked anything yet."
+    },
+    "ask": {
+      "placeholder": "What do you want to ask the founder?",
+      "send": "Send",
+      "similar": "Already asked",
+      "publicNotice": "Questions and answers are public, and so is your name. The answer arrives as a notification."
+    },
+    "answer": {
+      "placeholder": "Answer plainly — everyone will read it",
+      "send": "Answer",
+      "alsoPost": "Post as an update",
+      "alsoPostHint": "Notifies every ticket holder, not just the person who asked",
+      "pin": "Pin to the top",
+      "pinHint": "Shown first to everyone who opens the project"
+    },
+    "reply": {
+      "placeholder": "Add a follow-up…"
+    },
+    "vote": {
+      "helped": "Helped · {{count}}",
+      "notAnAnswer": "Not an answer · {{count}}"
+    },
+    "queue": {
+      "overdue": "Overdue — this lowers your answer rate",
+      "hoursLeft": "{{count}} h left to answer"
+    },
+    "hidden": {
+      "title": "Hidden by a moderator"
+    },
+    "delete": {
+      "title": "Delete the question?",
+      "body": "It can only be deleted while nobody has replied."
+    },
+    "report": {
+      "action": "Report",
+      "sentTitle": "Reported",
+      "sentBody": "A moderator will look at it."
+    },
+    "updates": {
+      "promptTitle": "Tell investors how it is going",
+      "promptSince": "Last update: {{date}}",
+      "promptNever": "You have not posted anything yet. People who paid have no idea what is happening.",
+      "write": "Write",
+      "publish": "Publish",
+      "titlePlaceholder": "Headline",
+      "bodyPlaceholder": "What happened with the project?",
+      "notify": "Notify holders",
+      "notifyHint": "Everyone holding tickets gets a notification",
+      "editWindow": "A post can be edited for an hour, after that only added to.",
+      "emptyTitle": "No news yet",
+      "emptyBody": "Updates from the founder and published reports appear here.",
+      "reportTitle": "Financial report published",
+      "revenue": "revenue {{amount}}",
+      "holders": "{{count}} holders",
+      "automatic": "automatic",
+      "edited": "edited",
+      "readBy": "read by {{count}}"
     }
   }
 }

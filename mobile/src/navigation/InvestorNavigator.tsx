@@ -9,7 +9,13 @@ import { NotificationsScreen } from '../screens/NotificationsScreen';
 
 export type InvestorHomeStackParamList = {
   Home: undefined;
-  ProjectDetail: { projectId: string; scrollToResale?: boolean };
+  // `openTab` is how a notification lands on the thing it is about — a question
+  // notification that drops the reader on the overview tab loses most of them.
+  ProjectDetail: {
+    projectId: string;
+    scrollToResale?: boolean;
+    openTab?: 'about' | 'updates' | 'questions' | 'team' | 'market' | 'activity';
+  };
   ProjectFinance: { projectId: string };
   ProjectWorks: { projectId: string };
   Notifications: undefined;

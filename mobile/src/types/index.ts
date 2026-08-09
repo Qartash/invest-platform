@@ -109,6 +109,14 @@ export interface Project {
   createdAt: string;
   deadline?: string | null;
   daysLeft?: number | null;
+  // What the responsiveness badge is drawn from — see utils/responsiveness. Kept
+  // on the project rather than fetched per card: the catalogue renders dozens at
+  // once and the badge is the whole reason the questions feature changes
+  // anything, so it cannot cost a request each.
+  questionsCount?: number;
+  questionsAnsweredCount?: number;
+  answerMedianMinutes?: number | null;
+  lastUpdateAt?: string | null;
   pricing: TicketPricing;
 }
 

@@ -30,6 +30,7 @@ import { LedgerService, userBalance } from '../ledger/ledger.service';
 import { TicketsService } from '../tickets/tickets.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType, NotifyInput } from '../notifications/notification-types';
+import { UpdatesService } from '../project-social/updates.service';
 
 // More tickets held than the project ever issued — the state that puts a
 // dividend run on hold until a person has looked at it.
@@ -53,6 +54,8 @@ export class ProjectFinanceService {
     private readonly ticketsService: TicketsService,
     private readonly notifications: NotificationsService,
     private readonly ledger: LedgerService,
+    // Posts the published report to the project feed — see addReport.
+    private readonly updates: UpdatesService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -252,6 +255,17 @@ export class ProjectFinanceService {
           },
         })),
     );
+    // And the same event as a post in the project's feed. The founder writes
+    // nothing for it: closing the books is the one piece of news every holder
+    // reliably wants, so the flow that produces it says so itself. Failing to
+    // post must never undo a published report, which is why the call swallows
+    // its own errors rather than being awaited for a result.
+    await this.updates.postReportPublished(projectId, {
+      id: saved.id,
+      periodLabel: saved.period,
+      revenue: parseFloat(saved.incomeTotal),
+      holders: holders.length,
+    });
     return this.toReportView(saved, null);
   }
 
