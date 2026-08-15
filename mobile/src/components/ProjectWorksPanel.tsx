@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { ProjectBudgetItem, ProjectWork, WorkApplication, WorkMilestone, WorkPaymentType } from '../types';
@@ -25,7 +25,8 @@ import {
 import { fetchProjectBudgetItems } from '../api/projects';
 import { useAuthStore } from '../store/authStore';
 import { showAlert } from '../utils/alert';
-import { colors, spacing } from '../theme';
+import { apiErrorMessage } from '../utils/apiError';
+import { maxWidth, spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { Avatar } from './Avatar';
 import { InvestorProfileModal } from './InvestorProfileModal';
 import { PrimaryButton } from './PrimaryButton';
@@ -40,14 +41,15 @@ interface Props {
   onChanged?: () => void;
 }
 
-const STATUS_COLORS: Record<string, string> = {
-  open: colors.primary,
-  assigned: colors.warning,
-  submitted: colors.chartAccent,
-  accepted: colors.success,
-  disputed: colors.danger,
-  cancelled: colors.textMuted,
-};
+// Work status -> colour, built per palette so the chips follow the theme.
+const statusColors = (c: ThemeColors): Record<string, string> => ({
+  open: c.primary,
+  assigned: c.warning,
+  submitted: c.chartAccent,
+  accepted: c.success,
+  disputed: c.danger,
+  cancelled: c.textMuted,
+});
 
 export function ProjectWorksPanel({
   projectId,
@@ -57,6 +59,9 @@ export function ProjectWorksPanel({
   spendableBalance,
   onChanged,
 }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
+  const STATUS_COLORS = useMemo(() => statusColors(colors), [colors]);
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const [works, setWorks] = useState<ProjectWork[]>([]);
@@ -196,7 +201,7 @@ export function ProjectWorksPanel({
       resetWorkForm();
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -231,7 +236,7 @@ export function ProjectWorksPanel({
       showAlert(t('works.applied'));
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -243,7 +248,7 @@ export function ProjectWorksPanel({
     try {
       setApplications(await fetchWorkApplications(projectId, work.id));
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     }
   };
 
@@ -288,7 +293,7 @@ export function ProjectWorksPanel({
       setAppsWork(null);
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -304,7 +309,7 @@ export function ProjectWorksPanel({
       await openApplications(appsWork);
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -316,7 +321,7 @@ export function ProjectWorksPanel({
       await fn();
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -338,7 +343,7 @@ export function ProjectWorksPanel({
       setRatingComment('');
       refresh();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -877,144 +882,145 @@ export function ProjectWorksPanel({
   );
 }
 
-const styles = StyleSheet.create({
-  caption: { fontSize: 12, color: colors.textMuted, fontStyle: 'italic', marginBottom: spacing.md },
-  treasuryRow: { flexDirection: 'row', marginBottom: spacing.md },
-  treasuryCell: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: spacing.sm,
-    marginHorizontal: 2,
-    alignItems: 'center',
-  },
-  treasuryLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600' },
-  treasuryValue: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 2 },
-  createButton: { marginBottom: spacing.md },
-  empty: { textAlign: 'center', color: colors.textMuted, paddingVertical: spacing.lg },
-  card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text, marginRight: spacing.sm },
-  statusChip: { borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  statusChipText: { fontSize: 11, fontWeight: '700' },
-  cardBrief: { fontSize: 13, color: colors.text, marginTop: 4 },
-  cardPrice: { fontSize: 13, fontWeight: '700', color: colors.primary, marginTop: 4 },
-  cardMeta: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  premiumNote: { fontSize: 12, color: colors.success, fontWeight: '600', marginBottom: spacing.sm },
-  actionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
-  actionBtn: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-  },
-  actionBtnText: { fontSize: 12, fontWeight: '600', color: colors.primary },
-  deleteLink: { fontSize: 12, fontWeight: '600', color: colors.danger, marginLeft: spacing.sm },
-  rowRight: { flexDirection: 'row', alignItems: 'center' },
-  editLink: { fontSize: 12, fontWeight: '600', color: colors.primary, marginLeft: spacing.sm },
-  appliedBox: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    padding: spacing.sm,
-  },
-  appliedText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  appliedReason: { fontSize: 12, color: colors.danger, marginTop: 2 },
-  appActions: { flexDirection: 'row', alignItems: 'center' },
-  rejectedTag: { fontSize: 11, fontWeight: '700', color: colors.danger },
-  rejectLink: { fontSize: 12, fontWeight: '600', color: colors.danger, marginLeft: spacing.md },
-  flex1: { flex: 1, marginRight: spacing.sm },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: spacing.lg },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.lg,
-    maxHeight: '85%',
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-  },
-  modalTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
-  pickerLabel: { fontSize: 14, color: colors.textMuted, marginBottom: spacing.xs },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    marginRight: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
-  chipTextActive: { color: '#fff' },
-  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-  switchLabel: { flex: 1, fontSize: 14, color: colors.text, marginRight: spacing.sm },
-  modalCancel: { alignItems: 'center', paddingVertical: spacing.md },
-  modalCancelText: { color: colors.textMuted, fontWeight: '600', fontSize: 14 },
-  appRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  appText: { flex: 1, marginRight: spacing.sm },
-  appNameRow: { flexDirection: 'row', alignItems: 'center' },
-  appNameText: { marginLeft: spacing.sm, flex: 1 },
-  appName: { fontSize: 14, fontWeight: '600', color: colors.text },
-  viewProfileLink: { fontSize: 11, fontWeight: '600', color: colors.primary, marginTop: 1 },
-  appCover: { fontSize: 12, color: colors.textMuted, marginTop: 4 },
-  appPrice: { fontSize: 12, fontWeight: '700', color: colors.primary, marginTop: 4 },
-  applyPrice: { fontSize: 13, fontWeight: '600', color: colors.text, marginBottom: spacing.md },
-  contactsWarnBox: {
-    backgroundColor: `${colors.warning}22`,
-    borderRadius: 8,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  contactsWarnText: { fontSize: 12, color: colors.text, lineHeight: 17 },
-  contactsOkNote: { fontSize: 12, color: colors.success, fontWeight: '600', marginBottom: spacing.md },
-  paymentHint: { fontSize: 12, color: colors.textMuted, marginBottom: spacing.sm, lineHeight: 16 },
-  priceUp: { color: colors.danger, fontWeight: '700' },
-  priceDown: { color: colors.success, fontWeight: '700' },
-  selectFrozen: { fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 2 },
-  selectAvail: { fontSize: 12, color: colors.textMuted, marginBottom: spacing.md },
-  selectBtn: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: spacing.md, paddingVertical: 6 },
-  selectBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
-  selectedTag: { fontSize: 11, fontWeight: '700', color: colors.warning },
-  milestones: { marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.xs },
-  milestoneRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs },
-  plannedStrike: { color: colors.textMuted, textDecorationLine: 'line-through', fontWeight: '400' },
-  milestoneTitle: { fontSize: 13, fontWeight: '600', color: colors.text },
-  milestoneMeta: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
-  miniBtn: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: 5 },
-  miniBtnText: { color: '#fff', fontWeight: '700', fontSize: 11 },
-  addRowText: { color: colors.primary, fontWeight: '700', fontSize: 13, marginBottom: spacing.md },
-  disputeLink: { fontSize: 12, fontWeight: '600', color: colors.warning, marginTop: spacing.sm },
-  rateBtn: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-  },
-  rateBtnText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
-  reviewBox: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    padding: spacing.sm,
-  },
-  reviewStars: { fontSize: 16, color: colors.warning, letterSpacing: 2 },
-  reviewStarsEmpty: { color: colors.border },
-  reviewComment: { fontSize: 13, color: colors.text, marginTop: 4 },
-  starsRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: spacing.md },
-  star: { fontSize: 34, color: colors.border, marginHorizontal: 4 },
-  starActive: { color: colors.warning },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    caption: { fontSize: 12, color: c.textMuted, fontStyle: 'italic', marginBottom: spacing.md },
+    treasuryRow: { flexDirection: 'row', marginBottom: spacing.md },
+    treasuryCell: {
+      flex: 1,
+      backgroundColor: c.background,
+      borderRadius: 10,
+      padding: spacing.sm,
+      marginHorizontal: 2,
+      alignItems: 'center',
+    },
+    treasuryLabel: { fontSize: 11, color: c.textMuted, fontWeight: '600' },
+    treasuryValue: { fontSize: 14, fontWeight: '700', color: c.text, marginTop: 2 },
+    createButton: { marginBottom: spacing.md },
+    empty: { textAlign: 'center', color: c.textMuted, paddingVertical: spacing.lg },
+    card: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      backgroundColor: c.surface,
+    },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    cardTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: c.text, marginRight: spacing.sm },
+    statusChip: { borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+    statusChipText: { fontSize: 11, fontWeight: '700' },
+    cardBrief: { fontSize: 13, color: c.text, marginTop: 4 },
+    cardPrice: { fontSize: 13, fontWeight: '700', color: c.primary, marginTop: 4 },
+    cardMeta: { fontSize: 12, color: c.textMuted, marginTop: 2 },
+    premiumNote: { fontSize: 12, color: c.success, fontWeight: '600', marginBottom: spacing.sm },
+    actionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
+    actionBtn: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
+    },
+    actionBtnText: { fontSize: 12, fontWeight: '600', color: c.primary },
+    deleteLink: { fontSize: 12, fontWeight: '600', color: c.danger, marginLeft: spacing.sm },
+    rowRight: { flexDirection: 'row', alignItems: 'center' },
+    editLink: { fontSize: 12, fontWeight: '600', color: c.primary, marginLeft: spacing.sm },
+    appliedBox: {
+      marginTop: spacing.sm,
+      backgroundColor: c.background,
+      borderRadius: 8,
+      padding: spacing.sm,
+    },
+    appliedText: { fontSize: 13, fontWeight: '600', color: c.text },
+    appliedReason: { fontSize: 12, color: c.danger, marginTop: 2 },
+    appActions: { flexDirection: 'row', alignItems: 'center' },
+    rejectedTag: { fontSize: 11, fontWeight: '700', color: c.danger },
+    rejectLink: { fontSize: 12, fontWeight: '600', color: c.danger, marginLeft: spacing.md },
+    flex1: { flex: 1, marginRight: spacing.sm },
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: spacing.lg },
+    modalCard: {
+      backgroundColor: c.surface,
+      borderRadius: 16,
+      padding: spacing.lg,
+      maxHeight: '85%',
+      width: '100%',
+      maxWidth: maxWidth.dialogMd,
+      alignSelf: 'center',
+    },
+    modalTitle: { fontSize: 16, fontWeight: '700', color: c.text, marginBottom: spacing.md },
+    pickerLabel: { fontSize: 14, color: c.textMuted, marginBottom: spacing.xs },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md },
+    chip: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      marginRight: spacing.xs,
+      marginBottom: spacing.xs,
+    },
+    chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+    chipText: { fontSize: 12, color: c.textMuted, fontWeight: '600' },
+    chipTextActive: { color: c.textOnAccent },
+    switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+    switchLabel: { flex: 1, fontSize: 14, color: c.text, marginRight: spacing.sm },
+    modalCancel: { alignItems: 'center', paddingVertical: spacing.md },
+    modalCancelText: { color: c.textMuted, fontWeight: '600', fontSize: 14 },
+    appRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: c.border },
+    appText: { flex: 1, marginRight: spacing.sm },
+    appNameRow: { flexDirection: 'row', alignItems: 'center' },
+    appNameText: { marginLeft: spacing.sm, flex: 1 },
+    appName: { fontSize: 14, fontWeight: '600', color: c.text },
+    viewProfileLink: { fontSize: 11, fontWeight: '600', color: c.primary, marginTop: 1 },
+    appCover: { fontSize: 12, color: c.textMuted, marginTop: 4 },
+    appPrice: { fontSize: 12, fontWeight: '700', color: c.primary, marginTop: 4 },
+    applyPrice: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: spacing.md },
+    contactsWarnBox: {
+      backgroundColor: `${c.warning}22`,
+      borderRadius: 8,
+      padding: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    contactsWarnText: { fontSize: 12, color: c.text, lineHeight: 17 },
+    contactsOkNote: { fontSize: 12, color: c.success, fontWeight: '600', marginBottom: spacing.md },
+    paymentHint: { fontSize: 12, color: c.textMuted, marginBottom: spacing.sm, lineHeight: 16 },
+    priceUp: { color: c.danger, fontWeight: '700' },
+    priceDown: { color: c.success, fontWeight: '700' },
+    selectFrozen: { fontSize: 14, fontWeight: '700', color: c.text, marginBottom: 2 },
+    selectAvail: { fontSize: 12, color: c.textMuted, marginBottom: spacing.md },
+    selectBtn: { backgroundColor: c.primary, borderRadius: 8, paddingHorizontal: spacing.md, paddingVertical: 6 },
+    selectBtnText: { color: c.textOnAccent, fontWeight: '700', fontSize: 12 },
+    selectedTag: { fontSize: 11, fontWeight: '700', color: c.warning },
+    milestones: { marginTop: spacing.sm, borderTopWidth: 1, borderTopColor: c.border, paddingTop: spacing.xs },
+    milestoneRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.xs },
+    plannedStrike: { color: c.textMuted, textDecorationLine: 'line-through', fontWeight: '400' },
+    milestoneTitle: { fontSize: 13, fontWeight: '600', color: c.text },
+    milestoneMeta: { fontSize: 12, color: c.textMuted, marginTop: 1 },
+    miniBtn: { backgroundColor: c.primary, borderRadius: 8, paddingHorizontal: spacing.sm, paddingVertical: 5 },
+    miniBtnText: { color: c.textOnAccent, fontWeight: '700', fontSize: 11 },
+    addRowText: { color: c.primary, fontWeight: '700', fontSize: 13, marginBottom: spacing.md },
+    disputeLink: { fontSize: 12, fontWeight: '600', color: c.warning, marginTop: spacing.sm },
+    rateBtn: {
+      alignSelf: 'flex-start',
+      marginTop: spacing.sm,
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: 8,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
+    },
+    rateBtnText: { color: c.primary, fontWeight: '700', fontSize: 12 },
+    reviewBox: {
+      marginTop: spacing.sm,
+      backgroundColor: c.background,
+      borderRadius: 8,
+      padding: spacing.sm,
+    },
+    reviewStars: { fontSize: 16, color: c.warning, letterSpacing: 2 },
+    reviewStarsEmpty: { color: c.border },
+    reviewComment: { fontSize: 13, color: c.text, marginTop: 4 },
+    starsRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: spacing.md },
+    star: { fontSize: 34, color: c.border, marginHorizontal: 4 },
+    starActive: { color: c.warning },
+  });

@@ -4,14 +4,19 @@ import { Project } from './entities/project.entity';
 import { ProjectReviewLog } from './entities/project-review-log.entity';
 import { ProjectAttachment } from './entities/project-attachment.entity';
 import { ProjectBudgetItem } from './entities/project-budget-item.entity';
+import { ProjectTeamMember } from './entities/project-team-member.entity';
 import { ProjectsService } from './projects.service';
 import { ProjectsController } from './projects.controller';
 import { TicketsModule } from '../tickets/tickets.module';
+import { ProjectWorksModule } from '../project-works/project-works.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Project, ProjectReviewLog, ProjectAttachment, ProjectBudgetItem]),
+    TypeOrmModule.forFeature([Project, ProjectReviewLog, ProjectAttachment, ProjectBudgetItem, ProjectTeamMember]),
     TicketsModule,
+    ProjectWorksModule,
+    NotificationsModule,
   ],
   providers: [ProjectsService],
   controllers: [ProjectsController],

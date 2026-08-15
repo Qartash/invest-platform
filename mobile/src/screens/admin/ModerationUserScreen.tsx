@@ -1,16 +1,17 @@
-import React, { useCallback, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import { adminUpdateUser, banUser, deleteUser, fetchAllUsers, restoreUser, unbanUser } from '../../api/users';
+import { invalidateQuery, useCachedQuery } from '../../api/useCachedQuery';
 import { AuthUser, KycStatus, UserRole } from '../../types';
 import { Avatar } from '../../components/Avatar';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 import { formatDate } from '../../utils/date';
-import { colors, spacing } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../../theme';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
 
 type Props = NativeStackScreenProps<ModerationStackParamList, 'ModerationUser'>;
@@ -19,8 +20,10 @@ const ROLES: UserRole[] = ['investor', 'founder', 'admin'];
 const KYC_STATUSES: KycStatus[] = ['none', 'pending', 'approved', 'rejected'];
 
 export function ModerationUserScreen({ route, navigation }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { userId } = route.params;
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
@@ -31,25 +34,36 @@ export function ModerationUserScreen({ route, navigation }: Props) {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const load = useCallback(() => {
-    // No single-user admin endpoint yet; the list is small and already cached
-    // server-side, so pick the user out of /users/all.
-    fetchAllUsers().then((users) => {
-      const found = users.find((u) => u.id === userId);
-      if (!found) return;
-      setUser(found);
-      setFullName(found.fullName ?? '');
-      setUsername(found.username ?? '');
-      setEmail(found.email ?? '');
-      setPhone(found.phone ?? '');
-      setRole(found.role);
-      setKycStatus(found.kycStatus);
-    });
-  }, [userId]);
+  // No single-user admin endpoint yet; the list is small, so pick the user out of
+  // /users/all — under the same key the moderation list reads, which is how this screen is
+  // reached, so opening someone's file costs no request at all.
+  const { data: users } = useCachedQuery<AuthUser[]>('users:all', fetchAllUsers);
 
-  useFocusEffect(load);
+  // The form is seeded from the fetched user once, not bound to it. These fields are being
+  // typed into; a background refresh landing mid-edit must not overwrite what is in them.
+  const seededFor = useRef<string | null>(null);
+  useEffect(() => {
+    const found = users?.find((u) => u.id === userId);
+    if (!found || seededFor.current === userId) return;
+    seededFor.current = userId;
+    setUser(found);
+    setFullName(found.fullName ?? '');
+    setUsername(found.username ?? '');
+    setEmail(found.email ?? '');
+    setPhone(found.phone ?? '');
+    setRole(found.role);
+    setKycStatus(found.kycStatus);
+  }, [users, userId]);
 
-  const handleError = (err: any) => showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+  const handleError = (err: any) => showAlert(t('common.error'), apiErrorMessage(err, t));
+
+  // Every action here edits a row of the cached user list the moderation screen shows, so
+  // the list has to be retired along with it — otherwise going back displays the old name,
+  // role or ban state.
+  const applyUpdate = (updated: AuthUser) => {
+    setUser(updated);
+    invalidateQuery('users');
+  };
 
   const handleSave = async () => {
     if (!user) return;
@@ -64,7 +78,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
         kycStatus,
         password: password.trim() || undefined,
       });
-      setUser(updated);
+      applyUpdate(updated);
       setPassword('');
       showAlert(t('moderation.users.saved'));
     } catch (err: any) {
@@ -78,7 +92,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
     if (!user) return;
     setSubmitting(true);
     try {
-      setUser(user.bannedAt ? await unbanUser(user.id) : await banUser(user.id));
+      applyUpdate(user.bannedAt ? await unbanUser(user.id) : await banUser(user.id));
     } catch (err: any) {
       handleError(err);
     } finally {
@@ -89,7 +103,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
   const handleDelete = () => {
     if (!user) return;
     if (user.deletedAt) {
-      restoreUser(user.id).then(setUser).catch(handleError);
+      restoreUser(user.id).then(applyUpdate).catch(handleError);
       return;
     }
     showAlert(t('moderation.users.deleteConfirmTitle'), t('moderation.users.deleteConfirmMessage'), [
@@ -100,7 +114,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
         onPress: () => {
           deleteUser(user.id)
             .then((updated) => {
-              setUser(updated);
+              applyUpdate(updated);
               navigation.goBack();
             })
             .catch(handleError);
@@ -112,7 +126,7 @@ export function ModerationUserScreen({ route, navigation }: Props) {
   if (!user) return null;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}>
       <View style={styles.headerRow}>
         <Avatar avatarUrl={user.avatarUrl} avatarEmoji={user.avatarEmoji} size={56} />
         <View style={styles.headerText}>
@@ -208,114 +222,120 @@ export function ModerationUserScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  headerText: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  meta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  badge: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    marginRight: spacing.xs,
-  },
-  badgeDanger: {
-    borderColor: colors.danger,
-    backgroundColor: colors.background,
-  },
-  badgeDangerText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.danger,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  roleRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  kycRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    rowGap: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  kycHint: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-  roleChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    marginRight: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  roleChipActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  roleChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  roleChipTextActive: {
-    color: colors.surface,
-  },
-  actionButton: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    marginTop: spacing.sm,
-  },
-  banButton: {
-    borderColor: colors.warning,
-  },
-  banButtonText: {
-    color: colors.warning,
-    fontWeight: '700',
-  },
-  deleteButton: {
-    borderColor: colors.danger,
-  },
-  deleteButtonText: {
-    color: colors.danger,
-    fontWeight: '700',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    content: {
+      padding: spacing.lg,
+      paddingBottom: spacing.xl,
+    },
+    contentWide: {
+      maxWidth: maxWidth.column,
+      width: '100%',
+      alignSelf: 'center',
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    headerText: {
+      flex: 1,
+      marginLeft: spacing.md,
+    },
+    name: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.text,
+    },
+    meta: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: 2,
+    },
+    badgeRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.md,
+    },
+    badge: {
+      borderWidth: 1,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      marginRight: spacing.xs,
+    },
+    badgeDanger: {
+      borderColor: c.danger,
+      backgroundColor: c.background,
+    },
+    badgeDangerText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.danger,
+    },
+    sectionLabel: {
+      fontSize: 14,
+      color: c.textMuted,
+      marginBottom: spacing.xs,
+    },
+    roleRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.md,
+    },
+    kycRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      rowGap: spacing.xs,
+      marginBottom: spacing.xs,
+    },
+    kycHint: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginBottom: spacing.md,
+    },
+    roleChip: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 999,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
+      marginRight: spacing.sm,
+      backgroundColor: c.surface,
+    },
+    roleChipActive: {
+      borderColor: c.primary,
+      backgroundColor: c.primary,
+    },
+    roleChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textMuted,
+    },
+    roleChipTextActive: {
+      color: c.surface,
+    },
+    actionButton: {
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      marginTop: spacing.sm,
+    },
+    banButton: {
+      borderColor: c.warning,
+    },
+    banButtonText: {
+      color: c.warning,
+      fontWeight: '700',
+    },
+    deleteButton: {
+      borderColor: c.danger,
+    },
+    deleteButtonText: {
+      color: c.danger,
+      fontWeight: '700',
+    },
+  });

@@ -12,10 +12,19 @@ import {
   FundReleaseModerationController,
   ProjectRefundController,
 } from './project-funding.controller';
+import { TicketsModule } from '../tickets/tickets.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { LedgerModule } from '../ledger/ledger.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FundReleaseRequest, Project, ProjectBudgetItem, Wallet, Ticket])],
+  imports: [
+    TypeOrmModule.forFeature([FundReleaseRequest, Project, ProjectBudgetItem, Wallet, Ticket]),
+    TicketsModule,
+    NotificationsModule,
+    LedgerModule,
+  ],
   providers: [ProjectFundingService],
   controllers: [ProjectReleaseController, ProjectFundsController, FundReleaseModerationController, ProjectRefundController],
+  exports: [ProjectFundingService],
 })
 export class ProjectFundingModule {}

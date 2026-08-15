@@ -13,6 +13,40 @@
       "runtimeArgs": ["--prefix", "mobile", "run", "web", "--", "--port", "80"],
       "port": 80,
       "autoPort": false
+    },
+    {
+      "name": "mobile-web-clean",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "mobile", "run", "web", "--", "--clear"],
+      "port": 8081,
+      "autoPort": true
+    },
+    {
+      "name": "backend-local",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "backend", "run", "start:dev"],
+      "port": 3200,
+      "autoPort": false,
+      "env": {
+        "PORT": "3200",
+        "DATABASE_URL": "",
+        "DB_HOST": "localhost",
+        "DB_PORT": "5432",
+        "DB_USERNAME": "postgres",
+        "DB_PASSWORD": "postgres",
+        "DB_NAME": "invest_platform",
+        "JWT_SECRET": "local-dev-not-a-secret"
+      }
+    },
+    {
+      "name": "mobile-web-local",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "mobile", "run", "web", "--", "--port", "8200"],
+      "port": 8200,
+      "autoPort": false,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:3200/api"
+      }
     }
   ]
 }

@@ -16,8 +16,27 @@ export function fetchWallet() {
   return apiClient.get<Wallet>('/wallet').then((r) => r.data);
 }
 
-export function fetchTransactions() {
-  return apiClient.get<Transaction[]>('/wallet/transactions').then((r) => r.data);
+// Lifetime sums over the whole ledger, not the page on screen. `investCredited`
+// is everything ever granted as invest credit — not what is left of it, since
+// buying tickets spends it back down.
+export interface TransactionTotals {
+  deposited: number;
+  withdrawn: number;
+  investCredited: number;
+}
+
+export interface TransactionPage {
+  items: Transaction[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totals: TransactionTotals;
+}
+
+export function fetchTransactions(page = 1, pageSize = 10) {
+  return apiClient
+    .get<TransactionPage>('/wallet/transactions', { params: { page, pageSize } })
+    .then((r) => r.data);
 }
 
 export function deposit(amount: number) {

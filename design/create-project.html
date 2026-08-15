@@ -1,0 +1,874 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Создание проекта — прототип</title>
+<style>
+  /* Токены 1:1 из mobile/src/theme/tokens.ts */
+  :root {
+    --primary:#2E6F45; --primary-dark:#1F4E30; --primary-soft:rgba(46,111,69,.10);
+    --bg:#F6F8F7; --surface:#FFFFFF; --surface-sunken:#F1F4F2;
+    --text:#16201A; --text-muted:#6B7A70;
+    --on-accent:#FFFFFF; --on-accent-muted:rgba(255,255,255,.82);
+    --border:#E2E7E3;
+    --success:#22A559; --success-soft:rgba(34,165,89,.12);
+    --danger:#DC2626;  --danger-soft:rgba(220,38,38,.10);
+    --warning:#D97706; --warning-soft:rgba(217,119,6,.14);
+    --shadow: 0 6px 16px rgba(0,0,0,.08);
+
+    --xs:4px; --sm:8px; --md:16px; --lg:24px; --xl:32px;
+    --r-sm:8px; --r-md:10px; --r-lg:13px; --r-xl:16px; --r-pill:999px;
+  }
+  [data-theme="dark"] {
+    --primary:#63B37F; --primary-dark:#4C9366; --primary-soft:rgba(99,179,127,.14);
+    --bg:#171C18; --surface:#1F2620; --surface-sunken:#161B17;
+    --text:#E9EFEA; --text-muted:#93A398;
+    --on-accent:#0E1710; --on-accent-muted:rgba(14,23,16,.72);
+    --border:#2C352E;
+    --success:#4ECB7D; --success-soft:rgba(78,203,125,.14);
+    --danger:#F87171;  --danger-soft:rgba(248,113,113,.12);
+    --warning:#FBBF24; --warning-soft:rgba(251,191,36,.14);
+    --shadow: 0 6px 16px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    background:#0d100e; color:var(--text);
+    min-height:100vh; padding:32px 16px;
+    display:flex; flex-direction:column; align-items:center; gap:20px;
+  }
+
+  /* ---- панель прототипа (не часть приложения) ---- */
+  .harness { display:flex; gap:8px; align-items:center; color:#8b968f; font-size:13px; }
+  .harness button {
+    font:inherit; font-size:12px; font-weight:600; cursor:pointer;
+    background:#1e2420; color:#cfd8d2; border:1px solid #2f3833;
+    border-radius:999px; padding:7px 14px;
+    transition:background 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .harness button:hover { background:#28302b; }
+  .harness button:active { transform:scale(.97); }
+
+  /* ---- телефон ---- */
+  .phone {
+    width:390px; height:820px; background:var(--bg);
+    border-radius:28px; overflow:hidden;
+    display:flex; flex-direction:column;
+    box-shadow:0 0 0 1px rgba(255,255,255,.08), 0 24px 60px rgba(0,0,0,.5);
+  }
+
+  /* ---- шапка ---- */
+  .nav {
+    background:var(--surface); border-bottom:1px solid var(--border);
+    padding:14px var(--md) 0;
+  }
+  .nav-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .nav-back { font-size:20px; color:var(--text-muted); cursor:pointer; line-height:1; }
+  .nav-title { font-size:15px; font-weight:600; color:var(--text); }
+  .nav-count { font-size:12px; font-weight:700; color:var(--text-muted); font-variant-numeric:tabular-nums; }
+
+  /* СИГНАТУРА 1: рельс прогресса — 5 сегментов, состояние читается без подписей */
+  .rail { display:flex; gap:4px; padding-bottom:12px; }
+  .rail-seg {
+    flex:1; height:3px; border-radius:2px; background:var(--border);
+    cursor:pointer; position:relative;
+    transition:background 180ms cubic-bezier(.23,1,.32,1);
+  }
+  .rail-seg::after { content:""; position:absolute; inset:-12px 0; }  /* хит-зона 44px */
+  .rail-seg.done    { background:var(--success); }
+  .rail-seg.current { background:var(--primary); }
+  .rail-seg.error   { background:var(--danger); }
+
+  .step-name { font-size:22px; font-weight:700; letter-spacing:-.4px; color:var(--text); margin-bottom:4px; }
+  .step-hint { font-size:13px; color:var(--text-muted); line-height:1.5; text-wrap:pretty; }
+  .step-head { padding:var(--md) var(--md) 0; }
+
+  /* ---- скролл ---- */
+  .scroll { flex:1; overflow-y:auto; padding:0 var(--md) var(--md); }
+  .scroll::-webkit-scrollbar { width:0; }
+  .step { display:none; }
+  .step.active { display:block; animation:in 220ms cubic-bezier(.23,1,.32,1); }
+  @keyframes in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+  /* ---- карточки / секции ---- */
+  .card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-lg); padding:var(--md); margin-bottom:12px;
+  }
+  .eyebrow {
+    font-size:11px; font-weight:700; letter-spacing:.9px; text-transform:uppercase;
+    color:var(--text-muted); margin-bottom:10px;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+
+  /* ---- поля ---- */
+  .field { margin-bottom:14px; }
+  .field:last-child { margin-bottom:0; }
+  .flabel { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+  .flabel span { font-size:14px; font-weight:600; color:var(--text); }
+  .req { color:var(--danger); font-weight:700; }
+  .hint-btn {
+    width:16px; height:16px; border-radius:999px; border:1px solid var(--border);
+    background:none; color:var(--text-muted); font-size:10px; font-weight:700;
+    cursor:pointer; display:grid; place-items:center; position:relative; flex:none;
+  }
+  .hint-btn::after { content:""; position:absolute; inset:-14px; }
+  .hint-btn:hover { border-color:var(--primary); color:var(--primary); }
+
+  input[type=text], input[type=url], input[type=date], input[type=number], textarea, select {
+    width:100%; font:inherit; font-size:15px; color:var(--text);
+    background:var(--surface-sunken);           /* инпут утоплен, не поднят */
+    border:1px solid var(--border); border-radius:var(--r-md);
+    padding:11px 12px; outline:none;
+    transition:border-color 140ms, box-shadow 140ms;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-soft);
+  }
+  input::placeholder, textarea::placeholder { color:var(--text-muted); opacity:.7; }
+  textarea { resize:vertical; min-height:96px; line-height:1.5; }
+  .num { font-variant-numeric:tabular-nums; }
+  .fhelp { font-size:12px; color:var(--text-muted); margin-top:5px; line-height:1.45; text-wrap:pretty; }
+  .ferr  { font-size:12px; color:var(--danger); margin-top:5px; font-weight:500; }
+  .suffix-wrap { position:relative; }
+  .suffix {
+    position:absolute; right:12px; top:50%; transform:translateY(-50%);
+    font-size:13px; font-weight:600; color:var(--text-muted); pointer-events:none;
+  }
+  .suffix-wrap input { padding-right:46px; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  /* ---- языковые табы ---- */
+  .segbar { display:flex; gap:6px; margin-bottom:12px; }
+  .seg {
+    flex:1; display:flex; align-items:center; justify-content:center; gap:5px;
+    padding:8px 4px; border-radius:9px; border:none; background:none;
+    font:inherit; font-size:13px; font-weight:600; color:var(--text-muted); cursor:pointer;
+    transition:background 140ms;
+  }
+  .seg.on { background:var(--primary-soft); color:var(--primary); }
+  .dot { width:6px; height:6px; border-radius:3px; background:var(--border); flex:none; }
+  .dot.done { background:var(--success); }
+  .dot.missing { background:var(--danger); }
+
+  /* ---- обложка ---- */
+  .cover {
+    height:150px; border-radius:var(--r-lg); border:1px dashed var(--border);
+    background:var(--surface-sunken); display:grid; place-items:center; cursor:pointer;
+    gap:4px; text-align:center; transition:border-color 140ms, background 140ms;
+  }
+  .cover:hover { border-color:var(--primary); background:var(--primary-soft); }
+  .cover-icon { font-size:22px; color:var(--text-muted); }
+  .cover-t { font-size:14px; font-weight:600; color:var(--text); }
+  .cover-s { font-size:12px; color:var(--text-muted); }
+
+  /* ---- чипы приоритета ---- */
+  .chips { display:flex; gap:6px; }
+  .chip {
+    flex:1; padding:9px 4px; border-radius:var(--r-sm); border:1.5px solid var(--border);
+    background:none; font:inherit; font-size:13px; font-weight:600; color:var(--text-muted);
+    cursor:pointer; transition:all 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .chip:active { transform:scale(.97); }
+  .chip.on { color:var(--on-accent); }
+  .chip[data-p=low].on    { background:var(--text-muted); border-color:var(--text-muted); }
+  .chip[data-p=medium].on { background:var(--warning);    border-color:var(--warning); }
+  .chip[data-p=high].on   { background:var(--danger);     border-color:var(--danger); }
+
+  /* ---- кнопки ---- */
+  .btn {
+    font:inherit; font-size:15px; font-weight:600; cursor:pointer;
+    border-radius:var(--r-md); padding:13px 18px; border:1px solid transparent;
+    transition:transform 120ms cubic-bezier(.23,1,.32,1), background 140ms, opacity 140ms;
+  }
+  .btn:active { transform:scale(.97); }
+  .btn-primary { background:var(--primary); color:var(--on-accent); }
+  .btn-primary:hover { background:var(--primary-dark); }
+  .btn-outline { background:none; color:var(--primary); border-color:var(--primary); }
+  .btn-outline:hover { background:var(--primary-soft); }
+  .btn-ghost { background:none; color:var(--text-muted); border-color:var(--border); }
+  .btn-ghost:hover { background:var(--surface-sunken); }
+  .btn-block { display:block; width:100%; }
+  .btn-sm { font-size:13px; padding:9px 14px; }
+
+  /* СИГНАТУРА 2: экономика проекта — считается на лету из полей выше */
+  .econ {
+    background:var(--surface); border:1px solid var(--primary);
+    border-radius:var(--r-lg); padding:var(--md); margin-bottom:12px;
+  }
+  .econ-top { display:flex; align-items:flex-end; justify-content:space-between; gap:12px; }
+  .econ-label { font-size:11px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:var(--text-muted); }
+  .econ-price { font-size:28px; font-weight:700; letter-spacing:-.5px; color:var(--primary); font-variant-numeric:tabular-nums; line-height:1.1; }
+  .econ-price.empty { font-size:15px; font-weight:600; color:var(--text-muted); letter-spacing:0; }
+  .econ-toggle { font-size:12px; font-weight:600; color:var(--primary); background:none; border:none; cursor:pointer; font-family:inherit; white-space:nowrap; }
+  .econ-body { margin-top:12px; padding-top:12px; border-top:1px solid var(--border); display:none; }
+  .econ-body.open { display:block; }
+  .tier {
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:6px 0; font-size:13px; font-variant-numeric:tabular-nums;
+  }
+  .tier + .tier { border-top:1px solid var(--border); }
+  .tier-n { color:var(--text-muted); }
+  .tier-r { color:var(--text-muted); font-size:12px; margin-left:auto; margin-right:10px; }
+  .tier-p { color:var(--text); font-weight:600; }
+
+  /* СИГНАТУРА 3: бюджетный метр — сколько цели расписано по статьям */
+  .meter-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px; }
+  .meter-val { font-size:20px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-.3px; }
+  .meter-of  { font-size:13px; color:var(--text-muted); font-variant-numeric:tabular-nums; }
+  .meter-bar { height:6px; border-radius:3px; background:var(--surface-sunken); overflow:hidden; }
+  .meter-fill { height:100%; width:0; background:var(--primary); border-radius:3px; transition:width 260ms cubic-bezier(.23,1,.32,1), background 180ms; }
+  .meter-fill.over { background:var(--danger); }
+  .meter-note { font-size:12px; color:var(--text-muted); margin-top:7px; }
+  .meter-note.over { color:var(--danger); }
+
+  /* ---- строки списков (бюджет / команда / файлы) ---- */
+  .item {
+    background:var(--surface-sunken); border:1px solid var(--border);
+    border-radius:var(--r-md); padding:12px; margin-bottom:8px;
+  }
+  .item-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .item-n { font-size:12px; font-weight:700; color:var(--text-muted); font-variant-numeric:tabular-nums; }
+  .item-acts { margin-left:auto; display:flex; align-items:center; gap:10px; }
+  .icon-btn {
+    background:none; border:none; cursor:pointer; color:var(--primary);
+    font-size:15px; line-height:1; padding:4px; position:relative;
+  }
+  .icon-btn::after { content:""; position:absolute; inset:-12px; }
+  .icon-btn:disabled { color:var(--text-muted); opacity:.35; cursor:default; }
+  .icon-btn.del { color:var(--danger); font-size:12px; font-weight:600; }
+  .item input, .item textarea { background:var(--surface); }
+
+  .avatar-row { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  .avatar {
+    width:52px; height:52px; border-radius:999px; flex:none;
+    background:var(--surface); border:1px dashed var(--border);
+    display:grid; place-items:center; color:var(--text-muted); font-size:18px; cursor:pointer;
+  }
+  .avatar:hover { border-color:var(--primary); color:var(--primary); }
+  .avatar-act { font-size:13px; font-weight:600; color:var(--primary); cursor:pointer; }
+
+  .file {
+    display:flex; align-items:center; gap:10px; padding:10px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .file-ico {
+    width:32px; height:32px; border-radius:var(--r-sm); flex:none; display:grid; place-items:center;
+    background:var(--primary-soft); color:var(--primary); font-size:10px; font-weight:700;
+  }
+  .file-n { font-size:13px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .file-m { font-size:11px; color:var(--text-muted); font-variant-numeric:tabular-nums; }
+  .file-x { margin-left:auto; }
+
+  .drop {
+    border:1px dashed var(--border); border-radius:var(--r-md); background:var(--surface-sunken);
+    padding:18px; text-align:center; cursor:pointer; margin-top:10px;
+    transition:border-color 140ms, background 140ms;
+  }
+  .drop:hover { border-color:var(--primary); background:var(--primary-soft); }
+  .drop-t { font-size:13px; font-weight:600; color:var(--primary); }
+  .drop-s { font-size:11px; color:var(--text-muted); margin-top:3px; }
+
+  /* ---- переключатель ---- */
+  .switch-row { display:flex; align-items:center; gap:12px; }
+  .switch-row .flabel { margin-bottom:2px; }
+  .switch {
+    width:44px; height:26px; border-radius:999px; background:var(--border);
+    border:none; cursor:pointer; position:relative; flex:none; margin-left:auto;
+    transition:background 180ms cubic-bezier(.23,1,.32,1);
+  }
+  .switch::before {
+    content:""; position:absolute; top:3px; left:3px; width:20px; height:20px;
+    border-radius:999px; background:var(--surface);
+    box-shadow:0 1px 3px rgba(0,0,0,.2);
+    transition:transform 180ms cubic-bezier(.23,1,.32,1);
+  }
+  .switch.on { background:var(--primary); }
+  .switch.on::before { transform:translateX(18px); }
+
+  /* ---- шаг «Проверка» ---- */
+  .sum {
+    display:flex; align-items:center; gap:10px; padding:11px 0;
+    border-bottom:1px solid var(--border); cursor:pointer;
+  }
+  .sum:last-child { border-bottom:none; }
+  .sum-ico { width:20px; text-align:center; font-size:13px; font-weight:700; flex:none; }
+  .sum-ico.ok  { color:var(--success); }
+  .sum-ico.bad { color:var(--danger); }
+  .sum-t { font-size:14px; font-weight:600; color:var(--text); }
+  .sum-s { font-size:12px; color:var(--text-muted); margin-top:1px; }
+  .sum-s.bad { color:var(--danger); }
+  .sum-go { margin-left:auto; color:var(--text-muted); font-size:15px; }
+
+  .notice {
+    border-radius:var(--r-md); padding:12px; font-size:12px; line-height:1.5;
+    background:var(--primary-soft); color:var(--text); margin-bottom:12px; text-wrap:pretty;
+  }
+  .notice.warn { background:var(--warning-soft); }
+  .notice b { font-weight:700; }
+
+  /* СИГНАТУРА 4: предпросмотр — зеркало ProjectDetailScreen, а не выдумка */
+  .pv {
+    border:1px solid var(--border); border-radius:var(--r-xl); overflow:hidden;
+    background:var(--surface); margin-bottom:12px;
+  }
+  /* Витрина во весь экран: ни рамки, ни скруглений, ни отступов — чтобы шаг
+     читался как настоящая страница проекта, а не как её картинка в карточке. */
+  .pv-bleed {
+    margin:0 calc(-1 * var(--md)) 12px; border-radius:0;
+    border-left:none; border-right:none; border-top:none;
+  }
+  .pv-hero { height:168px; position:relative; background:var(--surface-sunken); }
+  .pv-hero::after {
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(to top, rgba(10,18,12,.88) 0%, rgba(10,18,12,.35) 55%, rgba(10,18,12,0) 100%);
+  }
+  .pv-hero-empty {
+    position:absolute; inset:0; display:grid; place-items:center;
+    color:var(--text-muted); font-size:12px; font-weight:600;
+  }
+  .pv-hero-body { position:absolute; left:14px; right:14px; bottom:12px; z-index:1; }
+  .pv-status { display:flex; align-items:center; gap:6px; margin-bottom:6px; }
+  .pv-status i { width:6px; height:6px; border-radius:3px; background:#4ECB7D; flex:none; }
+  .pv-status span { font-size:11px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:rgba(255,255,255,.92); }
+  .pv-title { font-size:22px; font-weight:700; letter-spacing:-.4px; color:#fff; text-wrap:balance; }
+  .pv-by { font-size:12px; color:rgba(255,255,255,.92); margin-top:3px; }
+
+  .pv-fund { padding:14px; }
+  .pv-fund-top { display:flex; align-items:baseline; gap:5px; }
+  .pv-collected { font-size:22px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; letter-spacing:-.4px; }
+  .pv-cur { font-size:13px; font-weight:600; color:var(--text-muted); }
+  .pill {
+    margin-left:auto; font-size:11px; font-weight:700; border-radius:999px; padding:3px 9px;
+    background:var(--success-soft); color:var(--success); font-variant-numeric:tabular-nums;
+  }
+  .pv-goal { font-size:12px; color:var(--text-muted); margin:2px 0 8px; font-variant-numeric:tabular-nums; }
+  .pv-track { height:6px; border-radius:3px; background:var(--surface-sunken); overflow:hidden; }
+  .pv-track div { height:100%; width:0; background:var(--primary); border-radius:3px; }
+  .pv-split { display:flex; margin-top:14px; padding-top:12px; border-top:1px solid var(--border); }
+  .pv-cell { flex:1; }
+  .pv-cell + .pv-cell { padding-left:14px; border-left:1px solid var(--border); margin-left:14px; }
+  .pv-cell-l { font-size:12px; color:var(--text-muted); margin-bottom:3px; }
+  .pv-cell-v { font-size:16px; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
+  .pv-cell-v small { font-weight:400; color:var(--text-muted); }
+  .pv-tabs { padding:0 14px 12px; }
+  .pv-about { padding:0 14px 16px; font-size:14px; line-height:1.5; color:var(--text); text-wrap:pretty; }
+  .pv-about.empty { color:var(--danger); font-style:italic; }
+
+  /* ---- нижняя панель ---- */
+  .foot {
+    background:var(--surface); border-top:1px solid var(--border);
+    padding:12px var(--md) 20px; display:flex; gap:10px; align-items:center;
+  }
+  .foot .btn-ghost { flex:none; padding-left:16px; padding-right:16px; }
+  .foot .btn-primary { flex:1; }
+  .saved { font-size:11px; color:var(--text-muted); margin-left:auto; }
+</style>
+</head>
+<body>
+
+<div class="harness">
+  <button id="theme">◐ Тёмная</button>
+  <span id="ctx">Шаг 1 из 5</span>
+</div>
+
+<div class="phone" data-theme="light" id="phone">
+
+  <div class="nav">
+    <div class="nav-top">
+      <div class="nav-back">‹</div>
+      <div class="nav-title">Новый проект</div>
+      <div class="nav-count" id="count">1/5</div>
+    </div>
+    <div class="rail" id="rail">
+      <div class="rail-seg current" data-go="0"></div>
+      <div class="rail-seg" data-go="1"></div>
+      <div class="rail-seg" data-go="2"></div>
+      <div class="rail-seg" data-go="3"></div>
+      <div class="rail-seg" data-go="4"></div>
+      <div class="rail-seg" data-go="5"></div>
+      <div class="rail-seg" data-go="6"></div>
+    </div>
+  </div>
+
+  <div class="step-head">
+    <div class="step-name" id="sname">О проекте</div>
+    <div class="step-hint" id="shint">Обложка, название и описание — это всё, что инвестор увидит в ленте.</div>
+  </div>
+
+  <div class="scroll" id="scroll">
+
+    <!-- ═══ ШАГ 1 — О ПРОЕКТЕ ═══ -->
+    <section class="step active" data-step="0">
+      <div style="height:16px"></div>
+
+      <div class="cover">
+        <div class="cover-icon">◲</div>
+        <div class="cover-t">Добавить обложку</div>
+        <div class="cover-s">16:9 · минимум 1200×675</div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="card">
+        <div class="eyebrow">
+          <span>Текст проекта</span>
+          <span style="font-size:11px;font-weight:600;letter-spacing:0;text-transform:none;">1 из 3 языков</span>
+        </div>
+        <div class="segbar">
+          <button class="seg on">Հայ <i class="dot"></i></button>
+          <button class="seg">Рус <i class="dot"></i></button>
+          <button class="seg">Eng <i class="dot"></i></button>
+        </div>
+
+        <div class="field">
+          <div class="flabel"><span>Название</span><b class="req">*</b><button class="hint-btn">i</button></div>
+          <input type="text" placeholder="Кофейня в центре Еревана" />
+        </div>
+
+        <div class="field">
+          <div class="flabel"><span>Описание</span><b class="req">*</b><button class="hint-btn">i</button></div>
+          <textarea placeholder="Что вы строите, для кого и почему это сработает…"></textarea>
+          <div class="fhelp">Заполните все три языка — проект не пройдёт модерацию с пустым языком.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow"><span>Классификация</span></div>
+        <div class="field">
+          <div class="flabel"><span>Категория</span><button class="hint-btn">i</button></div>
+          <input type="text" placeholder="Общепит" />
+        </div>
+        <div class="field">
+          <div class="flabel"><span>Приоритет</span><button class="hint-btn">i</button></div>
+          <div class="chips">
+            <button class="chip" data-p="low">Низкий</button>
+            <button class="chip on" data-p="medium">Средний</button>
+            <button class="chip" data-p="high">Высокий</button>
+          </div>
+          <div class="fhelp">Служебная метка для очереди модерации. Инвесторы её не видят.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ ШАГ 2 — ФИНАНСЫ ═══ -->
+    <section class="step" data-step="1">
+      <div style="height:16px"></div>
+
+      <div class="card">
+        <div class="eyebrow"><span>Сбор средств</span></div>
+        <div class="field">
+          <div class="flabel"><span>Цель сбора</span><b class="req">*</b><button class="hint-btn">i</button></div>
+          <div class="suffix-wrap">
+            <input type="text" class="num" id="f-target" value="10 000 000" inputmode="decimal" />
+            <span class="suffix">֏</span>
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <div class="flabel"><span>Билетов</span><b class="req">*</b></div>
+            <input type="text" class="num" id="f-tickets" value="1000" inputmode="numeric" />
+          </div>
+          <div class="field">
+            <div class="flabel"><span>Дедлайн</span><button class="hint-btn">i</button></div>
+            <input type="date" class="num" value="2026-12-31" />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow"><span>Раунды цены</span></div>
+        <div class="row2">
+          <div class="field">
+            <div class="flabel"><span>Раундов</span><button class="hint-btn">i</button></div>
+            <input type="text" class="num" id="f-tiers" value="4" inputmode="numeric" />
+          </div>
+          <div class="field">
+            <div class="flabel"><span>Шаг цены</span><button class="hint-btn">i</button></div>
+            <div class="suffix-wrap">
+              <input type="text" class="num" id="f-inc" value="20" inputmode="decimal" />
+              <span class="suffix">%</span>
+            </div>
+          </div>
+        </div>
+        <div class="fhelp">Каждый следующий раунд дороже предыдущего на этот процент. Ранние инвесторы платят меньше.</div>
+      </div>
+
+      <!-- СИГНАТУРА: живая экономика — результат четырёх полей выше -->
+      <div class="econ">
+        <div class="econ-top">
+          <div>
+            <div class="econ-label">Цена билета · раунд 1</div>
+            <div class="econ-price" id="econ-price">10 000 ֏</div>
+          </div>
+          <button class="econ-toggle" id="econ-toggle">Раунды ⌄</button>
+        </div>
+        <div class="econ-body" id="econ-body"></div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow"><span>Возврат инвестору</span></div>
+        <div class="row2">
+          <div class="field">
+            <div class="flabel"><span>Доходность</span><button class="hint-btn">i</button></div>
+            <div class="suffix-wrap">
+              <input type="text" class="num" value="20" inputmode="decimal" />
+              <span class="suffix">%/год</span>
+            </div>
+          </div>
+          <div class="field">
+            <div class="flabel"><span>Первая выплата</span><button class="hint-btn">i</button></div>
+            <div class="suffix-wrap">
+              <input type="text" class="num" value="30" inputmode="numeric" />
+              <span class="suffix">дн.</span>
+            </div>
+          </div>
+        </div>
+        <div style="height:4px"></div>
+        <div class="switch-row">
+          <div>
+            <div class="flabel"><span>Перепродажа билетов</span><button class="hint-btn">i</button></div>
+            <div class="fhelp" style="margin-top:0">Инвесторы смогут продавать билеты друг другу</div>
+          </div>
+          <button class="switch" id="sw-resale"></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ ШАГ 3 — БЮДЖЕТ ═══ -->
+    <section class="step" data-step="2">
+      <div style="height:16px"></div>
+
+      <div class="card">
+        <div class="meter-head">
+          <div class="meter-val" id="m-val">7 200 000 ֏</div>
+          <div class="meter-of">из 10 000 000 ֏</div>
+        </div>
+        <div class="meter-bar"><div class="meter-fill" id="m-fill" style="width:72%"></div></div>
+        <div class="meter-note" id="m-note">Осталось расписать 2 800 000 ֏</div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow"><span>Статьи расходов</span></div>
+
+        <div class="item">
+          <div class="item-head">
+            <span class="item-n">#1</span>
+            <div class="item-acts"><button class="icon-btn del">Удалить</button></div>
+          </div>
+          <div class="field">
+            <input type="text" value="Ремонт помещения" />
+          </div>
+          <div class="field">
+            <div class="suffix-wrap"><input type="text" class="num" value="4 500 000" /><span class="suffix">֏</span></div>
+          </div>
+        </div>
+
+        <div class="item">
+          <div class="item-head">
+            <span class="item-n">#2</span>
+            <div class="item-acts"><button class="icon-btn del">Удалить</button></div>
+          </div>
+          <div class="field">
+            <input type="text" value="Оборудование" />
+          </div>
+          <div class="field">
+            <div class="suffix-wrap"><input type="text" class="num" value="2 700 000" /><span class="suffix">֏</span></div>
+          </div>
+        </div>
+
+        <button class="btn btn-outline btn-block btn-sm" style="margin-top:4px">+ Статья расхода</button>
+      </div>
+
+      <div class="notice">Разбивка бюджета — не обязательна, но проекты с ней проходят модерацию заметно чаще.</div>
+    </section>
+
+    <!-- ═══ ШАГ 4 — КОМАНДА ═══ -->
+    <section class="step" data-step="3">
+      <div style="height:16px"></div>
+
+      <div class="card">
+        <div class="eyebrow"><span>Участники</span><span style="font-size:11px;font-weight:600;letter-spacing:0;text-transform:none;">Первый = руководитель</span></div>
+
+        <div class="item">
+          <div class="item-head">
+            <span class="item-n">#1</span>
+            <div class="item-acts">
+              <button class="icon-btn" disabled>↑</button>
+              <button class="icon-btn">↓</button>
+              <button class="icon-btn del">Удалить</button>
+            </div>
+          </div>
+          <div class="avatar-row">
+            <div class="avatar">＋</div>
+            <div class="avatar-act">Добавить фото</div>
+          </div>
+          <div class="field"><input type="text" value="Ани Саргсян" placeholder="Имя и фамилия" /></div>
+          <div class="field"><input type="text" value="Основатель" placeholder="Роль в проекте" /></div>
+          <div class="field"><textarea style="min-height:64px" placeholder="Пара строк об опыте — не обязательно">8 лет в ресторанном бизнесе, открыла две кофейни в Ереване.</textarea></div>
+        </div>
+
+        <div class="item">
+          <div class="item-head">
+            <span class="item-n">#2</span>
+            <div class="item-acts">
+              <button class="icon-btn">↑</button>
+              <button class="icon-btn" disabled>↓</button>
+              <button class="icon-btn del">Удалить</button>
+            </div>
+          </div>
+          <div class="avatar-row">
+            <div class="avatar">＋</div>
+            <div class="avatar-act">Добавить фото</div>
+          </div>
+          <div class="field"><input type="text" placeholder="Имя и фамилия" /></div>
+          <div class="field"><input type="text" placeholder="Роль в проекте" /></div>
+          <div class="ferr">Без имени и роли участник не сохранится</div>
+        </div>
+
+        <button class="btn btn-outline btn-block btn-sm" style="margin-top:4px">+ Участник</button>
+      </div>
+    </section>
+
+    <!-- ═══ ШАГ 5 — МАТЕРИАЛЫ ═══ -->
+    <section class="step" data-step="4">
+      <div style="height:16px"></div>
+
+      <div class="card">
+        <div class="eyebrow"><span>Видео</span></div>
+        <div class="field">
+          <div class="flabel"><span>Ссылка на YouTube</span><button class="hint-btn">i</button></div>
+          <input type="url" placeholder="https://youtube.com/watch?v=…" />
+          <div class="fhelp">Появится под обложкой на странице проекта.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow"><span>Документы</span><span style="font-size:11px;font-weight:600;letter-spacing:0;text-transform:none;font-variant-numeric:tabular-nums;">2 / 10</span></div>
+
+        <div class="file">
+          <div class="file-ico">PDF</div>
+          <div style="min-width:0">
+            <div class="file-n">Бизнес-план 2026.pdf</div>
+            <div class="file-m">2.4 MB</div>
+          </div>
+          <button class="icon-btn del file-x">Удалить</button>
+        </div>
+        <div class="file">
+          <div class="file-ico">XLS</div>
+          <div style="min-width:0">
+            <div class="file-n">Финансовая модель.xlsx</div>
+            <div class="file-m">180 KB</div>
+          </div>
+          <button class="icon-btn del file-x">Удалить</button>
+        </div>
+
+        <div class="drop">
+          <div class="drop-t">Выбрать файлы</div>
+          <div class="drop-s">PDF, DOC, XLS, PPT, JPG, PNG · до 10 файлов</div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ═══ ШАГ 6 — ПРОВЕРКА ═══ -->
+    <section class="step" data-step="5">
+      <div style="height:16px"></div>
+
+      <div class="card">
+        <div class="eyebrow"><span>Проверка перед отправкой</span></div>
+        <div class="sum" data-go="0">
+          <div class="sum-ico bad">✕</div>
+          <div><div class="sum-t">О проекте</div><div class="sum-s bad">Нет описания на Rus и Eng</div></div>
+          <div class="sum-go">›</div>
+        </div>
+        <div class="sum" data-go="1">
+          <div class="sum-ico ok">✓</div>
+          <div><div class="sum-t">Финансы</div><div class="sum-s">10 000 000 ֏ · 1000 билетов · 4 раунда</div></div>
+          <div class="sum-go">›</div>
+        </div>
+        <div class="sum" data-go="2">
+          <div class="sum-ico ok">✓</div>
+          <div><div class="sum-t">Бюджет</div><div class="sum-s">2 статьи · расписано 72%</div></div>
+          <div class="sum-go">›</div>
+        </div>
+        <div class="sum" data-go="3">
+          <div class="sum-ico ok">✓</div>
+          <div><div class="sum-t">Команда</div><div class="sum-s">1 участник заполнен, 1 пустой</div></div>
+          <div class="sum-go">›</div>
+        </div>
+        <div class="sum" data-go="4">
+          <div class="sum-ico ok">✓</div>
+          <div><div class="sum-t">Материалы</div><div class="sum-s">2 документа · видео не добавлено</div></div>
+          <div class="sum-go">›</div>
+        </div>
+      </div>
+
+      <div class="notice">Красным помечено то, что остановит модерацию. Ткните в строку — попадёте на нужный шаг.</div>
+    </section>
+
+    <!-- ═══ ШАГ 7 — ПРЕДПРОСМОТР ═══ -->
+    <section class="step" data-step="6">
+      <div class="pv pv-bleed">
+        <div class="pv-hero">
+          <div class="pv-hero-empty">Обложка не добавлена</div>
+          <div class="pv-hero-body">
+            <div class="pv-status"><i></i><span>Идёт сбор · раунд 1 из 4</span></div>
+            <div class="pv-title">Кофейня в центре Еревана</div>
+            <div class="pv-by">от Ани Саргсян ›</div>
+          </div>
+        </div>
+
+        <div class="pv-fund">
+          <div class="pv-fund-top">
+            <span class="pv-collected">0</span>
+            <span class="pv-cur">֏</span>
+            <span class="pill">0%</span>
+          </div>
+          <div class="pv-goal">из 10 000 000 ֏</div>
+          <div class="pv-track"><div style="width:0"></div></div>
+
+          <div class="pv-split">
+            <div class="pv-cell">
+              <div class="pv-cell-l">Цена билета</div>
+              <div class="pv-cell-v" id="pv-price">10 000 ֏</div>
+            </div>
+            <div class="pv-cell">
+              <div class="pv-cell-l">Осталось билетов</div>
+              <div class="pv-cell-v">1000 <small>/ 1000</small></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pv-tabs">
+          <div class="segbar" style="margin-bottom:0">
+            <button class="seg on">О проекте</button>
+            <button class="seg">Команда</button>
+            <button class="seg">Рынок</button>
+            <button class="seg">Лента</button>
+          </div>
+        </div>
+
+        <div class="pv-about empty">Описание на русском не заполнено — инвестор увидит здесь пустоту.</div>
+      </div>
+
+      <div class="notice warn">
+        <b>После отправки</b> проект уходит на модерацию. Пока идёт проверка, редактировать его нельзя — файлы и команду можно добавить в любой момент.
+      </div>
+    </section>
+
+  </div>
+
+  <div class="foot" id="foot">
+    <button class="btn btn-ghost" id="prev" style="display:none">Назад</button>
+    <button class="btn btn-primary" id="next">Далее</button>
+  </div>
+</div>
+
+<script>
+  const STEPS = [
+    ['О проекте',    'Обложка, название и описание — это всё, что инвестор увидит в ленте.'],
+    ['Финансы',      'Цена билета считается сама из цели, количества и раундов — вручную её не задать.'],
+    ['Бюджет',       'На что пойдут деньги. Не обязательно, но сильно повышает доверие.'],
+    ['Команда',      'Кто делает проект. Порядок = старшинство: первый читается как руководитель.'],
+    ['Материалы',    'Видео и документы. Можно добавить и после отправки на модерацию.'],
+    ['Проверка',     'Что готово, а что остановит модерацию. Ткните в проблему — попадёте на нужный шаг.'],
+    ['Предпросмотр', 'Ровно то, что увидит инвестор. Всё нравится — отправляйте.'],
+  ];
+  const LAST = STEPS.length - 1;
+  let step = 0;
+
+  const $ = (s) => document.querySelector(s);
+  const rail = [...document.querySelectorAll('.rail-seg')];
+  const secs = [...document.querySelectorAll('.step')];
+
+  function render() {
+    secs.forEach((s, i) => s.classList.toggle('active', i === step));
+    rail.forEach((r, i) => {
+      r.classList.toggle('current', i === step);
+      r.classList.toggle('done', i < step);
+    });
+    $('#sname').textContent = STEPS[step][0];
+    $('#shint').textContent = STEPS[step][1];
+    $('#count').textContent = (step + 1) + '/' + STEPS.length;
+    $('#ctx').textContent = 'Шаг ' + (step + 1) + ' из ' + STEPS.length + ' — ' + STEPS[step][0];
+    $('#prev').style.display = step === 0 ? 'none' : '';
+    $('#next').textContent = step === LAST ? 'Отправить на модерацию' : 'Далее';
+    $('#scroll').scrollTop = 0;
+  }
+  const go = (i) => { step = i; render(); };
+  $('#next').onclick = () => { if (step < LAST) go(step + 1); };
+  $('#prev').onclick = () => { if (step > 0) go(step - 1); };
+  rail.forEach(r => r.onclick = () => go(+r.dataset.go));
+  // Строка чек-листа — это ещё и переход на шаг с проблемой.
+  document.querySelectorAll('.sum[data-go]').forEach(s => s.onclick = () => go(+s.dataset.go));
+
+  // --- экономика: та же формула, что в mobile/src/utils/pricing.ts ---
+  const num = (s) => parseFloat(String(s).replace(/[^\d.]/g, '')) || 0;
+  const fmt = (n) => Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+
+  function economics() {
+    const target = num($('#f-target').value);
+    const tickets = Math.round(num($('#f-tickets').value));
+    const tiers = Math.max(1, Math.min(10, Math.round(num($('#f-tiers').value)) || 1));
+    const inc = num($('#f-inc').value);
+    const priceEl = $('#econ-price'), body = $('#econ-body');
+
+    if (target <= 0 || tickets <= 0) {
+      priceEl.className = 'econ-price empty';
+      priceEl.textContent = 'Заполните цель и билеты';
+      body.innerHTML = '';
+      $('#pv-price').textContent = '—';
+      return;
+    }
+    const size = Math.max(1, Math.ceil(tickets / tiers));
+    let weighted = 0;
+    for (let i = 0; i < tiers; i++) {
+      const from = i * size, to = Math.min((i + 1) * size, tickets);
+      weighted += Math.max(0, to - from) * Math.pow(1 + inc / 100, i);
+    }
+    const base = weighted > 0 ? target / weighted : 0;
+    priceEl.className = 'econ-price';
+    priceEl.textContent = fmt(base) + ' ֏';
+    $('#pv-price').textContent = fmt(base) + ' ֏';
+
+    body.innerHTML = Array.from({ length: tiers }, (_, i) => {
+      const from = i * size + 1, to = Math.min((i + 1) * size, tickets);
+      return '<div class="tier"><span class="tier-n">Раунд ' + (i + 1) + '</span>' +
+             '<span class="tier-r">' + from + '–' + to + '</span>' +
+             '<span class="tier-p">' + fmt(base * Math.pow(1 + inc / 100, i)) + ' ֏</span></div>';
+    }).join('');
+  }
+  ['#f-target', '#f-tickets', '#f-tiers', '#f-inc'].forEach(s => $(s).addEventListener('input', economics));
+  $('#econ-toggle').onclick = () => {
+    const open = $('#econ-body').classList.toggle('open');
+    $('#econ-toggle').textContent = open ? 'Раунды ⌃' : 'Раунды ⌄';
+  };
+  economics();
+
+  $('#sw-resale').onclick = (e) => e.currentTarget.classList.toggle('on');
+  document.querySelectorAll('.chips').forEach(g =>
+    g.querySelectorAll('.chip').forEach(c => c.onclick = () => {
+      g.querySelectorAll('.chip').forEach(x => x.classList.remove('on'));
+      c.classList.add('on');
+    }));
+  document.querySelectorAll('.segbar').forEach(g =>
+    g.querySelectorAll('.seg').forEach(c => c.onclick = () => {
+      g.querySelectorAll('.seg').forEach(x => x.classList.remove('on'));
+      c.classList.add('on');
+    }));
+
+  $('#theme').onclick = () => {
+    const p = $('#phone');
+    const dark = p.dataset.theme === 'dark';
+    p.dataset.theme = dark ? 'light' : 'dark';
+    $('#theme').textContent = dark ? '◐ Тёмная' : '◑ Светлая';
+  };
+
+  render();
+</script>
+</body>
+</html>

@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Вход и регистрация — прототип</title>
+<style>
+  /* Токены 1:1 из mobile/src/theme/tokens.ts */
+  :root {
+    --primary:#2E6F45; --primary-dark:#1F4E30; --primary-soft:rgba(46,111,69,.10);
+    --bg:#F6F8F7; --surface:#FFFFFF; --surface-sunken:#F1F4F2;
+    --text:#16201A; --text-muted:#6B7A70;
+    --on-accent:#FFFFFF; --on-accent-muted:rgba(255,255,255,.82);
+    --border:#E2E7E3;
+    --success:#22A559; --success-soft:rgba(34,165,89,.12);
+    --danger:#DC2626;  --danger-soft:rgba(220,38,38,.10);
+    --warning:#D97706; --warning-soft:rgba(217,119,6,.14);
+    --shadow: 0 6px 16px rgba(0,0,0,.08);
+
+    --xs:4px; --sm:8px; --md:16px; --lg:24px; --xl:32px;
+    --r-sm:8px; --r-md:10px; --r-lg:13px; --r-xl:16px; --r-pill:999px;
+  }
+  [data-theme="dark"] {
+    --primary:#63B37F; --primary-dark:#4C9366; --primary-soft:rgba(99,179,127,.14);
+    --bg:#171C18; --surface:#1F2620; --surface-sunken:#161B17;
+    --text:#E9EFEA; --text-muted:#93A398;
+    --on-accent:#0E1710; --on-accent-muted:rgba(14,23,16,.72);
+    --border:#2C352E;
+    --success:#4ECB7D; --success-soft:rgba(78,203,125,.14);
+    --danger:#F87171;  --danger-soft:rgba(248,113,113,.12);
+    --warning:#FBBF24; --warning-soft:rgba(251,191,36,.14);
+    --shadow: 0 6px 16px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    background:#0d100e; color:var(--text);
+    min-height:100vh; padding:28px 16px 60px;
+    display:flex; flex-direction:column; align-items:center; gap:22px;
+  }
+
+  /* ---- панель прототипа (не часть приложения) ---- */
+  .harness { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center; color:#8b968f; font-size:13px; }
+  .harness button {
+    font:inherit; font-size:12px; font-weight:600; cursor:pointer;
+    background:#1e2420; color:#cfd8d2; border:1px solid #2f3833;
+    border-radius:999px; padding:7px 14px;
+    transition:background 140ms cubic-bezier(.23,1,.32,1), transform 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .harness button:hover { background:#28302b; }
+  .harness button:active { transform:scale(.97); }
+  .harness button[aria-pressed="true"] { background:#2E6F45; border-color:#3d8a58; color:#fff; }
+
+  .stage { display:flex; gap:26px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+  .slot { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .slot-caption { color:#8b968f; font-size:12px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+  .slot-note { color:#6b746e; font-size:11px; max-width:390px; text-align:center; line-height:1.5; }
+
+  /* ---- телефон ---- */
+  .phone {
+    width:390px; height:820px; background:var(--bg);
+    border-radius:28px; overflow:hidden;
+    display:flex; flex-direction:column;
+    box-shadow:0 0 0 1px rgba(255,255,255,.08), 0 24px 60px rgba(0,0,0,.5);
+  }
+  .screen { flex:1; display:flex; flex-direction:column; padding:0 var(--lg); overflow:hidden; }
+
+  /* статус-бар — только чтобы кадр читался как телефон */
+  .status {
+    height:44px; flex:none; display:flex; align-items:center; justify-content:space-between;
+    padding:0 var(--lg); font-size:12px; font-weight:600; color:var(--text);
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ---- типографика по шкале tokens.ts ---- */
+  .t-display  { font-size:26px; font-weight:700; letter-spacing:-.5px; color:var(--text); }
+  .t-title    { font-size:22px; font-weight:700; letter-spacing:-.4px; color:var(--text); }
+  .t-heading  { font-size:18px; font-weight:700; letter-spacing:-.2px; color:var(--text); }
+  .t-body     { font-size:15px; color:var(--text); }
+  .t-label    { font-size:14px; color:var(--text); }
+  .t-caption  { font-size:13px; color:var(--text-muted); line-height:1.5; }
+  .t-micro    { font-size:12px; color:var(--text-muted); }
+  .t-eyebrow  { font-size:11px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:var(--text-muted); }
+  .muted { color:var(--text-muted); }
+
+  /* ---- бренд-марка ---- */
+  .brand { display:flex; flex-direction:column; align-items:center; gap:var(--md); }
+  .brand-mark {
+    width:60px; height:60px; border-radius:18px; flex:none;
+    background:var(--primary); color:var(--on-accent);
+    display:grid; place-items:center; font-size:26px; font-weight:700; letter-spacing:-1px;
+    box-shadow:var(--shadow);
+  }
+
+  /* ---- поля ---- */
+  .field { margin-bottom:var(--md); }
+  .field-label { display:block; font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:6px; }
+  .input {
+    width:100%; height:50px; background:var(--surface);
+    border:1px solid var(--border); border-radius:var(--r-lg);
+    padding:0 14px; font:inherit; font-size:15px; color:var(--text);
+    transition:border-color 140ms cubic-bezier(.23,1,.32,1), box-shadow 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .input::placeholder { color:var(--text-muted); }
+  .input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-soft); }
+  .input-wrap { position:relative; }
+  .input-wrap .input { padding-right:48px; }
+  .input-affix {
+    position:absolute; right:6px; top:0; height:50px; width:42px;
+    display:grid; place-items:center; cursor:pointer; color:var(--text-muted);
+    background:none; border:none; border-radius:var(--r-md);
+  }
+  .input-affix:hover { color:var(--text); }
+
+  /* ---- кнопки ---- */
+  .btn {
+    width:100%; height:52px; border-radius:var(--r-lg); border:1px solid transparent;
+    font:inherit; font-size:15px; font-weight:600; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:transform 140ms cubic-bezier(.23,1,.32,1), background 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .btn:active { transform:scale(.98); }
+  .btn-primary { background:var(--primary); color:var(--on-accent); }
+  .btn-primary:hover { background:var(--primary-dark); }
+  .btn-outline { background:transparent; color:var(--text); border-color:var(--border); }
+  .btn-outline:hover { background:var(--surface); }
+  .btn-ghost { background:transparent; color:var(--primary); height:44px; }
+
+  /* ---- разделитель «или» ---- */
+  .divider { display:flex; align-items:center; gap:var(--md); margin:var(--lg) 0; }
+  .divider::before, .divider::after { content:""; flex:1; height:1px; background:var(--border); }
+  .divider span { font-size:12px; font-weight:600; color:var(--text-muted); }
+
+  /* ---- нижняя закреплённая зона ---- */
+  .foot { margin-top:auto; padding-bottom:var(--lg); }
+  .foot-line { text-align:center; font-size:14px; color:var(--text-muted); }
+  .foot-line a { color:var(--primary); font-weight:600; text-decoration:none; cursor:pointer; }
+
+  /* ---- СИГНАТУРА: биометрический ключ ---- */
+  .biokey {
+    width:104px; height:104px; border-radius:34px; margin:0 auto;
+    background:var(--primary-soft); border:1px solid var(--border);
+    display:grid; place-items:center; cursor:pointer; position:relative;
+    transition:transform 200ms cubic-bezier(.23,1,.32,1), background 200ms cubic-bezier(.23,1,.32,1);
+  }
+  .biokey:hover { background:var(--primary); }
+  .biokey:hover svg { stroke:var(--on-accent); }
+  .biokey:active { transform:scale(.95); }
+  .biokey svg { stroke:var(--primary); transition:stroke 200ms cubic-bezier(.23,1,.32,1); }
+  /* пульс, который подсказывает «нажми сюда» без подписи */
+  .biokey::before {
+    content:""; position:absolute; inset:-6px; border-radius:40px;
+    border:2px solid var(--primary); opacity:0;
+    animation:pulse 2.6s cubic-bezier(.23,1,.32,1) infinite;
+  }
+  @keyframes pulse {
+    0%   { transform:scale(.92); opacity:0; }
+    35%  { opacity:.45; }
+    100% { transform:scale(1.12); opacity:0; }
+  }
+
+  /* ---- карточка сохранённого аккаунта ---- */
+  .account {
+    display:flex; align-items:center; gap:var(--md);
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-xl); padding:14px var(--md); box-shadow:var(--shadow);
+  }
+  .avatar {
+    width:46px; height:46px; border-radius:var(--r-pill); flex:none;
+    background:var(--primary-soft); display:grid; place-items:center; font-size:22px;
+  }
+  .account-body { flex:1; min-width:0; }
+  .account-name { font-size:15px; font-weight:600; color:var(--text); }
+  .account-sub { font-size:13px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .account-swap { font-size:13px; font-weight:600; color:var(--primary); cursor:pointer; }
+
+  /* ---- PIN ---- */
+  .pin-dots { display:flex; justify-content:center; gap:14px; }
+  .pin-dot {
+    width:13px; height:13px; border-radius:var(--r-pill);
+    border:1.5px solid var(--text-muted); background:transparent;
+    transition:background 160ms cubic-bezier(.23,1,.32,1), border-color 160ms cubic-bezier(.23,1,.32,1), transform 160ms cubic-bezier(.23,1,.32,1);
+  }
+  .pin-dot.on { background:var(--primary); border-color:var(--primary); transform:scale(1.12); }
+  .pad { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--md); }
+  .key {
+    height:66px; border-radius:var(--r-xl); border:1px solid var(--border);
+    background:var(--surface); color:var(--text);
+    font:inherit; font-size:24px; font-weight:600; font-variant-numeric:tabular-nums;
+    cursor:pointer; display:grid; place-items:center;
+    transition:background 120ms cubic-bezier(.23,1,.32,1), transform 120ms cubic-bezier(.23,1,.32,1);
+  }
+  .key:hover { background:var(--surface-sunken); }
+  .key:active { transform:scale(.95); background:var(--primary-soft); }
+  .key.blank { background:transparent; border-color:transparent; cursor:default; }
+  .key.blank:hover { background:transparent; }
+  .key.icon { font-size:0; }
+  .key.icon svg { stroke:var(--text-muted); }
+
+  /* ---- строка-переключатель (настройка быстрого входа) ---- */
+  .row {
+    display:flex; align-items:center; gap:var(--md);
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-xl); padding:var(--md); margin-bottom:var(--sm);
+  }
+  .row-icon {
+    width:40px; height:40px; border-radius:var(--r-md); flex:none;
+    background:var(--primary-soft); display:grid; place-items:center;
+  }
+  .row-icon svg { stroke:var(--primary); }
+  .row-body { flex:1; }
+  .row-title { font-size:15px; font-weight:600; color:var(--text); }
+  .row-sub { font-size:13px; color:var(--text-muted); margin-top:2px; line-height:1.4; }
+  .switch {
+    width:48px; height:29px; border-radius:var(--r-pill); flex:none;
+    background:var(--border); border:none; cursor:pointer; position:relative;
+    transition:background 200ms cubic-bezier(.23,1,.32,1);
+  }
+  .switch::after {
+    content:""; position:absolute; top:3px; left:3px; width:23px; height:23px;
+    border-radius:var(--r-pill); background:var(--surface); box-shadow:0 1px 3px rgba(0,0,0,.3);
+    transition:transform 200ms cubic-bezier(.23,1,.32,1);
+  }
+  .switch[aria-checked="true"] { background:var(--primary); }
+  .switch[aria-checked="true"]::after { transform:translateX(19px); }
+
+  /* ---- баннер-подсказка ---- */
+  .note {
+    display:flex; gap:10px; align-items:flex-start;
+    background:var(--warning-soft); border-radius:var(--r-lg);
+    padding:12px var(--md); font-size:13px; color:var(--text); line-height:1.5;
+  }
+  .note svg { stroke:var(--warning); flex:none; margin-top:1px; }
+
+  /* ---- ошибка ---- */
+  .error {
+    background:var(--danger-soft); color:var(--danger);
+    border-radius:var(--r-md); padding:10px 12px; font-size:13px; font-weight:600;
+    margin-bottom:var(--md);
+  }
+
+  /* ---- язык ---- */
+  .lang { display:flex; justify-content:center; gap:var(--xs); margin-top:var(--md); }
+  .lang button {
+    font:inherit; font-size:12px; font-weight:600; cursor:pointer;
+    background:transparent; border:1px solid transparent; color:var(--text-muted);
+    border-radius:var(--r-pill); padding:6px 12px;
+  }
+  .lang button[aria-pressed="true"] { background:var(--primary-soft); color:var(--primary); }
+
+  .stack-sm > * + * { margin-top:var(--sm); }
+  .stack-md > * + * { margin-top:var(--md); }
+  .stack-lg > * + * { margin-top:var(--lg); }
+  .center { text-align:center; }
+</style>
+</head>
+<body data-theme="light">
+
+<div class="harness">
+  <span>Тема:</span>
+  <button id="themeBtn">светлая / тёмная</button>
+  <span style="margin-left:12px">Экраны:</span>
+  <button data-filter="all" aria-pressed="true">все</button>
+  <button data-filter="login">вход</button>
+  <button data-filter="quick">быстрый вход</button>
+  <button data-filter="pin">PIN</button>
+  <button data-filter="setup">настройка</button>
+  <button data-filter="register">регистрация</button>
+</div>
+
+<div class="stage">
+
+  <!-- ═══════════ 1. ВХОД (стартовый экран) ═══════════ -->
+  <div class="slot" data-screen="login">
+    <div class="slot-caption">1 · Вход — стартовый экран</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="screen">
+        <div style="padding-top:36px" class="brand">
+          <div class="brand-mark">IP</div>
+          <div class="center">
+            <div class="t-title">С возвращением</div>
+            <div class="t-caption" style="margin-top:6px">Войдите, чтобы продолжить инвестировать</div>
+          </div>
+        </div>
+
+        <div style="margin-top:32px">
+          <div class="field">
+            <label class="field-label">Логин или e-mail</label>
+            <input class="input" type="text" placeholder="artur@example.com" />
+          </div>
+          <div class="field">
+            <label class="field-label">Пароль</label>
+            <div class="input-wrap">
+              <input class="input" type="password" placeholder="••••••••" />
+              <button class="input-affix" title="Показать пароль">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; margin:-4px 0 20px">
+            <span class="t-caption" style="color:var(--primary); font-weight:600; cursor:pointer">Забыли пароль?</span>
+          </div>
+
+          <button class="btn btn-primary">Войти</button>
+
+          <div class="divider"><span>или</span></div>
+
+          <button class="btn btn-outline">
+            <svg width="19" height="19" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2.1 5-4.4 6.6v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.1Z"/><path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.4 46 24 46Z"/><path fill="#FBBC05" d="M11.6 28.1c-.4-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1v-5.7H4.3A22 22 0 0 0 2 24c0 3.6.9 6.9 2.3 9.8l7.3-5.7Z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.1 30 2 24 2 15.4 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1Z"/></svg>
+            Продолжить с Google
+          </button>
+        </div>
+
+        <div class="foot">
+          <div class="lang">
+            <button aria-pressed="true">ՀԱՅ</button><button>РУС</button><button>ENG</button>
+          </div>
+          <div class="foot-line" style="margin-top:14px">
+            Нет аккаунта? <a>Зарегистрироваться</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Welcome-экран убран: приложение открывается сразу на форме входа. Регистрация — текстовой ссылкой внизу, а не равной по весу кнопкой.</div>
+  </div>
+
+  <!-- ═══════════ 2. БЫСТРЫЙ ВХОД ═══════════ -->
+  <div class="slot" data-screen="quick">
+    <div class="slot-caption">2 · Быстрый вход (повторный запуск)</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="screen">
+        <div style="padding-top:56px" class="brand">
+          <div class="brand-mark">IP</div>
+        </div>
+
+        <div style="margin-top:40px">
+          <div class="account">
+            <div class="avatar">🦊</div>
+            <div class="account-body">
+              <div class="account-name">Артур Петросян</div>
+              <div class="account-sub">artur@example.com</div>
+            </div>
+            <span class="account-swap">Сменить</span>
+          </div>
+        </div>
+
+        <div style="margin-top:64px">
+          <div class="biokey">
+            <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 11v3a9 9 0 0 1-.6 3.2"/>
+              <path d="M8.5 11a3.5 3.5 0 0 1 7 0v3c0 .8-.1 1.6-.3 2.4"/>
+              <path d="M5 11a7 7 0 0 1 14 0v3"/>
+              <path d="M2 9.5A10 10 0 0 1 12 2a10 10 0 0 1 7.4 3.3"/>
+              <path d="M5.5 19.5A9 9 0 0 0 8 14v-3"/>
+              <path d="M18.8 18.5c.4-1.4.7-2.9.7-4.5"/>
+            </svg>
+          </div>
+          <div class="center" style="margin-top:20px">
+            <div class="t-heading">Приложите палец</div>
+            <div class="t-caption" style="margin-top:6px">Или войдите по PIN-коду</div>
+          </div>
+        </div>
+
+        <div class="foot stack-sm">
+          <button class="btn btn-outline">Ввести PIN-код</button>
+          <button class="btn btn-ghost">Войти по паролю</button>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Показывается, только если пользователь ранее включил быстрый вход. Пароль в хранилище не лежит — лежит refresh-токен, а биометрия его отпирает.</div>
+  </div>
+
+  <!-- ═══════════ 3. PIN ═══════════ -->
+  <div class="slot" data-screen="pin">
+    <div class="slot-caption">3 · PIN-код</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="screen">
+        <div style="padding-top:48px" class="center">
+          <div class="avatar" style="margin:0 auto 14px; width:56px; height:56px; font-size:26px">🦊</div>
+          <div class="t-heading">Введите PIN-код</div>
+          <div class="t-caption" style="margin-top:6px">Артур Петросян</div>
+        </div>
+
+        <div style="margin-top:36px">
+          <div class="pin-dots" id="pinDots">
+            <div class="pin-dot on"></div><div class="pin-dot on"></div>
+            <div class="pin-dot"></div><div class="pin-dot"></div>
+          </div>
+          <div class="t-micro center" style="margin-top:14px; visibility:hidden">Осталось попыток: 3</div>
+        </div>
+
+        <div class="pad" style="margin-top:28px">
+          <button class="key">1</button><button class="key">2</button><button class="key">3</button>
+          <button class="key">4</button><button class="key">5</button><button class="key">6</button>
+          <button class="key">7</button><button class="key">8</button><button class="key">9</button>
+          <button class="key icon" title="Биометрия">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11v3a9 9 0 0 1-.6 3.2"/><path d="M8.5 11a3.5 3.5 0 0 1 7 0v3c0 .8-.1 1.6-.3 2.4"/><path d="M5 11a7 7 0 0 1 14 0v3"/><path d="M2 9.5A10 10 0 0 1 12 2a10 10 0 0 1 7.4 3.3"/></svg>
+          </button>
+          <button class="key">0</button>
+          <button class="key icon" title="Стереть">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1Z"/><path d="m17 9-5 6M12 9l5 6"/></svg>
+          </button>
+        </div>
+
+        <div class="foot">
+          <button class="btn btn-ghost">Забыли PIN? Войти по паролю</button>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">PIN — запасной путь, когда палец не читается или биометрия не настроена. После 5 неудач быстрый вход сбрасывается и требуется полный пароль.</div>
+  </div>
+
+  <!-- ═══════════ 4. НАСТРОЙКА БЫСТРОГО ВХОДА ═══════════ -->
+  <div class="slot" data-screen="setup">
+    <div class="slot-caption">4 · Предложение после первого входа</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="screen">
+        <div style="padding-top:48px">
+          <div class="row-icon" style="width:60px; height:60px; border-radius:20px; margin-bottom:20px">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11v3a9 9 0 0 1-.6 3.2"/><path d="M8.5 11a3.5 3.5 0 0 1 7 0v3c0 .8-.1 1.6-.3 2.4"/><path d="M5 11a7 7 0 0 1 14 0v3"/><path d="M2 9.5A10 10 0 0 1 12 2a10 10 0 0 1 7.4 3.3"/></svg>
+          </div>
+          <div class="t-title">Входить быстрее?</div>
+          <div class="t-caption" style="margin-top:8px">Чтобы не вводить пароль каждый раз, включите вход по отпечатку и задайте PIN-код.</div>
+        </div>
+
+        <div style="margin-top:28px">
+          <div class="row">
+            <div class="row-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 11v3a9 9 0 0 1-.6 3.2"/><path d="M8.5 11a3.5 3.5 0 0 1 7 0v3"/><path d="M5 11a7 7 0 0 1 14 0v3"/></svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">Отпечаток пальца</div>
+              <div class="row-sub">Вход одним касанием</div>
+            </div>
+            <button class="switch" aria-checked="true"></button>
+          </div>
+
+          <div class="row">
+            <div class="row-icon">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <div class="row-body">
+              <div class="row-title">PIN-код</div>
+              <div class="row-sub">Запасной вход, 4 цифры</div>
+            </div>
+            <button class="switch" aria-checked="true"></button>
+          </div>
+
+          <div class="note" style="margin-top:var(--md)">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span>Ключ хранится в защищённом хранилище устройства. Мы не видим ни ваш отпечаток, ни PIN-код.</span>
+          </div>
+        </div>
+
+        <div class="foot stack-sm">
+          <button class="btn btn-primary">Включить</button>
+          <button class="btn btn-ghost">Не сейчас</button>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Показывается один раз после первого успешного входа. Позже — переключатели в «Профиль → Безопасность».</div>
+  </div>
+
+  <!-- ═══════════ 5. РЕГИСТРАЦИЯ ═══════════ -->
+  <div class="slot" data-screen="register">
+    <div class="slot-caption">5 · Регистрация</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ 100%</span></div>
+      <div class="screen">
+        <div style="padding-top:28px">
+          <div class="t-title">Создать аккаунт</div>
+          <div class="t-caption" style="margin-top:6px">Займёт меньше минуты</div>
+        </div>
+
+        <div style="margin-top:24px">
+          <button class="btn btn-outline">
+            <svg width="19" height="19" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.1 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h11.8c-.5 2.7-2.1 5-4.4 6.6v5.5h7.1c4.2-3.8 6.6-9.5 6.6-16.1Z"/><path fill="#34A853" d="M24 46c6 0 11-2 14.6-5.4l-7.1-5.5c-2 1.3-4.5 2.1-7.5 2.1-5.8 0-10.7-3.9-12.4-9.1H4.3v5.7C7.9 41 15.4 46 24 46Z"/><path fill="#FBBC05" d="M11.6 28.1c-.4-1.3-.7-2.7-.7-4.1s.3-2.8.7-4.1v-5.7H4.3A22 22 0 0 0 2 24c0 3.6.9 6.9 2.3 9.8l7.3-5.7Z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.3-6.3C35 4.1 30 2 24 2 15.4 2 7.9 7 4.3 14.2l7.3 5.7c1.7-5.2 6.6-9.1 12.4-9.1Z"/></svg>
+            Зарегистрироваться через Google
+          </button>
+
+          <div class="divider"><span>или по e-mail</span></div>
+
+          <div class="field">
+            <label class="field-label">Имя и фамилия</label>
+            <input class="input" type="text" placeholder="Артур Петросян" />
+          </div>
+          <div class="field">
+            <label class="field-label">E-mail</label>
+            <input class="input" type="email" placeholder="artur@example.com" />
+          </div>
+          <div class="field">
+            <label class="field-label">Пароль</label>
+            <div class="input-wrap">
+              <input class="input" type="password" placeholder="Минимум 8 символов" />
+              <button class="input-affix" title="Показать пароль">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div style="display:flex; gap:4px; margin-top:8px">
+              <div style="flex:1; height:3px; border-radius:2px; background:var(--success)"></div>
+              <div style="flex:1; height:3px; border-radius:2px; background:var(--success)"></div>
+              <div style="flex:1; height:3px; border-radius:2px; background:var(--border)"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="foot stack-md">
+          <button class="btn btn-primary">Создать аккаунт</button>
+          <div class="t-micro center" style="line-height:1.5">
+            Регистрируясь, вы принимаете <span style="color:var(--primary); font-weight:600">условия</span> и <span style="color:var(--primary); font-weight:600">политику конфиденциальности</span>
+          </div>
+          <div class="foot-line">Уже есть аккаунт? <a>Войти</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">E-mail вместо логина: он нужен для восстановления пароля и совпадает с тем, что вернёт Google. Поле username в БД уже nullable.</div>
+  </div>
+
+</div>
+
+<script>
+  const body = document.body;
+  document.getElementById('themeBtn').onclick = () => {
+    body.dataset.theme = body.dataset.theme === 'dark' ? 'light' : 'dark';
+  };
+
+  const slots = [...document.querySelectorAll('.slot')];
+  const filters = [...document.querySelectorAll('[data-filter]')];
+  filters.forEach(b => b.onclick = () => {
+    filters.forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    const f = b.dataset.filter;
+    slots.forEach(s => s.style.display = (f === 'all' || s.dataset.screen === f) ? '' : 'none');
+  });
+
+  // PIN-панель отвечает на нажатия, чтобы можно было почувствовать ритм ввода
+  const dots = [...document.querySelectorAll('#pinDots .pin-dot')];
+  let filled = 2;
+  const paint = () => dots.forEach((d, i) => d.classList.toggle('on', i < filled));
+  document.querySelectorAll('.pad .key').forEach(k => {
+    k.onclick = () => {
+      if (k.classList.contains('blank')) return;
+      if (k.title === 'Стереть') filled = Math.max(0, filled - 1);
+      else if (k.title === 'Биометрия') return;
+      else filled = Math.min(4, filled + 1);
+      paint();
+    };
+  });
+
+  document.querySelectorAll('.switch').forEach(s => {
+    s.onclick = () => s.setAttribute('aria-checked', s.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+  });
+
+  document.querySelectorAll('.input-affix').forEach(b => {
+    b.onclick = () => {
+      const i = b.previousElementSibling;
+      i.type = i.type === 'password' ? 'text' : 'password';
+    };
+  });
+
+  document.querySelectorAll('.lang button').forEach(b => {
+    b.onclick = () => {
+      b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    };
+  });
+</script>
+</body>
+</html>

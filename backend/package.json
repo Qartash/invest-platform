@@ -5,6 +5,9 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -18,8 +21,16 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
+    "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:run": "npm run typeorm -- migration:run",
+    "migration:run:prod": "typeorm -d dist/database/data-source.js migration:run",
+    "migration:verify": "ts-node -r tsconfig-paths/register src/database/verify-migration.ts",
+    "migration:revert": "npm run typeorm -- migration:revert",
+    "migration:show": "npm run typeorm -- migration:show",
     "seed": "ts-node -r tsconfig-paths/register src/seed.ts",
-    "reset": "ts-node -r tsconfig-paths/register src/reset.ts"
+    "reset": "ts-node -r tsconfig-paths/register src/reset.ts",
+    "repair:prices": "ts-node -r tsconfig-paths/register src/repair-ticket-prices.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -30,10 +41,13 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/schedule": "^6.1.3",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.3",
     "bcryptjs": "^3.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "dotenv": "^17.4.1",
+    "google-auth-library": "^10.9.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.22.0",

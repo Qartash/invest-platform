@@ -1,7 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { colors, spacing } from '../theme';
+import { maxWidth, spacing, ThemeColors, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
+import { formatMonth, usesArmenianFallback } from '../utils/date';
 
 interface Props {
   visible: boolean;
@@ -12,6 +14,11 @@ interface Props {
 
 const LOCALE_MAP: Record<string, string> = { hy: 'hy-AM', ru: 'ru-RU', en: 'en-US' };
 
+// Monday-first, matching the calendar grid below. Spelled out for the same reason as the
+// month names in utils/date.ts: where Armenian is absent from the runtime's ICU data,
+// `hy-AM` resolves to `ru` and the calendar would be headed with Russian weekdays.
+const HY_WEEKDAYS_SHORT = ['երկ', 'երք', 'չրք', 'հնգ', 'ուրբ', 'շբթ', 'կիր'];
+
 function toIso(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
@@ -19,6 +26,7 @@ function toIso(year: number, month: number, day: number): string {
 // A pure-JS calendar so date-of-birth selection ships over-the-air without a
 // native date-picker dependency (which would need a new build).
 export function DatePickerModal({ visible, value, onClose, onSelect }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { i18n } = useTranslation();
   const locale = LOCALE_MAP[i18n.language] ?? 'en-US';
   const today = new Date();
@@ -30,6 +38,7 @@ export function DatePickerModal({ visible, value, onClose, onSelect }: Props) {
   const selected = value ?? null;
 
   const weekdayLabels = useMemo(() => {
+    if (usesArmenianFallback(i18n.language)) return HY_WEEKDAYS_SHORT;
     // Monday-first week; take short weekday names from the active locale.
     const base = new Date(2023, 0, 2); // a Monday
     return Array.from({ length: 7 }, (_, i) => {
@@ -37,12 +46,12 @@ export function DatePickerModal({ visible, value, onClose, onSelect }: Props) {
       d.setDate(base.getDate() + i);
       return d.toLocaleDateString(locale, { weekday: 'short' });
     });
-  }, [locale]);
+  }, [locale, i18n.language]);
 
-  const monthTitle = new Date(viewYear, viewMonth, 1).toLocaleDateString(locale, {
-    month: 'long',
-    year: 'numeric',
-  });
+  const monthTitle = formatMonth(
+    `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}`,
+    i18n.language,
+  );
 
   const cells = useMemo(() => {
     const firstDay = new Date(viewYear, viewMonth, 1);
@@ -63,9 +72,8 @@ export function DatePickerModal({ visible, value, onClose, onSelect }: Props) {
   const isFuture = (day: number) => new Date(viewYear, viewMonth, day) > today;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.card} onPress={() => {}}>
+    <Dialog visible={visible} onClose={onClose} maxWidth={maxWidth.dialogSm}>
+      <View style={styles.card}>
           <View style={styles.headerRow}>
             <Pressable onPress={() => shiftMonth(-1)} hitSlop={10} style={styles.navButton}>
               <Text style={styles.navText}>‹</Text>
@@ -125,112 +133,103 @@ export function DatePickerModal({ visible, value, onClose, onSelect }: Props) {
               );
             })}
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+      </View>
+    </Dialog>
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.md,
-    width: '100%',
-    maxWidth: 360,
-    alignSelf: 'center',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  navButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-  },
-  navText: {
-    fontSize: 22,
-    color: colors.text,
-    lineHeight: 24,
-  },
-  monthTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-    textTransform: 'capitalize',
-  },
-  yearRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  yearArrow: {
-    fontSize: 16,
-    color: colors.primary,
-    fontWeight: '700',
-    paddingHorizontal: spacing.md,
-  },
-  yearLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textMuted,
-    minWidth: 56,
-    textAlign: 'center',
-  },
-  weekRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.xs,
-  },
-  weekday: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.textMuted,
-    textTransform: 'capitalize',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  cell: {
-    width: `${100 / 7}%`,
-    aspectRatio: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayInner: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dayInnerSelected: {
-    backgroundColor: colors.primary,
-  },
-  dayText: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  dayTextSelected: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  dayTextDisabled: {
-    color: colors.border,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: 16,
+      padding: spacing.md,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.xs,
+    },
+    navButton: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.background,
+    },
+    navText: {
+      fontSize: 22,
+      color: c.text,
+      lineHeight: 24,
+    },
+    monthTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: c.text,
+      textTransform: 'capitalize',
+    },
+    yearRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.sm,
+    },
+    yearArrow: {
+      fontSize: 16,
+      color: c.primary,
+      fontWeight: '700',
+      paddingHorizontal: spacing.md,
+    },
+    yearLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: c.textMuted,
+      minWidth: 56,
+      textAlign: 'center',
+    },
+    weekRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.xs,
+    },
+    weekday: {
+      flex: 1,
+      textAlign: 'center',
+      fontSize: 11,
+      fontWeight: '600',
+      color: c.textMuted,
+      textTransform: 'capitalize',
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    cell: {
+      width: `${100 / 7}%`,
+      aspectRatio: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayInner: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dayInnerSelected: {
+      backgroundColor: c.primary,
+    },
+    dayText: {
+      fontSize: 14,
+      color: c.text,
+    },
+    dayTextSelected: {
+      color: c.textOnAccent,
+      fontWeight: '700',
+    },
+    dayTextDisabled: {
+      color: c.border,
+    },
+  });

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
@@ -6,7 +6,15 @@ import { clearLogs, fetchLogs, fetchLogSettings, updateLogSettings } from '../..
 import { LogSettings, LogSource, SystemLog } from '../../types';
 import { formatDateTime } from '../../utils/date';
 import { showAlert } from '../../utils/alert';
-import { colors, spacing } from '../../theme';
+import {
+  maxWidth,
+  spacing,
+  ThemeColors,
+  typography,
+  useBreakpoint,
+  useThemeStyles,
+  useTheme,
+} from '../../theme';
 import { PrimaryButton } from '../../components/PrimaryButton';
 
 // 'console' isn't a source of its own (console output is filed under the frontend/backend
@@ -15,15 +23,20 @@ import { PrimaryButton } from '../../components/PrimaryButton';
 type FilterKey = LogSource | 'all' | 'console';
 const SOURCE_FILTERS: FilterKey[] = ['all', 'frontend', 'backend', 'error', 'database', 'console'];
 
-const SOURCE_COLORS: Record<LogSource, string> = {
-  frontend: colors.chartAccent,
-  backend: colors.primary,
-  error: colors.danger,
-  database: colors.warning,
-};
+// Log source -> colour, built per palette so the badges follow the theme.
+const sourceColors = (c: ThemeColors): Record<LogSource, string> => ({
+  frontend: c.chartAccent,
+  backend: c.primary,
+  error: c.danger,
+  database: c.warning,
+});
 
 export function LogsScreen() {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
+  const SOURCE_COLORS = useMemo(() => sourceColors(colors), [colors]);
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [settings, setSettings] = useState<LogSettings | null>(null);
   const [logs, setLogs] = useState<SystemLog[]>([]);
   const [total, setTotal] = useState(0);
@@ -151,11 +164,57 @@ export function LogsScreen() {
       <FlatList
         data={logs}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
+        // The column headings only mean anything while their columns are on screen, so they
+        // ride along with the scroll instead of sitting above it.
+        ListHeaderComponent={
+          isCompact ? null : (
+            <View style={styles.headRow}>
+              <Text style={[styles.headCell, styles.colSource]}>{t('moderation.logs.columns.source')}</Text>
+              <Text style={[styles.headCell, styles.colTime]}>{t('moderation.logs.columns.time')}</Text>
+              <Text style={[styles.headCell, styles.colCategory]}>{t('moderation.logs.columns.category')}</Text>
+              <Text style={[styles.headCell, styles.colMessage]}>{t('moderation.logs.columns.message')}</Text>
+            </View>
+          )
+        }
+        stickyHeaderIndices={isCompact ? undefined : [0]}
         renderItem={({ item }) => {
           const isExpanded = expandedId === item.id;
+
+          // A phone has room for one field per line, so the log is a small stacked card.
+          // A desktop window has room for all four side by side, which is the shape the
+          // data was in all along — one record, four fields — and reading down a column
+          // is what makes a hundred of them scannable.
+          if (!isCompact) {
+            return (
+              <Pressable style={styles.tableRow} onPress={() => setExpandedId(isExpanded ? null : item.id)}>
+                <View style={styles.tableRowLine}>
+                  <View style={styles.colSource}>
+                    <View style={[styles.sourceBadge, styles.sourceBadgeCell, { borderColor: SOURCE_COLORS[item.source] }]}>
+                      <Text style={[styles.sourceBadgeText, { color: SOURCE_COLORS[item.source] }]}>{item.source}</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.cell, styles.cellMuted, styles.colTime]} numberOfLines={1}>
+                    {formatDateTime(item.createdAt, i18n.language)}
+                  </Text>
+                  <Text style={[styles.cell, styles.cellMuted, styles.colCategory]} numberOfLines={1}>
+                    {item.category}
+                  </Text>
+                  <Text style={[styles.cell, styles.colMessage]} numberOfLines={isExpanded ? undefined : 1}>
+                    {item.message}
+                  </Text>
+                </View>
+                {isExpanded && item.metadata && (
+                  <Text selectable style={styles.logMetadata}>
+                    {JSON.stringify(item.metadata, null, 2)}
+                  </Text>
+                )}
+              </Pressable>
+            );
+          }
+
           return (
             <Pressable style={styles.logRow} onPress={() => setExpandedId(isExpanded ? null : item.id)}>
               <View style={styles.logHeaderRow}>
@@ -184,6 +243,7 @@ export function LogsScreen() {
 }
 
 function ToggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  const styles = useThemeStyles(createStyles);
   return (
     <View style={styles.toggleRow}>
       <Text style={styles.toggleLabel}>{label}</Text>
@@ -192,111 +252,168 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  settingsCard: {
-    marginHorizontal: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-  },
-  toggleLabel: {
-    color: colors.text,
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  filterChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    marginRight: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  filterChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  filterChipText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  filterChipTextActive: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  list: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.lg,
-  },
-  logRow: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  logHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  sourceBadge: {
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 1,
-  },
-  sourceBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  logTime: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  logMessage: {
-    fontSize: 13,
-    color: colors.text,
-    fontWeight: '600',
-  },
-  logCategory: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  logMetadata: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-    fontFamily: 'monospace',
-  },
-  empty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    marginTop: spacing.xl,
-  },
-  footer: {
-    paddingVertical: spacing.md,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    settingsCard: {
+      marginHorizontal: spacing.lg,
+      backgroundColor: c.surface,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: spacing.md,
+      marginBottom: spacing.md,
+    },
+    toggleRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.xs,
+    },
+    toggleLabel: {
+      color: c.text,
+      flex: 1,
+      marginRight: spacing.sm,
+    },
+    filterRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      paddingHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+    },
+    filterChip: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 999,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      marginRight: spacing.xs,
+      marginBottom: spacing.xs,
+    },
+    filterChipActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    filterChipText: {
+      fontSize: 12,
+      color: c.textMuted,
+    },
+    filterChipTextActive: {
+      color: c.textOnAccent,
+      fontWeight: '600',
+    },
+    list: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+    },
+    listWide: {
+      maxWidth: maxWidth.page,
+      width: '100%',
+      alignSelf: 'center',
+    },
+
+    // table (wide only)
+    headRow: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      // Opaque: the rows scroll underneath this.
+      backgroundColor: c.background,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    headCell: {
+      ...typography.eyebrow,
+      color: c.textMuted,
+    },
+    tableRow: {
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: c.border,
+      paddingVertical: spacing.sm,
+    },
+    tableRowLine: {
+      flexDirection: 'row',
+      gap: spacing.md,
+      alignItems: 'center',
+    },
+    cell: {
+      ...typography.caption,
+      color: c.text,
+    },
+    cellMuted: {
+      color: c.textMuted,
+    },
+    // Column widths are fixed so the values line up down the page — that alignment is the
+    // whole reason to use a table rather than four labelled fields.
+    colSource: {
+      width: 84,
+    },
+    colTime: {
+      width: 148,
+    },
+    colCategory: {
+      width: 160,
+    },
+    colMessage: {
+      flex: 1,
+    },
+    // The badge sizes itself to its text; inside a fixed column it must not stretch to fill.
+    sourceBadgeCell: {
+      alignSelf: 'flex-start',
+    },
+
+    logRow: {
+      backgroundColor: c.surface,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: spacing.sm,
+      marginBottom: spacing.xs,
+    },
+    logHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 2,
+    },
+    sourceBadge: {
+      borderWidth: 1,
+      borderRadius: 999,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 1,
+    },
+    sourceBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+    },
+    logTime: {
+      fontSize: 11,
+      color: c.textMuted,
+    },
+    logMessage: {
+      fontSize: 13,
+      color: c.text,
+      fontWeight: '600',
+    },
+    logCategory: {
+      fontSize: 11,
+      color: c.textMuted,
+    },
+    logMetadata: {
+      fontSize: 10,
+      color: c.textMuted,
+      marginTop: spacing.xs,
+      fontFamily: 'monospace',
+    },
+    empty: {
+      textAlign: 'center',
+      color: c.textMuted,
+      marginTop: spacing.xl,
+    },
+    footer: {
+      paddingVertical: spacing.md,
+    },
+  });

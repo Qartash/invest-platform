@@ -1,0 +1,1728 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Вопросы и обновления проекта — прототип</title>
+<style>
+  /* Токены 1:1 из mobile/src/theme/tokens.ts */
+  :root {
+    --primary:#2E6F45; --primary-dark:#1F4E30; --primary-soft:rgba(46,111,69,.10);
+    --bg:#F6F8F7; --surface:#FFFFFF; --surface-sunken:#F1F4F2;
+    --text:#16201A; --text-muted:#6B7A70;
+    --on-accent:#FFFFFF; --on-accent-muted:rgba(255,255,255,.82);
+    --border:#E2E7E3;
+    --success:#22A559; --success-soft:rgba(34,165,89,.12);
+    --danger:#DC2626;  --danger-soft:rgba(220,38,38,.10);
+    --warning:#D97706; --warning-soft:rgba(217,119,6,.14);
+    --chart:#2563EB;
+    --shadow: 0 6px 16px rgba(0,0,0,.08);
+
+    --xs:4px; --sm:8px; --md:16px; --lg:24px; --xl:32px;
+    --r-sm:8px; --r-md:10px; --r-lg:13px; --r-xl:16px; --r-pill:999px;
+  }
+  [data-theme="dark"] {
+    --primary:#63B37F; --primary-dark:#4C9366; --primary-soft:rgba(99,179,127,.14);
+    --bg:#171C18; --surface:#1F2620; --surface-sunken:#161B17;
+    --text:#E9EFEA; --text-muted:#93A398;
+    --on-accent:#0E1710; --on-accent-muted:rgba(14,23,16,.72);
+    --border:#2C352E;
+    --success:#4ECB7D; --success-soft:rgba(78,203,125,.14);
+    --danger:#F87171;  --danger-soft:rgba(248,113,113,.12);
+    --warning:#FBBF24; --warning-soft:rgba(251,191,36,.14);
+    --chart:#60A5FA;
+    --shadow: 0 6px 16px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    background:#0d100e; color:var(--text);
+    min-height:100vh; padding:28px 16px 60px;
+    display:flex; flex-direction:column; align-items:center; gap:22px;
+  }
+
+  /* ---- панель прототипа (не часть приложения) ---- */
+  .harness { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center; color:#8b968f; font-size:13px; max-width:960px; }
+  .harness-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  .harness-title { color:#6b746e; font-size:11px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; width:100%; text-align:center; margin-top:8px; }
+  .harness button {
+    font:inherit; font-size:12px; font-weight:600; cursor:pointer;
+    background:#1e2420; color:#cfd8d2; border:1px solid #2f3833;
+    border-radius:999px; padding:7px 14px;
+    transition:background 140ms cubic-bezier(.23,1,.32,1), transform 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .harness button:hover { background:#28302b; }
+  .harness button:active { transform:scale(.97); }
+  .harness button[aria-pressed="true"] { background:#2E6F45; border-color:#3d8a58; color:#fff; }
+  .harness button b {
+    display:inline-grid; place-items:center; width:16px; height:16px; margin-left:3px;
+    border-radius:50%; background:#2E6F45; color:#fff; font-size:10px; font-weight:700;
+    vertical-align:-2px;
+  }
+  .harness button[aria-pressed="true"] b { background:rgba(255,255,255,.28); }
+
+  .stage { display:flex; gap:26px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+  .slot { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .slot-caption { color:#8b968f; font-size:12px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; display:flex; align-items:center; gap:7px; }
+  .slot-tag {
+    display:inline-grid; place-items:center; width:19px; height:19px; border-radius:50%;
+    background:#2E6F45; color:#fff; font-size:11px; font-weight:700; letter-spacing:0;
+  }
+  .slot-tag.multi { width:auto; padding:0 8px; border-radius:999px; }
+  .slot-note { color:#6b746e; font-size:11px; max-width:390px; text-align:center; line-height:1.55; }
+  .slot-note.warn { color:#c99a4e; }
+  .slot-note b { color:#9fb0a5; font-weight:600; }
+
+  /* ---- телефон ---- */
+  .phone {
+    width:390px; height:820px; background:var(--bg);
+    border-radius:28px; overflow:hidden;
+    display:flex; flex-direction:column; position:relative;
+    box-shadow:0 0 0 1px rgba(255,255,255,.08), 0 24px 60px rgba(0,0,0,.5);
+  }
+  .screen { flex:1; display:flex; flex-direction:column; padding:0 var(--lg) var(--lg); overflow-y:auto; }
+  .screen::-webkit-scrollbar { width:0 }
+
+  .status {
+    height:44px; flex:none; display:flex; align-items:center; justify-content:space-between;
+    padding:0 var(--lg); font-size:12px; font-weight:600; color:var(--text);
+    font-variant-numeric:tabular-nums;
+  }
+
+  .navbar { display:flex; align-items:center; gap:var(--sm); height:48px; flex:none; margin-bottom:var(--sm); }
+  .navbar .back { width:32px; height:32px; margin-left:-6px; display:grid; place-items:center; color:var(--text); cursor:pointer; }
+  .navbar h1 { font-size:22px; font-weight:700; letter-spacing:-.4px; flex:1; }
+  .navbar .act { color:var(--primary); font-size:14px; font-weight:600; cursor:pointer; }
+
+  /* ---- типографика ---- */
+  .t-title    { font-size:22px; font-weight:700; letter-spacing:-.4px; }
+  .t-heading  { font-size:18px; font-weight:700; letter-spacing:-.2px; }
+  .t-sub      { font-size:16px; font-weight:600; }
+  .t-body     { font-size:15px; line-height:1.5; }
+  .t-body-b   { font-size:15px; font-weight:600; }
+  .t-label    { font-size:14px; line-height:1.5; }
+  .t-label-b  { font-size:14px; font-weight:600; }
+  .t-caption  { font-size:13px; color:var(--text-muted); line-height:1.5; }
+  .t-caption-b{ font-size:13px; font-weight:600; }
+  .t-micro    { font-size:12px; color:var(--text-muted); line-height:1.5; }
+  .t-eyebrow  { font-size:11px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:var(--text-muted); }
+  .muted { color:var(--text-muted); }
+  .nums { font-variant-numeric:tabular-nums; }
+  .center { text-align:center; }
+  .ok { color:var(--success); }
+  .warn { color:var(--warning); }
+  .bad { color:var(--danger); }
+
+  .stack-xs > * + * { margin-top:var(--xs); }
+  .stack-sm > * + * { margin-top:var(--sm); }
+  .stack-md > * + * { margin-top:var(--md); }
+  .stack-lg > * + * { margin-top:var(--lg); }
+
+  /* ---- карточки ---- */
+  .card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-xl); padding:var(--md);
+  }
+  .card-flush { padding:0; overflow:hidden; }
+  .section-head { display:flex; align-items:baseline; justify-content:space-between; margin:var(--lg) 0 var(--sm); }
+  .section-head:first-child { margin-top:0; }
+  .section-link { font-size:13px; font-weight:600; color:var(--primary); cursor:pointer; }
+
+  /* ---- бейджи ---- */
+  .pill {
+    display:inline-flex; align-items:center; gap:5px;
+    height:24px; padding:0 10px; border-radius:var(--r-pill);
+    font-size:12px; font-weight:700; white-space:nowrap;
+  }
+  .pill-sm { height:20px; padding:0 8px; font-size:11px; }
+  .pill-success { background:var(--success-soft); color:var(--success); }
+  .pill-warning { background:var(--warning-soft); color:var(--warning); }
+  .pill-danger  { background:var(--danger-soft);  color:var(--danger); }
+  .pill-muted   { background:var(--surface-sunken); color:var(--text-muted); border:1px solid var(--border); }
+  .pill-primary { background:var(--primary-soft); color:var(--primary); }
+
+  /* ---- кнопки ---- */
+  .btn {
+    width:100%; height:52px; border-radius:var(--r-lg); border:1px solid transparent;
+    font:inherit; font-size:15px; font-weight:600; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:transform 140ms cubic-bezier(.23,1,.32,1), background 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .btn:active { transform:scale(.98); }
+  .btn-primary { background:var(--primary); color:var(--on-accent); }
+  .btn-primary:hover { background:var(--primary-dark); }
+  .btn-outline { background:transparent; color:var(--text); border-color:var(--border); }
+  .btn-outline:hover { background:var(--surface); }
+  .btn-sm { height:42px; font-size:14px; }
+  .btn:disabled { opacity:.45; cursor:default; }
+
+  .progress { height:8px; border-radius:var(--r-pill); background:var(--surface-sunken); overflow:hidden; }
+  .progress > span { display:block; height:100%; background:var(--primary); border-radius:var(--r-pill); }
+  .progress.thin { height:5px; }
+
+  .avatar {
+    width:34px; height:34px; flex:none; border-radius:var(--r-pill);
+    background:var(--surface-sunken); border:1px solid var(--border);
+    display:grid; place-items:center; font-size:13px; font-weight:700; color:var(--text-muted);
+  }
+  .avatar.sm { width:28px; height:28px; font-size:11px; }
+  .avatar.founder { background:var(--primary); color:var(--on-accent); border-color:transparent; }
+
+  /* ---- вкладки проекта ---- */
+  .tabs {
+    display:flex; gap:2px; background:var(--surface-sunken);
+    border:1px solid var(--border); border-radius:var(--r-lg); padding:3px; flex:none;
+  }
+  .tabs button {
+    flex:1; height:34px; border:none; background:none; font:inherit;
+    font-size:13px; font-weight:600; color:var(--text-muted); cursor:pointer;
+    border-radius:var(--r-md); display:flex; align-items:center; justify-content:center; gap:5px;
+    transition:background 140ms cubic-bezier(.23,1,.32,1), color 140ms;
+  }
+  .tabs button[aria-pressed="true"] { background:var(--surface); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.08); }
+  .tabs .dot-new { width:6px; height:6px; border-radius:50%; background:var(--warning); }
+
+  /* ---- шапка отзывчивости основателя ---- */
+  .respond-card { display:flex; align-items:center; gap:12px; }
+  .respond-ico {
+    width:40px; height:40px; flex:none; border-radius:var(--r-md);
+    background:var(--success-soft); color:var(--success); display:grid; place-items:center;
+  }
+  .respond-ico.slow { background:var(--warning-soft); color:var(--warning); }
+
+  /* ---- сортировка ---- */
+  .sortbar { display:flex; gap:6px; align-items:center; overflow-x:auto; padding-bottom:2px; }
+  .sortbar::-webkit-scrollbar { height:0 }
+  .chip {
+    height:30px; padding:0 12px; border-radius:var(--r-pill); flex:none;
+    border:1px solid var(--border); background:var(--surface);
+    font:inherit; font-size:12px; font-weight:600; color:var(--text-muted); cursor:pointer;
+    display:flex; align-items:center; gap:5px;
+    transition:background 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .chip[aria-pressed="true"] { background:var(--primary-soft); color:var(--primary); border-color:transparent; }
+
+  /* ---- вопрос ---- */
+  .qa { padding:var(--md); }
+  .qa + .qa { border-top:1px solid var(--border); }
+  .qa-head { display:flex; align-items:center; gap:10px; }
+  .qa-who { flex:1; min-width:0; }
+  .qa-name { font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px; }
+  .qa-time { font-size:11px; color:var(--text-muted); margin-top:1px; }
+  .qa-text { font-size:15px; line-height:1.5; margin-top:10px; }
+  .qa-pin { color:var(--warning); flex:none; }
+
+  /* ---- оценка ---- */
+  .qa-actions { display:flex; align-items:center; gap:var(--sm); margin-top:12px; flex-wrap:wrap; }
+  .vote {
+    display:inline-flex; align-items:center; gap:6px; height:32px; padding:0 11px;
+    border-radius:var(--r-pill); border:1px solid var(--border); background:var(--surface);
+    font:inherit; font-size:13px; font-weight:700; color:var(--text-muted); cursor:pointer;
+    font-variant-numeric:tabular-nums;
+    transition:background 140ms cubic-bezier(.23,1,.32,1), color 140ms, transform 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .vote:active { transform:scale(.94); }
+  .vote[aria-pressed="true"] { background:var(--primary-soft); color:var(--primary); border-color:transparent; }
+  .vote.helpful[aria-pressed="true"] { background:var(--success-soft); color:var(--success); }
+  .vote.flat { border-color:transparent; background:none; padding:0 4px; font-weight:600; }
+  .vote.flat:hover { color:var(--text); }
+
+  /* ---- ответ основателя ---- */
+  .answer {
+    margin-top:12px; margin-left:6px; padding:12px var(--md) 12px 14px;
+    border-left:3px solid var(--primary); background:var(--primary-soft);
+    border-radius:0 var(--r-lg) var(--r-lg) 0;
+  }
+  .answer-head { display:flex; align-items:center; gap:8px; }
+  .answer-name { font-size:13px; font-weight:700; color:var(--primary); }
+  .answer-text { font-size:14px; line-height:1.55; margin-top:8px; }
+  .answer-actions { display:flex; align-items:center; gap:var(--sm); margin-top:10px; }
+
+  .await {
+    margin-top:12px; padding:10px 12px; border-radius:var(--r-md);
+    background:var(--surface-sunken); border:1px dashed var(--border);
+    font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:8px;
+  }
+
+  /* ---- поле ввода ---- */
+  .composer {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--r-xl); padding:var(--md);
+  }
+  .composer textarea {
+    width:100%; min-height:96px; resize:none; border:none; background:none;
+    font:inherit; font-size:15px; line-height:1.5; color:var(--text); outline:none;
+  }
+  .composer textarea::placeholder { color:var(--text-muted); }
+  .composer-foot { display:flex; align-items:center; justify-content:space-between; gap:var(--sm); margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+  .counter { font-size:12px; color:var(--text-muted); font-variant-numeric:tabular-nums; }
+  .counter.warn { color:var(--warning); }
+  .btn-send { width:auto; height:38px; padding:0 18px; font-size:14px; }
+
+  .notice {
+    display:flex; gap:10px; padding:12px var(--md); border-radius:var(--r-lg);
+    background:var(--warning-soft); color:var(--warning); font-size:12px; line-height:1.5;
+  }
+  .notice.info { background:var(--primary-soft); color:var(--primary); }
+  .notice svg { flex:none; margin-top:1px; }
+
+  /* ---- нижняя панель ввода ---- */
+  .dock {
+    flex:none; padding:var(--sm) var(--lg) var(--md);
+    background:var(--surface); border-top:1px solid var(--border);
+  }
+  .dock-row { display:flex; align-items:center; gap:var(--sm); }
+  .dock-input {
+    flex:1; height:44px; border-radius:var(--r-pill); background:var(--surface-sunken);
+    border:1px solid var(--border); display:flex; align-items:center; padding:0 var(--md);
+    font-size:14px; color:var(--text-muted);
+  }
+  .dock-send {
+    width:44px; height:44px; flex:none; border-radius:var(--r-pill); border:none;
+    background:var(--primary); color:var(--on-accent); display:grid; place-items:center; cursor:pointer;
+  }
+
+  /* ---- уведомления ---- */
+  .notif { display:flex; gap:12px; padding:14px var(--md); cursor:pointer; }
+  .notif + .notif { border-top:1px solid var(--border); }
+  .notif:hover { background:var(--surface-sunken); }
+  .notif.unread { background:var(--primary-soft); }
+  .notif-ico {
+    width:38px; height:38px; flex:none; border-radius:var(--r-md);
+    display:grid; place-items:center; background:var(--surface-sunken);
+    border:1px solid var(--border); color:var(--text-muted);
+  }
+  .notif-ico.q { background:var(--warning-soft); color:var(--warning); border-color:transparent; }
+  .notif-ico.a { background:var(--primary-soft); color:var(--primary); border-color:transparent; }
+  .notif-ico.u { background:var(--success-soft); color:var(--success); border-color:transparent; }
+  .notif-main { flex:1; min-width:0; }
+  .notif-title { font-size:14px; font-weight:600; line-height:1.4; }
+  .notif-sub { font-size:12px; color:var(--text-muted); margin-top:3px; line-height:1.45; }
+  .notif-time { font-size:11px; color:var(--text-muted); flex:none; }
+
+  /* ---- пуш-баннер ---- */
+  .push {
+    position:absolute; left:12px; right:12px; top:52px; z-index:5;
+    background:rgba(255,255,255,.92); backdrop-filter:blur(12px);
+    border-radius:var(--r-xl); padding:12px 14px; display:flex; gap:11px;
+    box-shadow:0 10px 30px rgba(0,0,0,.28);
+  }
+  [data-theme="dark"] .push { background:rgba(40,48,42,.92); }
+  .push-ico { width:32px; height:32px; flex:none; border-radius:var(--r-sm); background:var(--primary); color:var(--on-accent); display:grid; place-items:center; font-size:15px; font-weight:700; }
+  .push-app { font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.6px; }
+  .push-title { font-size:13px; font-weight:700; margin-top:2px; }
+  .push-body { font-size:12px; color:var(--text-muted); margin-top:2px; line-height:1.45; }
+
+  /* ---- очередь основателя ---- */
+  .queue { display:flex; gap:11px; padding:var(--md); cursor:pointer; }
+  .queue + .queue { border-top:1px solid var(--border); }
+  .queue-main { flex:1; min-width:0; }
+  .queue-q { font-size:14px; line-height:1.45; }
+  .queue-meta { display:flex; align-items:center; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .sla { font-size:11px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+  /* ---- обновления ---- */
+  .post { padding:var(--md); }
+  .post + .post { border-top:1px solid var(--border); }
+  .post-head { display:flex; align-items:center; gap:10px; }
+  .post-title { font-size:16px; font-weight:700; letter-spacing:-.2px; margin-top:12px; }
+  .post-text { font-size:14px; line-height:1.6; margin-top:6px; color:var(--text); }
+  .post-photo {
+    margin-top:12px; height:150px; border-radius:var(--r-lg);
+    background:linear-gradient(135deg, var(--surface-sunken), var(--border));
+    display:grid; place-items:center; color:var(--text-muted); font-size:12px;
+  }
+  .post-foot { display:flex; align-items:center; gap:var(--sm); margin-top:12px; }
+  .reach { font-size:11px; color:var(--text-muted); margin-left:auto; font-variant-numeric:tabular-nums; }
+  .auto-post {
+    display:flex; gap:10px; align-items:flex-start; padding:12px var(--md);
+    background:var(--surface-sunken); border-radius:var(--r-lg); border:1px dashed var(--border);
+  }
+
+  /* ---- поля формы ---- */
+  .field { display:block; }
+  .field-label { font-size:13px; font-weight:600; margin-bottom:6px; display:block; }
+  .input {
+    width:100%; height:48px; border-radius:var(--r-lg);
+    background:var(--surface); border:1px solid var(--border);
+    padding:0 var(--md); font:inherit; font-size:15px; color:var(--text); outline:none;
+  }
+  .input::placeholder { color:var(--text-muted); }
+  .switch-row { display:flex; align-items:center; gap:12px; padding:12px var(--md); }
+  .switch-row + .switch-row { border-top:1px solid var(--border); }
+  .switch-main { flex:1; }
+  .switch {
+    width:44px; height:26px; flex:none; border-radius:var(--r-pill);
+    background:var(--border); position:relative; cursor:pointer;
+    transition:background 160ms cubic-bezier(.23,1,.32,1);
+  }
+  .switch::after {
+    content:""; position:absolute; top:3px; left:3px; width:20px; height:20px;
+    border-radius:50%; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.25);
+    transition:transform 160ms cubic-bezier(.23,1,.32,1);
+  }
+  .switch[aria-pressed="true"] { background:var(--primary); }
+  .switch[aria-pressed="true"]::after { transform:translateX(18px); }
+
+  /* ---- карточка проекта в списке ---- */
+  .pcard { padding:var(--md); cursor:pointer; }
+  .pcard + .pcard { border-top:1px solid var(--border); }
+  .pcard-top { display:flex; gap:12px; align-items:flex-start; }
+  .pcard-thumb {
+    width:52px; height:52px; flex:none; border-radius:var(--r-md);
+    background:linear-gradient(135deg, var(--surface-sunken), var(--border));
+    display:grid; place-items:center; font-size:20px;
+  }
+  .pcard-main { flex:1; min-width:0; }
+  .pcard-name { font-size:15px; font-weight:700; letter-spacing:-.2px; }
+  .pcard-meta { display:flex; align-items:center; gap:6px; margin-top:5px; flex-wrap:wrap; }
+  .resp-badge {
+    display:inline-flex; align-items:center; gap:4px; height:21px; padding:0 8px;
+    border-radius:var(--r-pill); font-size:11px; font-weight:700; white-space:nowrap;
+  }
+  .resp-good { background:var(--success-soft); color:var(--success); }
+  .resp-mid  { background:var(--warning-soft); color:var(--warning); }
+  .resp-bad  { background:var(--danger-soft);  color:var(--danger); }
+  .pcard-nums { display:flex; align-items:baseline; gap:6px; margin-top:11px; }
+  .pcard-sum { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; }
+
+  /* ---- сводка основателя ---- */
+  .digest {
+    background:var(--primary); color:var(--on-accent);
+    border-radius:var(--r-xl); padding:var(--md); box-shadow:var(--shadow);
+  }
+  .digest-title { font-size:16px; font-weight:700; }
+  .digest-body { font-size:13px; line-height:1.55; color:var(--on-accent-muted); margin-top:6px; }
+  .digest-btn {
+    width:100%; height:42px; margin-top:12px; border:none; border-radius:var(--r-lg);
+    background:rgba(255,255,255,.18); color:var(--on-accent); font:inherit;
+    font-size:14px; font-weight:600; cursor:pointer;
+  }
+  [data-theme="dark"] .digest-btn { background:rgba(0,0,0,.14); }
+
+  /* ---- пустое состояние ---- */
+  .empty { text-align:center; padding:var(--xl) var(--md); }
+  .empty-ico {
+    width:64px; height:64px; margin:0 auto var(--md); border-radius:var(--r-xl);
+    background:var(--surface-sunken); border:1px solid var(--border);
+    display:grid; place-items:center; color:var(--text-muted);
+  }
+
+  /* ---- панель «что ещё нужно» ---- */
+  .spec {
+    max-width:860px; background:#151a17; border:1px solid #242c26;
+    border-radius:16px; padding:24px; color:#cfd8d2; font-size:13px; line-height:1.65;
+  }
+  .spec h2 { font-size:15px; color:#eaf0ec; margin-bottom:6px; letter-spacing:-.2px; }
+  .spec h3 { font-size:12px; color:#8b968f; text-transform:uppercase; letter-spacing:.8px; margin:20px 0 8px; }
+  .spec ul { list-style:none; }
+  .spec li { padding-left:18px; position:relative; margin-bottom:7px; }
+  .spec li::before { content:"—"; position:absolute; left:0; color:#4d5a52; }
+  .spec b { color:#eaf0ec; font-weight:600; }
+  .spec code { background:#1e2420; border:1px solid #2f3833; border-radius:5px; padding:1px 6px; font-size:12px; color:#9fd6b4; }
+  .spec .two { display:flex; gap:28px; flex-wrap:wrap; }
+  .spec .two > div { flex:1; min-width:250px; }
+  .spec ul.map li { padding-left:0; margin-bottom:13px; }
+  .spec ul.map li::before { content:none; }
+  .spec ul.map span { color:#7d8a83; font-size:12px; }
+  .spec ul.map span b { color:#9fb0a5; font-weight:600; }
+  .spec ul.map i {
+    display:inline-grid; place-items:center; width:19px; height:19px; margin-right:6px;
+    border-radius:50%; background:#2E6F45; color:#fff; font-size:11px; font-weight:700;
+    font-style:normal; vertical-align:-3px;
+  }
+</style>
+</head>
+<body data-theme="dark">
+
+<div class="harness">
+  <div class="harness-row">
+    <button id="themeBtn">Светлая / тёмная</button>
+    <button data-filter="all" aria-pressed="true">Все</button>
+  </div>
+  <div class="harness-title">Инвестор</div>
+  <div class="harness-row">
+    <button data-filter="catalog">Список проектов <b>1</b></button>
+    <button data-filter="list">Вкладка «Вопросы» <b>1</b></button>
+    <button data-filter="ask">Задать вопрос <b>5</b></button>
+    <button data-filter="thread">Ветка · оценки</button>
+    <button data-filter="updates">Обновления <b>4</b></button>
+    <button data-filter="notif">Уведомления <b>7</b></button>
+  </div>
+  <div class="harness-title">Основатель и модератор</div>
+  <div class="harness-row">
+    <button data-filter="queue">Очередь вопросов <b>2</b></button>
+    <button data-filter="answer">Ответ основателя <b>3</b></button>
+    <button data-filter="founder-notif">Напоминание <b>6</b></button>
+    <button data-filter="compose">Новое обновление <b>6</b></button>
+    <button data-filter="admin">Модерация <b>7</b></button>
+  </div>
+  <div class="harness-title">Крайние случаи</div>
+  <div class="harness-row">
+    <button data-filter="empty">Пусто · лимиты</button>
+    <button data-filter="spec">📋 Что нужно сделать <b>8</b></button>
+  </div>
+</div>
+
+<div class="stage">
+
+  <!-- ═══════════ 0. СПИСОК ПРОЕКТОВ ═══════════ -->
+  <div class="slot" data-screen="catalog">
+    <div class="slot-caption"><span class="slot-tag">1</span> Список проектов</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar"><h1>Проекты</h1></div>
+
+        <div class="sortbar">
+          <button class="chip" aria-pressed="true">Все</button>
+          <button class="chip">Еда</button>
+          <button class="chip">Услуги</button>
+          <button class="chip">Производство</button>
+        </div>
+
+        <div style="height:var(--sm)"></div>
+
+        <div class="card card-flush">
+
+          <div class="pcard">
+            <div class="pcard-top">
+              <div class="pcard-thumb">🥖</div>
+              <div class="pcard-main">
+                <div class="pcard-name">Пекарня «Лаваш»</div>
+                <div class="pcard-meta">
+                  <span class="pill pill-sm pill-muted">низкий риск</span>
+                  <span class="resp-badge resp-good">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                    отвечает за 4 ч
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="pcard-nums">
+              <span class="pcard-sum">6 200 000 ֏</span>
+              <span class="t-micro">из 8 000 000 ֏ · 94 инвестора</span>
+            </div>
+            <div class="progress thin" style="margin-top:8px"><span style="width:78%"></span></div>
+          </div>
+
+          <div class="pcard">
+            <div class="pcard-top">
+              <div class="pcard-thumb">☕</div>
+              <div class="pcard-main">
+                <div class="pcard-name">Кофейня «Мокко»</div>
+                <div class="pcard-meta">
+                  <span class="pill pill-sm pill-muted">средний риск</span>
+                  <span class="resp-badge resp-mid">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                    отвечает за 2 дня
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="pcard-nums">
+              <span class="pcard-sum">1 850 000 ֏</span>
+              <span class="t-micro">из 5 000 000 ֏ · 23 инвестора</span>
+            </div>
+            <div class="progress thin" style="margin-top:8px"><span style="width:37%"></span></div>
+          </div>
+
+          <div class="pcard">
+            <div class="pcard-top">
+              <div class="pcard-thumb">🚿</div>
+              <div class="pcard-main">
+                <div class="pcard-name">Автомойка «Драйв»</div>
+                <div class="pcard-meta">
+                  <span class="pill pill-sm pill-muted">высокий риск</span>
+                  <span class="resp-badge resp-bad">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 001.7 3h16.6A2 2 0 0022 18L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+                    не отвечает · 6 вопросов
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="pcard-nums">
+              <span class="pcard-sum">740 000 ֏</span>
+              <span class="t-micro">из 4 000 000 ֏ · 9 инвесторов</span>
+            </div>
+            <div class="progress thin" style="margin-top:8px"><span style="width:18%"></span></div>
+          </div>
+
+          <div class="pcard">
+            <div class="pcard-top">
+              <div class="pcard-thumb">🐄</div>
+              <div class="pcard-main">
+                <div class="pcard-name">Ферма «Арагац»</div>
+                <div class="pcard-meta">
+                  <span class="pill pill-sm pill-muted">средний риск</span>
+                  <span class="resp-badge resp-good">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                    отвечает за 9 ч
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="pcard-nums">
+              <span class="pcard-sum">3 100 000 ֏</span>
+              <span class="t-micro">из 3 500 000 ֏ · 51 инвестор</span>
+            </div>
+            <div class="progress thin" style="margin-top:8px"><span style="width:89%"></span></div>
+          </div>
+
+        </div>
+
+        <div style="height:var(--md)"></div>
+        <div class="notice info">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+          <div>Бейдж считается сам: медианное время ответа и доля отвеченных вопросов. Рукой его выставить нельзя.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note"><b>Тут вся сила фичи.</b> Не в самих вопросах, а в том, что отзывчивость видна ещё до открытия проекта — рядом с риском и суммой сбора. «Не отвечает · 6 вопросов» стоит инвестору дороже, чем любой дисклеймер.</div>
+  </div>
+
+  <!-- ═══════════ 1. ВКЛАДКА «ВОПРОСЫ» ═══════════ -->
+  <div class="slot" data-screen="list">
+    <div class="slot-caption"><span class="slot-tag">1</span> Проект → Вопросы</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </div>
+          <h1>Пекарня «Лаваш»</h1>
+        </div>
+
+        <div class="tabs">
+          <button>О проекте</button>
+          <button>Обновления <span class="dot-new"></span></button>
+          <button aria-pressed="true">Вопросы</button>
+          <button>Отчёты</button>
+        </div>
+
+        <div style="height:var(--md)"></div>
+
+        <div class="card respond-card">
+          <div class="respond-ico">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg>
+          </div>
+          <div class="row-main" style="flex:1">
+            <div class="t-label-b">Основатель отвечает</div>
+            <div class="t-micro">14 из 15 вопросов · в среднем за 4 часа</div>
+          </div>
+          <div class="pill pill-success">98%</div>
+        </div>
+
+        <div style="height:var(--md)"></div>
+
+        <div class="sortbar">
+          <button class="chip" aria-pressed="true">Популярные</button>
+          <button class="chip">Новые</button>
+          <button class="chip">Без ответа <span class="pill pill-sm pill-warning" style="height:16px">1</span></button>
+          <button class="chip">От инвесторов</button>
+        </div>
+
+        <div style="height:var(--sm)"></div>
+
+        <div class="card card-flush">
+
+          <!-- закреплённый -->
+          <div class="qa">
+            <div class="qa-head">
+              <div class="avatar">АМ</div>
+              <div class="qa-who">
+                <div class="qa-name">Ара М. <span class="pill pill-sm pill-primary">инвестор</span></div>
+                <div class="qa-time">6 дней назад</div>
+              </div>
+              <div class="qa-pin" title="Закреплено основателем">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2l8 8-3 1-1 5-4-4-6 6-1-1 6-6-4-4 5-1z"/></svg>
+              </div>
+            </div>
+            <div class="qa-text">Что будет с моими деньгами, если проект не соберёт всю сумму до дедлайна?</div>
+
+            <div class="answer">
+              <div class="answer-head">
+                <div class="avatar sm founder">ГП</div>
+                <div class="answer-name">Гарик П. · основатель</div>
+                <span class="pill pill-sm pill-primary">автор</span>
+              </div>
+              <div class="answer-text">Если к 30 сентября не собираем 8 000 000 ֏, сбор закрывается и все деньги возвращаются на кошельки автоматически, в тот же день. Тикеты аннулируются.</div>
+              <div class="answer-actions">
+                <button class="vote helpful" aria-pressed="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4V10z"/><path d="M7 10l5-7c1.4 0 2 1 2 2l-1 5h5a2 2 0 012 2.3l-1.3 6A2 2 0 0116.7 21H7"/></svg>
+                  Ответ помог · 34
+                </button>
+              </div>
+            </div>
+
+            <div class="qa-actions">
+              <button class="vote" aria-pressed="true">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+                41
+              </button>
+              <button class="vote flat">2 уточнения</button>
+            </div>
+          </div>
+
+          <!-- обычный отвеченный -->
+          <div class="qa">
+            <div class="qa-head">
+              <div class="avatar">НС</div>
+              <div class="qa-who">
+                <div class="qa-name">Нарек С.</div>
+                <div class="qa-time">3 дня назад</div>
+              </div>
+            </div>
+            <div class="qa-text">Кто производит печи? В бюджете 2 400 000 ֏ на оборудование — это закупка или лизинг?</div>
+
+            <div class="answer">
+              <div class="answer-head">
+                <div class="avatar sm founder">ГП</div>
+                <div class="answer-name">Гарик П. · основатель</div>
+              </div>
+              <div class="answer-text">Закупка, печи турецкие — Ozti. Договор и счёт приложены во вкладке «О проекте» → Документы.</div>
+              <div class="answer-actions">
+                <button class="vote helpful">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4V10z"/><path d="M7 10l5-7c1.4 0 2 1 2 2l-1 5h5a2 2 0 012 2.3l-1.3 6A2 2 0 0116.7 21H7"/></svg>
+                  Ответ помог · 12
+                </button>
+              </div>
+            </div>
+
+            <div class="qa-actions">
+              <button class="vote">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+                18
+              </button>
+            </div>
+          </div>
+
+          <!-- без ответа -->
+          <div class="qa">
+            <div class="qa-head">
+              <div class="avatar">ЛА</div>
+              <div class="qa-who">
+                <div class="qa-name">Лилит А. <span class="pill pill-sm pill-primary">инвестор</span></div>
+                <div class="qa-time">вчера</div>
+              </div>
+            </div>
+            <div class="qa-text">Почему выручка в июне на 30% ниже, чем обещали в плане?</div>
+            <div class="await">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+              Основатель пока не ответил · 22 часа
+            </div>
+            <div class="qa-actions">
+              <button class="vote">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+                27
+              </button>
+              <button class="vote flat">Мне тоже интересно</button>
+            </div>
+          </div>
+
+        </div>
+
+        <div style="height:var(--md)"></div>
+        <div class="t-micro center">Вопросы и ответы видят все. Личных сообщений на платформе нет.</div>
+      </div>
+
+      <div class="dock">
+        <div class="dock-row">
+          <div class="dock-input">Задать вопрос основателю…</div>
+          <button class="dock-send">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note"><b>Голос «↑» решает две задачи:</b> поднимает вопрос в топ для читателей и показывает основателю, на что отвечать первым. «Ответ помог» — отдельная оценка на ответ, из неё считается рейтинг отзывчивости в шапке.</div>
+  </div>
+
+  <!-- ═══════════ 2. ЗАДАТЬ ВОПРОС ═══════════ -->
+  <div class="slot" data-screen="ask">
+    <div class="slot-caption"><span class="slot-tag">5</span> Задать вопрос</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </div>
+          <h1>Вопрос</h1>
+        </div>
+
+        <div class="notice info">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+          <div>Вопрос увидят все, кто открывает проект — и ваше имя тоже. Ответ придёт уведомлением.</div>
+        </div>
+
+        <div style="height:var(--md)"></div>
+
+        <div class="composer">
+          <textarea placeholder="Что вы хотите узнать у основателя?">Есть ли у вас договор аренды на помещение и на какой срок? В бюджете аренда заложена на 12 месяцев, а проект рассчитан на 3 года.</textarea>
+          <div class="composer-foot">
+            <div class="counter">168 / 500</div>
+            <button class="btn btn-primary btn-send">Отправить</button>
+          </div>
+        </div>
+
+        <div style="height:var(--lg)"></div>
+
+        <div class="t-eyebrow">Похожие вопросы уже есть</div>
+        <div style="height:var(--sm)"></div>
+        <div class="card card-flush">
+          <div class="qa" style="padding:12px var(--md)">
+            <div class="t-label">Помещение в собственности или в аренде?</div>
+            <div class="qa-actions" style="margin-top:8px">
+              <span class="pill pill-sm pill-success">отвечен</span>
+              <span class="t-micro">↑ 9 · 2 недели назад</span>
+            </div>
+          </div>
+          <div class="qa" style="padding:12px var(--md)">
+            <div class="t-label">Что входит в статью «аренда и коммуналка»?</div>
+            <div class="qa-actions" style="margin-top:8px">
+              <span class="pill pill-sm pill-success">отвечен</span>
+              <span class="t-micro">↑ 4 · месяц назад</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:var(--lg)"></div>
+        <div class="notice">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 001.7 3h16.6A2 2 0 0022 18L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+          <div>Не больше 3 вопросов к одному проекту в сутки. Контакты, ссылки и предложения купить тикеты вне платформы удаляются модератором.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Показ похожих вопросов до отправки снимает половину дублей — основателю не приходится отвечать одно и то же. Поиск по уже заданным, пока человек печатает.</div>
+  </div>
+
+  <!-- ═══════════ 3. ВЕТКА С ОЦЕНКАМИ ═══════════ -->
+  <div class="slot" data-screen="thread">
+    <div class="slot-caption">Ветка вопроса · оценки</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </div>
+          <h1>Вопрос</h1>
+          <div class="act">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="qa-head">
+            <div class="avatar">АМ</div>
+            <div class="qa-who">
+              <div class="qa-name">Ара М. <span class="pill pill-sm pill-primary">инвестор</span></div>
+              <div class="qa-time">6 дней назад · 12 тикетов</div>
+            </div>
+          </div>
+          <div class="qa-text">Что будет с моими деньгами, если проект не соберёт всю сумму до дедлайна?</div>
+          <div class="qa-actions">
+            <button class="vote" aria-pressed="true">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+              41
+            </button>
+            <span class="t-micro">вы и ещё 40 считают вопрос важным</span>
+          </div>
+        </div>
+
+        <div style="height:var(--md)"></div>
+
+        <div class="answer" style="margin-left:0; border-radius:var(--r-lg)">
+          <div class="answer-head">
+            <div class="avatar sm founder">ГП</div>
+            <div class="answer-name">Гарик П. · основатель</div>
+            <span class="t-micro" style="margin-left:auto">5 дней назад</span>
+          </div>
+          <div class="answer-text">Если к 30 сентября не собираем 8 000 000 ֏, сбор закрывается и все деньги возвращаются на кошельки автоматически, в тот же день. Тикеты аннулируются, комиссия не удерживается.</div>
+          <div class="answer-actions">
+            <button class="vote helpful" aria-pressed="true">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4V10z"/><path d="M7 10l5-7c1.4 0 2 1 2 2l-1 5h5a2 2 0 012 2.3l-1.3 6A2 2 0 0116.7 21H7"/></svg>
+              Ответ помог · 34
+            </button>
+            <button class="vote">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V3h3v11z"/><path d="M17 14l-5 7c-1.4 0-2-1-2-2l1-5H6a2 2 0 01-2-2.3l1.3-6A2 2 0 017.3 3H17"/></svg>
+              Не отвечает · 2
+            </button>
+          </div>
+        </div>
+
+        <div style="height:var(--lg)"></div>
+        <div class="t-eyebrow">Уточнения · 2</div>
+        <div style="height:var(--sm)"></div>
+
+        <div class="card card-flush">
+          <div class="qa" style="padding:13px var(--md)">
+            <div class="qa-head">
+              <div class="avatar sm">ЛА</div>
+              <div class="qa-who">
+                <div class="qa-name" style="font-size:13px">Лилит А.</div>
+                <div class="qa-time">4 дня назад</div>
+              </div>
+            </div>
+            <div class="qa-text" style="font-size:14px; margin-top:8px">А инвест-кредит тоже вернётся или сгорит?</div>
+            <div class="qa-actions" style="margin-top:9px">
+              <button class="vote flat">↑ 6</button>
+              <button class="vote flat">Ответить</button>
+            </div>
+          </div>
+          <div class="qa" style="padding:13px var(--md)">
+            <div class="qa-head">
+              <div class="avatar sm founder">ГП</div>
+              <div class="qa-who">
+                <div class="qa-name" style="font-size:13px; color:var(--primary)">Гарик П. · основатель</div>
+                <div class="qa-time">4 дня назад</div>
+              </div>
+            </div>
+            <div class="qa-text" style="font-size:14px; margin-top:8px">Вернётся туда же, откуда списался — на инвест-кредит. Он не сгорает.</div>
+            <div class="qa-actions" style="margin-top:9px">
+              <button class="vote flat">↑ 11</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:var(--md)"></div>
+        <div class="switch-row card" style="padding:12px var(--md)">
+          <div class="switch-main">
+            <div class="t-label-b">Следить за веткой</div>
+            <div class="t-micro">Уведомим о новых ответах</div>
+          </div>
+          <div class="switch" aria-pressed="true"></div>
+        </div>
+      </div>
+
+      <div class="dock">
+        <div class="dock-row">
+          <div class="dock-input">Уточнить…</div>
+          <button class="dock-send">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note"><b>Две разные оценки.</b> На вопросе — «↑ важно» (сортировка). На ответе — «помог» / «не отвечает». Второе нужно, чтобы отписки вида «всё хорошо, скоро расскажем» были видны, а не тонули.</div>
+  </div>
+
+  <!-- ═══════════ 4. ОБНОВЛЕНИЯ ═══════════ -->
+  <div class="slot" data-screen="updates">
+    <div class="slot-caption"><span class="slot-tag">4</span> Обновления проекта</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </div>
+          <h1>Пекарня «Лаваш»</h1>
+        </div>
+
+        <div class="tabs">
+          <button>О проекте</button>
+          <button aria-pressed="true">Обновления</button>
+          <button>Вопросы</button>
+          <button>Отчёты</button>
+        </div>
+
+        <div style="height:var(--md)"></div>
+
+        <div class="card card-flush">
+
+          <div class="post">
+            <div class="post-head">
+              <div class="avatar founder">ГП</div>
+              <div class="qa-who">
+                <div class="qa-name">Гарик П. · основатель</div>
+                <div class="qa-time">2 дня назад</div>
+              </div>
+              <span class="pill pill-sm pill-primary">новое</span>
+            </div>
+            <div class="post-title">Открыли вторую точку на Комитаса</div>
+            <div class="post-text">Договор подписан, ремонт закончили за три недели вместо четырёх. Печь перевезли со склада, в понедельник первая выпечка. Аренда 320 000 ֏/мес — как в бюджете.</div>
+            <div class="post-photo">фото · 3</div>
+            <div class="post-foot">
+              <button class="vote helpful" aria-pressed="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4V10z"/><path d="M7 10l5-7c1.4 0 2 1 2 2l-1 5h5a2 2 0 012 2.3l-1.3 6A2 2 0 0116.7 21H7"/></svg>
+                47
+              </button>
+              <button class="vote flat">3 вопроса</button>
+              <span class="reach">прочли 68 из 94</span>
+            </div>
+          </div>
+
+          <div class="post">
+            <div class="auto-post">
+              <div class="notif-ico u" style="width:32px;height:32px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+              </div>
+              <div style="flex:1">
+                <div class="t-label-b">Опубликован отчёт за июль</div>
+                <div class="t-micro">Выручка 1 240 000 ֏ · дивиденды 62 000 ֏ выплачены 94 держателям</div>
+                <div class="t-micro" style="margin-top:6px; color:var(--primary); font-weight:600">Открыть отчёт →</div>
+              </div>
+            </div>
+            <div class="t-micro" style="margin-top:10px">Автоматически · 5 дней назад</div>
+          </div>
+
+          <div class="post">
+            <div class="post-head">
+              <div class="avatar founder">ГП</div>
+              <div class="qa-who">
+                <div class="qa-name">Гарик П. · основатель</div>
+                <div class="qa-time">3 недели назад</div>
+              </div>
+            </div>
+            <div class="post-title">Июнь вышел хуже плана — объясняю честно</div>
+            <div class="post-text">Выручка 870 000 ֏ вместо 1 200 000 ֏. Причина одна: две недели не работала печь, ждали деталь из Турции. Деталь пришла, с июля работаем в полную силу.</div>
+            <div class="post-foot">
+              <button class="vote helpful">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v11H4V10z"/><path d="M7 10l5-7c1.4 0 2 1 2 2l-1 5h5a2 2 0 012 2.3l-1.3 6A2 2 0 0116.7 21H7"/></svg>
+                31
+              </button>
+              <button class="vote flat">7 вопросов</button>
+              <span class="reach">прочли 91 из 94</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div style="height:var(--md)"></div>
+        <div class="switch-row card" style="padding:12px var(--md)">
+          <div class="switch-main">
+            <div class="t-label-b">Уведомлять об обновлениях</div>
+            <div class="t-micro">Включено для всех проектов в портфеле</div>
+          </div>
+          <div class="switch" aria-pressed="true"></div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note"><b>Отчёт сам становится постом.</b> Публикация финотчёта и выплата дивидендов уже есть в <code style="color:#9fd6b4">project-finance</code> — пусть они автоматически падают в ленту. Основателю не надо ничего писать, а инвестор получает уведомление.</div>
+  </div>
+
+  <!-- ═══════════ 5. УВЕДОМЛЕНИЯ ═══════════ -->
+  <div class="slot" data-screen="notif">
+    <div class="slot-caption"><span class="slot-tag">7</span> Уведомления инвестора</div>
+    <div class="phone">
+      <div class="push">
+        <div class="push-ico">М</div>
+        <div style="flex:1">
+          <div class="push-app">Микроинвест · сейчас</div>
+          <div class="push-title">Гарик П. ответил на ваш вопрос</div>
+          <div class="push-body">Пекарня «Лаваш» — «Договор аренды на 3 года с правом продления…»</div>
+        </div>
+      </div>
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <h1>Уведомления</h1>
+          <div class="act">Прочитать всё</div>
+        </div>
+
+        <div class="card card-flush">
+
+          <div class="notif unread">
+            <div class="notif-ico a">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+            </div>
+            <div class="notif-main">
+              <div class="notif-title">Гарик П. ответил на ваш вопрос</div>
+              <div class="notif-sub">Пекарня «Лаваш» · «Есть ли договор аренды…»</div>
+            </div>
+            <div class="notif-time">сейчас</div>
+          </div>
+
+          <div class="notif unread">
+            <div class="notif-ico u">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a2 2 0 012-2h9l5 5v11a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><path d="M8 12h8M8 16h5"/></svg>
+            </div>
+            <div class="notif-main">
+              <div class="notif-title">Новость проекта: открыли вторую точку</div>
+              <div class="notif-sub">Пекарня «Лаваш» · вы держите 12 тикетов</div>
+            </div>
+            <div class="notif-time">2 д</div>
+          </div>
+
+          <div class="notif">
+            <div class="notif-ico q">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+            </div>
+            <div class="notif-main">
+              <div class="notif-title">Новый вопрос по вашему проекту</div>
+              <div class="notif-sub">Лилит А.: «Почему выручка в июне на 30% ниже…» · ответьте за 48 ч</div>
+            </div>
+            <div class="notif-time">1 д</div>
+          </div>
+
+          <div class="notif">
+            <div class="notif-ico a">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+            </div>
+            <div class="notif-main">
+              <div class="notif-title">Ваш вопрос набрал 40 голосов</div>
+              <div class="notif-sub">Пекарня «Лаваш» · он закреплён вверху</div>
+            </div>
+            <div class="notif-time">3 д</div>
+          </div>
+
+          <div class="notif">
+            <div class="notif-ico q">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 10h8M8 13h5"/></svg>
+            </div>
+            <div class="notif-main">
+              <div class="notif-title">Новое уточнение в ветке, за которой вы следите</div>
+              <div class="notif-sub">«А инвест-кредит тоже вернётся или сгорит?»</div>
+            </div>
+            <div class="notif-time">4 д</div>
+          </div>
+
+          <div class="notif">
+            <div class="notif-ico">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 001.7 3h16.6A2 2 0 0022 18L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+            </div>
+            <div class="notif-main">
+              <div class="notif-title">Ваш вопрос скрыт модератором</div>
+              <div class="notif-sub">Причина: контактные данные в тексте</div>
+            </div>
+            <div class="notif-time">1 нед</div>
+          </div>
+
+        </div>
+
+        <div style="height:var(--md)"></div>
+        <div class="notice info">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+          <div>В базе лежит только тип и данные события — текст собирается на клиенте, поэтому уведомления переводятся на все три языка.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Шесть новых типов: <b>вопрос задан</b> (основателю), <b>ответ получен</b> (автору), <b>обновление</b> (держателям), <b>ответ в ветке</b> (подписчикам), <b>вопрос набрал голоса</b>, <b>скрыт модератором</b>.</div>
+  </div>
+
+  <!-- ═══════════ 6. ОЧЕРЕДЬ ОСНОВАТЕЛЯ ═══════════ -->
+  <div class="slot" data-screen="queue">
+    <div class="slot-caption"><span class="slot-tag">2</span> Основатель · очередь</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </div>
+          <h1>Вопросы</h1>
+        </div>
+
+        <div class="card respond-card">
+          <div class="respond-ico slow">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg>
+          </div>
+          <div class="row-main" style="flex:1">
+            <div class="t-label-b">2 вопроса ждут ответа</div>
+            <div class="t-micro">Ваш рейтинг ответов виден инвесторам</div>
+          </div>
+          <div class="pill pill-warning">87%</div>
+        </div>
+
+        <div style="height:var(--md)"></div>
+
+        <div class="sortbar">
+          <button class="chip" aria-pressed="true">Без ответа <span class="pill pill-sm pill-warning" style="height:16px">2</span></button>
+          <button class="chip">Все · 15</button>
+          <button class="chip">Закреплённые</button>
+        </div>
+
+        <div style="height:var(--sm)"></div>
+
+        <div class="card card-flush">
+
+          <div class="queue">
+            <div class="avatar">ЛА</div>
+            <div class="queue-main">
+              <div class="qa-name" style="font-size:13px">Лилит А. <span class="pill pill-sm pill-primary">инвестор · 8 тикетов</span></div>
+              <div class="queue-q" style="margin-top:7px">Почему выручка в июне на 30% ниже, чем обещали в плане?</div>
+              <div class="queue-meta">
+                <span class="pill pill-sm pill-primary">↑ 27</span>
+                <span class="sla bad">осталось 26 ч</span>
+                <span class="t-micro">· 12 человек ждут ответ</span>
+              </div>
+              <div style="margin-top:11px; display:flex; gap:var(--sm)">
+                <button class="btn btn-primary btn-sm" style="flex:1">Ответить</button>
+                <button class="btn btn-outline btn-sm" style="width:auto; padding:0 14px">Пожаловаться</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="queue">
+            <div class="avatar">ТК</div>
+            <div class="queue-main">
+              <div class="qa-name" style="font-size:13px">Тigran К.</div>
+              <div class="queue-q" style="margin-top:7px">Планируете ли доставку через Yandex Eats?</div>
+              <div class="queue-meta">
+                <span class="pill pill-sm pill-muted">↑ 3</span>
+                <span class="sla warn">осталось 41 ч</span>
+              </div>
+              <div style="margin-top:11px; display:flex; gap:var(--sm)">
+                <button class="btn btn-primary btn-sm" style="flex:1">Ответить</button>
+                <button class="btn btn-outline btn-sm" style="width:auto; padding:0 14px">Пожаловаться</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div style="height:var(--lg)"></div>
+        <div class="t-eyebrow">Отвеченные · 13</div>
+        <div style="height:var(--sm)"></div>
+        <div class="card card-flush">
+          <div class="queue" style="padding:12px var(--md)">
+            <div class="queue-main">
+              <div class="t-label">Кто производит печи?</div>
+              <div class="queue-meta" style="margin-top:6px">
+                <span class="pill pill-sm pill-success">отвечен за 2 ч</span>
+                <span class="t-micro">· 12 «помог»</span>
+              </div>
+            </div>
+          </div>
+          <div class="queue" style="padding:12px var(--md)">
+            <div class="queue-main">
+              <div class="t-label">Что будет, если не соберёте сумму?</div>
+              <div class="queue-meta" style="margin-top:6px">
+                <span class="pill pill-sm pill-success">отвечен за 5 ч</span>
+                <span class="pill pill-sm pill-warning">закреплён</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note warn"><b>48 часов на ответ — это правило, а не просьба.</b> Просрочка снижает процент в шапке проекта, который видят инвесторы. Никаких санкций деньгами, только репутация.</div>
+  </div>
+
+  <!-- ═══════════ 7. ОТВЕТ ОСНОВАТЕЛЯ ═══════════ -->
+  <div class="slot" data-screen="answer">
+    <div class="slot-caption"><span class="slot-tag">3</span> Основатель отвечает</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </div>
+          <h1>Ответ</h1>
+        </div>
+
+        <div class="card">
+          <div class="qa-head">
+            <div class="avatar">ЛА</div>
+            <div class="qa-who">
+              <div class="qa-name">Лилит А. <span class="pill pill-sm pill-primary">инвестор</span></div>
+              <div class="qa-time">вчера · 8 тикетов · ↑ 27</div>
+            </div>
+          </div>
+          <div class="qa-text">Почему выручка в июне на 30% ниже, чем обещали в плане?</div>
+        </div>
+
+        <div style="height:var(--md)"></div>
+
+        <div class="composer">
+          <textarea placeholder="Ответьте по существу — ответ увидят все">Две недели стояла печь, ждали деталь из Турции. Потеряли примерно 330 000 ֏ выручки. Деталь пришла 28 июня, с июля работаем в обычном режиме — за первую неделю уже 310 000 ֏.</textarea>
+          <div class="composer-foot">
+            <div class="counter">201 / 1000</div>
+            <button class="btn btn-primary btn-send">Ответить</button>
+          </div>
+        </div>
+
+        <div style="height:var(--md)"></div>
+
+        <div class="card card-flush">
+          <div class="switch-row">
+            <div class="switch-main">
+              <div class="t-label-b">Закрепить вверху</div>
+              <div class="t-micro">Вопрос будет первым для всех, кто откроет проект</div>
+            </div>
+            <div class="switch" aria-pressed="true"></div>
+          </div>
+          <div class="switch-row">
+            <div class="switch-main">
+              <div class="t-label-b">Опубликовать как обновление</div>
+              <div class="t-micro">Уведомим всех 94 держателей, а не только автора вопроса</div>
+            </div>
+            <div class="switch"></div>
+          </div>
+        </div>
+
+        <div style="height:var(--md)"></div>
+        <div class="notice">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 001.7 3h16.6A2 2 0 0022 18L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+          <div>Ответ нельзя удалить — только дополнить. Инвесторы должны видеть, что говорилось раньше.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note"><b>«Опубликовать как обновление»</b> — самый полезный переключатель здесь: один хороший ответ становится новостью для всех держателей, а не остаётся в ветке на 27 человек.</div>
+  </div>
+
+  <!-- ═══════════ 7б. НАПОМИНАНИЕ ОСНОВАТЕЛЮ ═══════════ -->
+  <div class="slot" data-screen="founder-notif">
+    <div class="slot-caption"><span class="slot-tag">6</span> Напоминание основателю</div>
+    <div class="phone">
+      <div class="push">
+        <div class="push-ico">М</div>
+        <div style="flex:1">
+          <div class="push-app">Микроинвест · сейчас</div>
+          <div class="push-title">Инвесторы месяц не слышали о проекте</div>
+          <div class="push-body">Пекарня «Лаваш» — расскажите, как идут дела. Это займёт две минуты.</div>
+        </div>
+      </div>
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <h1>Уведомления</h1>
+          <div class="act">Прочитать всё</div>
+        </div>
+
+        <div class="digest">
+          <div class="digest-title">Расскажите, как дела</div>
+          <div class="digest-body">Последнее обновление — 34 дня назад. 94 человека вложили в проект деньги и не знают, что происходит. Достаточно трёх предложений.</div>
+          <button class="digest-btn">Написать обновление</button>
+        </div>
+
+        <div style="height:var(--md)"></div>
+
+        <div class="card card-flush">
+
+          <div class="notif unread">
+            <div class="notif-ico q">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+            </div>
+            <div class="notif-main">
+              <div class="notif-title">2 вопроса ждут ответа</div>
+              <div class="notif-sub">По одному осталось 26 часов. Просрочка снизит ваш процент ответов.</div>
+            </div>
+            <div class="notif-time">1 ч</div>
+          </div>
+
+          <div class="notif unread">
+            <div class="notif-ico u">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-7"/><path d="M14 8h6v6"/></svg>
+            </div>
+            <div class="notif-main">
+              <div class="notif-title">Ваш ответ отметили полезным 34 раза</div>
+              <div class="notif-sub">«Что будет, если не соберёте сумму?» · закреплён вверху</div>
+            </div>
+            <div class="notif-time">2 д</div>
+          </div>
+
+          <div class="notif">
+            <div class="notif-ico q">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+            </div>
+            <div class="notif-main">
+              <div class="notif-title">Вопрос набирает голоса — 27</div>
+              <div class="notif-sub">«Почему выручка в июне на 30% ниже…» · ответьте первым делом</div>
+            </div>
+            <div class="notif-time">1 д</div>
+          </div>
+
+          <div class="notif">
+            <div class="notif-ico">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg>
+            </div>
+            <div class="notif-main">
+              <div class="notif-title">Ваш процент ответов упал до 87%</div>
+              <div class="notif-sub">Инвесторы видят его в списке проектов</div>
+            </div>
+            <div class="notif-time">3 д</div>
+          </div>
+
+        </div>
+
+        <div style="height:var(--md)"></div>
+        <div class="notice">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9L2 18a2 2 0 001.7 3h16.6A2 2 0 0022 18L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+          <div>Напоминание приходит раз в месяц и не чаще. Иначе основатель отключит уведомления совсем — и станет только хуже.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note"><b>Без этого экрана лента мертва.</b> Основатель не заходит в приложение сам — он приходит, когда его позвали. Раз в месяц, одним уведомлением, с готовой кнопкой.</div>
+  </div>
+
+  <!-- ═══════════ 8. НОВОЕ ОБНОВЛЕНИЕ ═══════════ -->
+  <div class="slot" data-screen="compose">
+    <div class="slot-caption"><span class="slot-tag">6</span> Написать обновление</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </div>
+          <h1>Обновление</h1>
+        </div>
+
+        <div class="notice">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+          <div>Последнее обновление было 3 недели назад. Проекты, которые молчат больше месяца, показываются в списке ниже.</div>
+        </div>
+
+        <div style="height:var(--md)"></div>
+
+        <label class="field">
+          <span class="field-label">Заголовок</span>
+          <input class="input" value="Открыли вторую точку на Комитаса" />
+        </label>
+
+        <div style="height:var(--md)"></div>
+
+        <div class="composer">
+          <textarea placeholder="Что произошло с проектом?">Договор подписан, ремонт закончили за три недели вместо четырёх. Печь перевезли со склада, в понедельник первая выпечка.</textarea>
+          <div class="composer-foot">
+            <div class="counter">134 / 2000</div>
+            <button class="btn btn-outline btn-sm" style="width:auto; padding:0 14px; gap:7px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+              Фото · 3
+            </button>
+          </div>
+        </div>
+
+        <div style="height:var(--md)"></div>
+
+        <div class="card card-flush">
+          <div class="switch-row">
+            <div class="switch-main">
+              <div class="t-label-b">Уведомить держателей</div>
+              <div class="t-micro">94 человека получат уведомление</div>
+            </div>
+            <div class="switch" aria-pressed="true"></div>
+          </div>
+          <div class="switch-row">
+            <div class="switch-main">
+              <div class="t-label-b">Разрешить вопросы к посту</div>
+              <div class="t-micro">Иначе только реакции</div>
+            </div>
+            <div class="switch" aria-pressed="true"></div>
+          </div>
+        </div>
+
+        <div style="height:var(--lg)"></div>
+        <div style="display:flex; gap:var(--sm)">
+          <button class="btn btn-outline" style="flex:1">В черновик</button>
+          <button class="btn btn-primary" style="flex:2">Опубликовать</button>
+        </div>
+
+        <div style="height:var(--md)"></div>
+        <div class="t-micro center">Пост можно отредактировать в течение часа, потом — только дополнить.</div>
+      </div>
+    </div>
+    <div class="slot-note">Напоминание о молчании — половина ценности ленты. Раз в месяц основателю падает уведомление «расскажите инвесторам, как дела», иначе ленту никто не ведёт.</div>
+  </div>
+
+  <!-- ═══════════ 9. МОДЕРАЦИЯ ═══════════ -->
+  <div class="slot" data-screen="admin">
+    <div class="slot-caption"><span class="slot-tag">7</span> Модерация</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </div>
+          <h1>Жалобы</h1>
+        </div>
+
+        <div class="sortbar">
+          <button class="chip" aria-pressed="true">Новые · 3</button>
+          <button class="chip">Скрытые</button>
+          <button class="chip">Отклонённые</button>
+        </div>
+
+        <div style="height:var(--sm)"></div>
+
+        <div class="card card-flush">
+
+          <div class="queue">
+            <div class="queue-main">
+              <div class="queue-meta" style="margin-top:0">
+                <span class="pill pill-sm pill-danger">3 жалобы</span>
+                <span class="t-micro">Пекарня «Лаваш» · вопрос</span>
+              </div>
+              <div class="queue-q" style="margin-top:9px">Пишите мне в вотсап +374 XX XXX XXX, продам свои тикеты дешевле</div>
+              <div class="t-micro" style="margin-top:7px">Вардан О. · 2 часа назад · причина: «сделка вне платформы»</div>
+              <div style="margin-top:11px; display:flex; gap:var(--sm)">
+                <button class="btn btn-primary btn-sm" style="flex:1; background:var(--danger); border-color:transparent">Скрыть</button>
+                <button class="btn btn-outline btn-sm" style="flex:1">Оставить</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="queue">
+            <div class="queue-main">
+              <div class="queue-meta" style="margin-top:0">
+                <span class="pill pill-sm pill-warning">1 жалоба</span>
+                <span class="t-micro">Кофейня «Мокко» · ответ</span>
+              </div>
+              <div class="queue-q" style="margin-top:9px">Это коммерческая тайна, не могу раскрывать цифры инвесторам.</div>
+              <div class="t-micro" style="margin-top:7px">Основатель · вчера · причина: «отказ отвечать»</div>
+              <div style="margin-top:11px; display:flex; gap:var(--sm)">
+                <button class="btn btn-outline btn-sm" style="flex:1">Написать основателю</button>
+                <button class="btn btn-outline btn-sm" style="flex:1">Отклонить</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div style="height:var(--lg)"></div>
+        <div class="t-eyebrow">Проекты, которые молчат</div>
+        <div style="height:var(--sm)"></div>
+        <div class="card card-flush">
+          <div class="queue" style="padding:12px var(--md)">
+            <div class="queue-main">
+              <div class="t-label-b">Автомойка «Драйв»</div>
+              <div class="queue-meta" style="margin-top:6px">
+                <span class="pill pill-sm pill-danger">6 вопросов без ответа</span>
+                <span class="t-micro">· 41 день молчания</span>
+              </div>
+            </div>
+          </div>
+          <div class="queue" style="padding:12px var(--md)">
+            <div class="queue-main">
+              <div class="t-label-b">Ферма «Арагац»</div>
+              <div class="queue-meta" style="margin-top:6px">
+                <span class="pill pill-sm pill-warning">2 вопроса без ответа</span>
+                <span class="t-micro">· 33 дня молчания</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:var(--md)"></div>
+        <div class="notice info">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01"/></svg>
+          <div>Молчание — сигнал для риск-рейтинга. Проект без ответов месяц можно автоматически двигать вниз в списке.</div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Скрытие — не удаление: текст остаётся в базе с пометкой, автор получает уведомление с причиной. Иначе будут жалобы «вы стёрли мой вопрос».</div>
+  </div>
+
+  <!-- ═══════════ 10. ПУСТО И ЛИМИТЫ ═══════════ -->
+  <div class="slot" data-screen="empty">
+    <div class="slot-caption">Пусто и лимиты</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+          </div>
+          <h1>Кофейня «Мокко»</h1>
+        </div>
+
+        <div class="tabs">
+          <button>О проекте</button>
+          <button>Обновления</button>
+          <button aria-pressed="true">Вопросы</button>
+          <button>Отчёты</button>
+        </div>
+
+        <div class="empty">
+          <div class="empty-ico">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+          </div>
+          <div class="t-sub">Вопросов пока нет</div>
+          <div class="t-caption" style="margin-top:6px">Спросите первым — основатель обычно отвечает в тот же день.</div>
+          <div style="height:var(--md)"></div>
+          <button class="btn btn-primary btn-sm">Задать вопрос</button>
+        </div>
+
+        <div style="height:var(--lg)"></div>
+        <div class="t-eyebrow">Состояния, которые надо предусмотреть</div>
+        <div style="height:var(--sm)"></div>
+
+        <div class="card card-flush">
+          <div class="queue" style="padding:13px var(--md)">
+            <div class="queue-main">
+              <div class="t-label-b warn">Лимит исчерпан</div>
+              <div class="t-micro" style="margin-top:4px">«Сегодня вы задали 3 вопроса этому проекту. Следующий — завтра.» Поле ввода заблокировано.</div>
+            </div>
+          </div>
+          <div class="queue" style="padding:13px var(--md)">
+            <div class="queue-main">
+              <div class="t-label-b warn">Проект ещё на модерации</div>
+              <div class="t-micro" style="margin-top:4px">Вопросы открываются только в статусе <code style="font-size:11px">active</code>. До этого вкладки нет.</div>
+            </div>
+          </div>
+          <div class="queue" style="padding:13px var(--md)">
+            <div class="queue-main">
+              <div class="t-label-b warn">Проект закрыт</div>
+              <div class="t-micro" style="margin-top:4px">Новые вопросы нельзя, старые видны — это история проекта.</div>
+            </div>
+          </div>
+          <div class="queue" style="padding:13px var(--md)">
+            <div class="queue-main">
+              <div class="t-label-b warn">Пользователь забанен</div>
+              <div class="t-micro" style="margin-top:4px">Вопросы остаются, имя меняется на «удалённый пользователь».</div>
+            </div>
+          </div>
+          <div class="queue" style="padding:13px var(--md)">
+            <div class="queue-main">
+              <div class="t-label-b warn">Свой вопрос без ответа</div>
+              <div class="t-micro" style="margin-top:4px">Можно отредактировать или удалить, пока основатель не ответил. После — нельзя.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Скучные экраны, но именно на них ломается: лимиты, баны, закрытые проекты, свой вопрос до и после ответа.</div>
+  </div>
+
+  <!-- ═══════════ СПЕЦИФИКАЦИЯ ═══════════ -->
+  <div class="slot" data-screen="spec">
+    <div class="spec">
+      <h2>Восемь решений и где они в макете</h2>
+      <ul class="map">
+        <li><b><i>1</i> Рейтинг отзывчивости.</b> «Отвечает на 14 из 15, в среднем за 4 часа». Считается сам, руками не выставляется.<br><span>Экраны: <b>Список проектов</b> — бейдж рядом с риском · <b>Вкладка «Вопросы»</b> — шапка · <b>Очередь</b> — вид основателя</span></li>
+        <li><b><i>2</i> 48 часов на ответ.</b> Правило, а не просьба. Просрочка снижает процент, никаких санкций деньгами.<br><span>Экран: <b>Очередь вопросов</b> — таймер «осталось 26 ч» на каждом</span></li>
+        <li><b><i>3</i> Ответ → обновление одним переключателем.</b> Хороший ответ уходит всем 94 держателям, а не 27 читателям ветки.<br><span>Экран: <b>Ответ основателя</b> — «Опубликовать как обновление»</span></li>
+        <li><b><i>4</i> Автопост из финотчёта.</b> <code>project-finance</code> уже публикует отчёты и платит дивиденды — пусть само падает в ленту.<br><span>Экран: <b>Обновления</b> — карточка «Опубликован отчёт за июль», помечена «Автоматически»</span></li>
+        <li><b><i>5</i> Похожие вопросы до отправки.</b> Снимает половину дублей, основателю не отвечать одно и то же.<br><span>Экран: <b>Задать вопрос</b> — блок под полем ввода</span></li>
+        <li><b><i>6</i> Напоминание о молчании.</b> Раз в месяц и не чаще, с готовой кнопкой. Без него ленту никто не ведёт.<br><span>Экраны: <b>Напоминание основателю</b> — пуш и сводка · <b>Написать обновление</b> — «последнее было 3 недели назад»</span></li>
+        <li><b><i>7</i> Скрытие ≠ удаление.</b> Текст остаётся с пометкой, автор получает причину.<br><span>Экраны: <b>Модерация</b> — кнопка «Скрыть» · <b>Уведомления инвестора</b> — «Ваш вопрос скрыт, причина: контакты в тексте»</span></li>
+        <li><b><i>8</i> Чего сознательно не делаем.</b> Личных сообщений, репостов, ответов «от команды проекта» — отвечает основатель лично.<br><span>Ниже, в блоке «Чего сознательно НЕ делаем»</span></li>
+      </ul>
+
+      <h2 style="margin-top:26px">Что нужно сделать помимо экранов</h2>
+      <div style="color:#8b968f; margin-bottom:4px">По объёму — примерно как модуль <code>quests</code>.</div>
+
+      <div class="two">
+        <div>
+          <h3>База</h3>
+          <ul>
+            <li><code>project_questions</code> — проект, автор, текст, <code>upvotes</code>, <code>pinned</code>, <code>hiddenAt</code>, <code>hiddenReason</code>, <code>answeredAt</code></li>
+            <li><code>project_answers</code> — вопрос, автор, текст, <code>helpfulCount</code>, <code>notAnswerCount</code>; уточнения — тот же стол с <code>parentId</code></li>
+            <li><code>project_updates</code> — проект, заголовок, текст, фото, <code>auto</code> (сгенерирован отчётом), <code>readCount</code></li>
+            <li><code>content_votes</code> — кто, что, какой тип голоса. Уникальный индекс на (пользователь, объект, тип) — иначе накрутка</li>
+            <li><code>content_reports</code> — жалобы: объект, автор, причина, решение модератора</li>
+          </ul>
+
+          <h3>Правила</h3>
+          <ul>
+            <li>Отвечает <b>только основатель проекта</b>. Уточнять может кто угодно</li>
+            <li>Вопросы — в статусе <code>active</code>; в закрытом проекте только чтение</li>
+            <li>3 вопроса на проект в сутки, 10 в день всего. Проверка на бэкенде, не в UI</li>
+            <li>Голос — один на объект, снимается повторным нажатием. Нельзя голосовать за своё</li>
+            <li>Ответ нельзя удалить — только дополнить. Вопрос без ответа автор может убрать</li>
+            <li>Скрытие модератором не стирает текст, а ставит <code>hiddenAt</code> + причину</li>
+          </ul>
+        </div>
+
+        <div>
+          <h3>Уведомления — 6 новых типов</h3>
+          <ul>
+            <li><code>question_asked</code> → основателю</li>
+            <li><code>question_answered</code> → автору вопроса</li>
+            <li><code>thread_reply</code> → подписчикам ветки</li>
+            <li><code>project_update</code> → всем держателям тикетов</li>
+            <li><code>question_trending</code> → автору, при 25 голосах</li>
+            <li><code>content_hidden</code> → автору, с причиной</li>
+            <li>Тип и payload в базу, текст на клиенте — как уже сделано в <code>notifications</code></li>
+            <li>Отправка <b>после коммита</b> транзакции</li>
+          </ul>
+
+          <h3>Метрика отзывчивости</h3>
+          <ul>
+            <li>Считается на проекте: <b>% отвеченных</b> и <b>медианное время ответа</b></li>
+            <li>Показывается в шапке вкладки и <b>в карточке проекта в списке</b> — это главный эффект всей фичи</li>
+            <li>Пересчёт при ответе, не запросом на лету</li>
+            <li>Молчание больше 30 дней — сигнал модератору и минус к позиции в выдаче</li>
+          </ul>
+
+          <h3>Чего сознательно НЕ делаем</h3>
+          <ul>
+            <li>Личных сообщений между людьми — только публично</li>
+            <li>Лайков «в никуда», аватарок-эмодзи, репостов</li>
+            <li>Ответов от лица команды проекта — отвечает основатель лично</li>
+            <li>Перевода вопросов между языками — пишут как пишут</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Порядок работы</h3>
+      <ul>
+        <li><b>1.</b> Вопросы и ответы + уведомления двух типов — это уже полезно само по себе</li>
+        <li><b>2.</b> Голоса и сортировка по популярности</li>
+        <li><b>3.</b> Метрика отзывчивости в карточке проекта</li>
+        <li><b>4.</b> Лента обновлений + автопост из финотчёта</li>
+        <li><b>5.</b> Жалобы и модерация — до открытого запуска, но после первых четырёх</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const body = document.body;
+  document.getElementById('themeBtn').onclick = () => {
+    body.dataset.theme = body.dataset.theme === 'dark' ? 'light' : 'dark';
+  };
+
+  const slots = [...document.querySelectorAll('.slot')];
+  const filters = [...document.querySelectorAll('[data-filter]')];
+  filters.forEach(b => b.onclick = () => {
+    filters.forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    const f = b.dataset.filter;
+    slots.forEach(s => s.style.display = (f === 'all' || s.dataset.screen === f) ? '' : 'none');
+  });
+
+  // вкладки проекта и чипы сортировки
+  document.querySelectorAll('.tabs, .sortbar').forEach(g => {
+    g.querySelectorAll('button').forEach(b => b.onclick = () => {
+      g.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    });
+  });
+
+  // голоса: нажатие переключает и меняет число
+  document.querySelectorAll('.vote').forEach(b => {
+    if (b.classList.contains('flat')) return;
+    b.onclick = () => {
+      const on = b.getAttribute('aria-pressed') === 'true';
+      b.setAttribute('aria-pressed', String(!on));
+      b.innerHTML = b.innerHTML.replace(/(\d+)(?!.*\d)/, m => String(Number(m) + (on ? -1 : 1)));
+    };
+  });
+
+  // переключатели
+  document.querySelectorAll('.switch').forEach(s => {
+    s.onclick = () => s.setAttribute('aria-pressed', String(s.getAttribute('aria-pressed') !== 'true'));
+  });
+
+  // счётчик символов в поле ввода
+  document.querySelectorAll('.composer').forEach(c => {
+    const ta = c.querySelector('textarea');
+    const counter = c.querySelector('.counter');
+    if (!ta || !counter) return;
+    const max = Number(counter.textContent.split('/')[1].trim());
+    ta.addEventListener('input', () => {
+      counter.textContent = `${ta.value.length} / ${max}`;
+      counter.classList.toggle('warn', ta.value.length > max * 0.9);
+    });
+  });
+
+  // пуш-баннер уезжает по клику
+  document.querySelectorAll('.push').forEach(p => {
+    p.onclick = () => {
+      p.style.transition = 'opacity 200ms, transform 200ms';
+      p.style.opacity = '0';
+      p.style.transform = 'translateY(-12px)';
+      setTimeout(() => { p.style.display = 'none'; }, 200);
+    };
+  });
+</script>
+</body>
+</html>

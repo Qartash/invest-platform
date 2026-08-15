@@ -6,6 +6,9 @@ import { User } from '../../users/entities/user.entity';
 // and how much each holder received. Immutable payout evidence.
 @Entity('report_payouts')
 @Index(['reportId', 'userId'], { unique: true })
+// The unique index above cannot serve "everything paid to this user": user_id is its
+// second column, and a filter on it alone has no prefix to seek on.
+@Index('IDX_report_payouts_user', ['userId'])
 export class ReportPayout {
   @PrimaryGeneratedColumn('uuid')
   id: string;

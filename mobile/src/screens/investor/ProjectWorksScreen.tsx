@@ -1,34 +1,34 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { fetchProject } from '../../api/projects';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { Project } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { useAuthStore } from '../../store/authStore';
-import { colors, spacing } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useThemeStyles } from '../../theme';
 import { ProjectWorksPanel } from '../../components/ProjectWorksPanel';
 import { InvestorHomeStackParamList } from '../../navigation/InvestorNavigator';
 
 type Props = NativeStackScreenProps<InvestorHomeStackParamList, 'ProjectWorks'>;
 
 export function ProjectWorksScreen({ route }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { projectId } = route.params;
   const { i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const currentUserId = useAuthStore((s) => s.user?.id);
-  const [project, setProject] = useState<Project | null>(null);
-
-  useFocusEffect(
-    useCallback(() => {
-      fetchProject(projectId).then(setProject);
-    }, [projectId]),
+  // Same key the project screen reads, so arriving here from a project card costs nothing.
+  const { data: project, refresh } = useCachedQuery<Project>(
+    `projects:one:${projectId}`,
+    useCallback(() => fetchProject(projectId), [projectId]),
   );
 
   const isFounder = !!project && project.founderId === currentUserId;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}>
       {project && <Text style={styles.title}>{getLocalizedText(project.title, i18n.language)}</Text>}
       <View style={styles.panel}>
         <ProjectWorksPanel
@@ -40,22 +40,24 @@ export function ProjectWorksScreen({ route }: Props) {
           // applicant's offered price, not the work's original price).
           treasuryBalance={isFounder && project ? parseFloat(project.treasuryBalance ?? '0') : undefined}
           spendableBalance={isFounder && project ? parseFloat(project.spendableBalance ?? '0') : undefined}
-          onChanged={() => fetchProject(projectId).then(setProject)}
+          onChanged={refresh}
         />
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg },
-  title: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: spacing.md },
-  panel: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: c.background },
+    content: { padding: spacing.lg },
+    contentWide: { maxWidth: maxWidth.column, width: '100%', alignSelf: 'center' },
+    title: { fontSize: 18, fontWeight: '700', color: c.text, marginBottom: spacing.md },
+    panel: {
+      backgroundColor: c.surface,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: spacing.md,
+    },
+  });

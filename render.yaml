@@ -1,0 +1,77 @@
+services:
+  # The web build, mainly so iPhone users have something to open at all: Apple allows no
+  # sideloading, and TestFlight needs a paid account we do not have yet.
+  - type: web
+    name: invest-platform-web
+    runtime: static
+    rootDir: mobile
+    buildCommand: npm ci && npx expo export --platform web
+    staticPublishPath: ./dist
+    # The app routes on the client, so every path has to be handed the same document —
+    # without this a refresh anywhere but "/" is a 404 from the CDN.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    # Everything under this path has a content hash in its filename, so a change to the
+    # file is a change to the URL and a cached copy can never be the wrong one. Render
+    # otherwise serves these with max-age=0, which sends the browser back to ask about
+    # 800KB of JavaScript on every single visit. Not applied any wider than this on
+    # purpose: index.html has a fixed name and points at whichever bundle is current, so
+    # caching that one is how you pin a visitor to a build they can never leave.
+    headers:
+      - path: /_expo/static/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
+        value: https://invest-platform-api-7msz.onrender.com/api
+      # Not a secret: an OAuth client id ships inside every browser bundle by
+      # design. The client's secret stays in the Google console and is never
+      # used here — the web flow asks for an id_token directly, which needs no
+      # exchange. What guards the id is the origin list in the console, not this
+      # file. The API checks the same id as the token's audience, so the two
+      # values must stay in step.
+      - key: EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+        value: 667517489426-dnh5kvr9qebeip89llqj8vrdnppk46q7.apps.googleusercontent.com
+
+  - type: web
+    name: invest-platform-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    rootDir: backend
+    # --include=dev because NODE_ENV below is "production", which otherwise makes
+    # npm ci skip devDependencies — and the build needs @nestjs/cli from there.
+    buildCommand: npm ci --include=dev && npm run build
+    # Migrations run here rather than in a preDeployCommand, which Render offers
+    # only on paid instance types and this service is on free. That means they run
+    # on every boot: harmless, because each migration is written to survive a
+    # second run, and this plan runs a single instance so two cannot race. A
+    # failing migration takes the boot with it, which is the point — better a
+    # deploy that stops than a schema that half-applied.
+    startCommand: npm run migration:run:prod && node dist/main
+    healthCheckPath: /api
+    envVars:
+      # Was "staging" so TypeORM's synchronize stayed on and entity changes
+      # reached the database without migrations. That broke the moment an entity
+      # needed an ALTER synchronize cannot express: daily_checkins.user_id went
+      # from varchar to a uuid foreign key, and every boot died on "contains null
+      # values" instead. Migrations own the schema now; this flag only turns
+      # synchronize off (see app.module.ts).
+      - key: NODE_ENV
+        value: production
+      # Set these in the Render dashboard, not here.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      # The password for POST /admin/wipe (the "erase everything" button in the
+      # moderation panel). Leave it unset and the endpoint refuses every call.
+      - key: ADMIN_WIPE_PASSWORD
+        sync: false
+      # The audience every Google id_token is checked against. Same value the web
+      # build is compiled with above; if they ever diverge, sign-in fails with
+      # "Invalid Google token" and nothing else explains why.
+      - key: GOOGLE_WEB_CLIENT_ID
+        value: 667517489426-dnh5kvr9qebeip89llqj8vrdnppk46q7.apps.googleusercontent.com

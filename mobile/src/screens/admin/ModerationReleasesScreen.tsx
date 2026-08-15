@@ -1,33 +1,30 @@
-import React, { useCallback, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { decideRelease, fetchPendingReleases } from '../../api/projectFunding';
+import { useCachedQuery } from '../../api/useCachedQuery';
 import { PendingReleaseRequest } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
 import { showAlert } from '../../utils/alert';
-import { colors, spacing } from '../../theme';
+import { apiErrorMessage } from '../../utils/apiError';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
+import { useGrid } from '../../components/ui';
 
 export function ModerationReleasesScreen() {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const { t, i18n } = useTranslation();
-  const [requests, setRequests] = useState<PendingReleaseRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { isCompact } = useBreakpoint();
   const [actingId, setActingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setRequests(await fetchPendingReleases());
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
+  // Refetches quietly on focus; deciding a request below forces a reload, because the row
+  // just decided is the one the list exists to show.
+  const { data: fetched, loading, refresh: load } = useCachedQuery<PendingReleaseRequest[]>(
+    'projects:releases:pending',
+    fetchPendingReleases,
   );
+  const requests = useMemo(() => fetched ?? [], [fetched]);
+  const { columns, data, isGrid } = useGrid(requests, { medium: 2, wide: 2 });
 
   const decide = async (id: string, approve: boolean) => {
     setActingId(id);
@@ -35,7 +32,7 @@ export function ModerationReleasesScreen() {
       await decideRelease(id, approve);
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setActingId(null);
     }
@@ -45,12 +42,16 @@ export function ModerationReleasesScreen() {
 
   return (
     <FlatList
-      data={requests}
-      keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
+      key={columns}
+      numColumns={columns}
+      columnWrapperStyle={isGrid ? styles.row : undefined}
+      data={data}
+      keyExtractor={(item, index) => item?.id ?? `filler-${index}`}
+      contentContainerStyle={[styles.list, !isCompact && styles.listWide]}
       renderItem={({ item }) => {
+        if (!item) return <View style={styles.cell} />;
         const enough = item.treasuryBalance >= item.amount;
-        return (
+        const card = (
           <View style={styles.card}>
             <Text style={styles.project}>{getLocalizedText(item.projectTitle, i18n.language)}</Text>
             <Text style={styles.stage}>{item.stageTitle}</Text>
@@ -77,47 +78,52 @@ export function ModerationReleasesScreen() {
             </View>
           </View>
         );
+        return isGrid ? <View style={styles.cell}>{card}</View> : card;
       }}
       ListEmptyComponent={!loading ? <Text style={styles.empty}>{t('moderation.releases.none')}</Text> : null}
     />
   );
 }
 
-const styles = StyleSheet.create({
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  project: { fontSize: 15, fontWeight: '700', color: colors.text },
-  stage: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: spacing.sm },
-  amount: { fontSize: 16, fontWeight: '700', color: colors.primary },
-  treasury: { fontSize: 12 },
-  note: { fontSize: 12, color: colors.text, marginTop: spacing.xs, fontStyle: 'italic' },
-  actions: { flexDirection: 'row', marginTop: spacing.md },
-  approve: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    marginRight: spacing.sm,
-  },
-  disabled: { opacity: 0.4 },
-  approveText: { color: '#fff', fontWeight: '700' },
-  reject: {
-    borderWidth: 1,
-    borderColor: colors.danger,
-    borderRadius: 10,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-  },
-  rejectText: { color: colors.danger, fontWeight: '700' },
-  empty: { textAlign: 'center', color: colors.textMuted, marginTop: spacing.xl },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+    listWide: { maxWidth: maxWidth.page, width: '100%', alignSelf: 'center' },
+    row: { gap: spacing.sm },
+    cell: { flex: 1 },
+    card: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    project: { fontSize: 15, fontWeight: '700', color: c.text },
+    stage: { fontSize: 13, color: c.textMuted, marginTop: 2 },
+    amountRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: spacing.sm },
+    amount: { fontSize: 16, fontWeight: '700', color: c.primary },
+    treasury: { fontSize: 12 },
+    note: { fontSize: 12, color: c.text, marginTop: spacing.xs, fontStyle: 'italic' },
+    actions: { flexDirection: 'row', marginTop: spacing.md },
+    approve: {
+      flex: 1,
+      backgroundColor: c.primary,
+      borderRadius: 10,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      marginRight: spacing.sm,
+    },
+    disabled: { opacity: 0.4 },
+    approveText: { color: c.textOnAccent, fontWeight: '700' },
+    reject: {
+      borderWidth: 1,
+      borderColor: c.danger,
+      borderRadius: 10,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      alignItems: 'center',
+    },
+    rejectText: { color: c.danger, fontWeight: '700' },
+    empty: { textAlign: 'center', color: c.textMuted, marginTop: spacing.xl },
+  });

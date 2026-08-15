@@ -12,7 +12,6 @@ import { WorkApplication } from './entities/work-application.entity';
 import { WorkReview } from './entities/work-review.entity';
 import { WorkMilestone } from './entities/work-milestone.entity';
 import { Project } from '../projects/entities/project.entity';
-import { Wallet } from '../wallets/entities/wallet.entity';
 import { ProjectExpense } from '../project-finance/entities/project-expense.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { CreateWorkDto } from './dto/create-work.dto';
@@ -20,6 +19,7 @@ import { ApplyWorkDto } from './dto/apply-work.dto';
 import {
   ExpenseCategory,
   MilestoneStatus,
+  MovementKind,
   TransactionAccount,
   TransactionStatus,
   TransactionType,
@@ -28,6 +28,16 @@ import {
   WorkStatus,
 } from '../common/enums';
 import { EntityManager } from 'typeorm';
+import { lockProject, lockWallet } from '../common/row-locks';
+import {
+  LedgerService,
+  projectSpendable,
+  userBalance,
+  userInvest,
+  workEscrow,
+} from '../ledger/ledger.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType, NotifyInput } from '../notifications/notification-types';
 
 @Injectable()
 export class ProjectWorksService {
@@ -42,14 +52,39 @@ export class ProjectWorksService {
     private readonly milestonesRepository: Repository<WorkMilestone>,
     @InjectRepository(Project)
     private readonly projectsRepository: Repository<Project>,
+    private readonly notifications: NotificationsService,
+    private readonly ledger: LedgerService,
     private readonly dataSource: DataSource,
   ) {}
+
+  // What every notification about a work says: which work, on which project, and
+  // what both are called. Named here so a caller with a work in hand never has to
+  // fetch its project again purely to write a sentence.
+  private async about(work: ProjectWork): Promise<Record<string, unknown>> {
+    const project = await this.projectsRepository.findOne({
+      where: { id: work.projectId },
+      select: { id: true, title: true, founderId: true },
+    });
+    return {
+      projectId: work.projectId,
+      projectTitle: project?.title ?? null,
+      workId: work.id,
+      workTitle: work.title,
+    };
+  }
+
+  private async founderIdOf(projectId: string): Promise<string | null> {
+    const project = await this.projectsRepository.findOne({
+      where: { id: projectId },
+      select: { id: true, founderId: true },
+    });
+    return project?.founderId ?? null;
+  }
 
   // Pays a slice of a work's escrow to the assignee, into the right bucket:
   // cash to the withdrawable balance, tickets to the invest credit.
   private async payToWorker(manager: EntityManager, work: ProjectWork, amount: number) {
-    const wallet = await manager.findOne(Wallet, { where: { userId: work.assigneeId! } });
-    if (!wallet) throw new NotFoundException('Worker wallet not found');
+    const wallet = await lockWallet(manager, work.assigneeId!, 'Worker wallet not found');
     if (work.assigneePayment === WorkPaymentType.TICKETS) {
       wallet.investCredit = (parseFloat(wallet.investCredit) + amount).toFixed(2);
     } else {
@@ -71,19 +106,27 @@ export class ProjectWorksService {
 
     // And a wallet transaction for the worker so the money has a visible source
     // in their operations history.
-    await manager.save(
+    const paidToTickets = work.assigneePayment === WorkPaymentType.TICKETS;
+    const transaction = await manager.save(
       manager.create(Transaction, {
         userId: work.assigneeId!,
         type: TransactionType.WORK_PAYMENT,
         amount: amount.toFixed(2),
         status: TransactionStatus.COMPLETED,
         description: work.title,
-        account:
-          work.assigneePayment === WorkPaymentType.TICKETS
-            ? TransactionAccount.INVEST
-            : TransactionAccount.BALANCE,
+        account: paidToTickets ? TransactionAccount.INVEST : TransactionAccount.BALANCE,
       }),
     );
+
+    await this.ledger.record(manager, {
+      kind: MovementKind.WORK_PAYMENT,
+      amount,
+      from: workEscrow(work.projectId),
+      to: paidToTickets ? userInvest(work.assigneeId!) : userBalance(work.assigneeId!),
+      workId: work.id,
+      transactionId: transaction.id,
+      description: work.title,
+    });
   }
 
   private async assertFounder(projectId: string, userId: string): Promise<Project> {
@@ -95,6 +138,22 @@ export class ProjectWorksService {
 
   private priceOf(work: ProjectWork, application?: WorkApplication | null): number {
     return parseFloat(application?.offeredPrice ?? work.price);
+  }
+
+  // Just the tally, for the project card and header — listWorks would drag in applications,
+  // reviews and the caller's own application to answer a question that is one number.
+  // Counted for a whole list of projects at once — see the note on the ticket counts in
+  // TicketsService for why the per-project version had to go.
+  async countWorksByProject(projectIds: string[]): Promise<Map<string, number>> {
+    if (projectIds.length === 0) return new Map();
+    const rows: Array<{ projectId: string; count: string }> = await this.worksRepository
+      .createQueryBuilder('work')
+      .select('work.project_id', 'projectId')
+      .addSelect('COUNT(*)', 'count')
+      .where('work.project_id IN (:...projectIds)', { projectIds })
+      .groupBy('work.project_id')
+      .getRawMany();
+    return new Map(rows.map((row) => [row.projectId, parseInt(row.count, 10)]));
   }
 
   async listWorks(projectId: string, currentUserId?: string) {
@@ -220,7 +279,9 @@ export class ProjectWorksService {
       existing.preferredPayment = dto.preferredPayment ?? WorkPaymentType.CASH;
       existing.status = WorkApplicationStatus.PENDING;
       existing.decisionReason = null;
-      return this.applicationsRepository.save(existing);
+      const revived = await this.applicationsRepository.save(existing);
+      await this.announceApplication(work, project, revived);
+      return revived;
     }
 
     const application = this.applicationsRepository.create({
@@ -230,7 +291,30 @@ export class ProjectWorksService {
       offeredPrice: dto.offeredPrice !== undefined ? dto.offeredPrice.toFixed(2) : null,
       preferredPayment: dto.preferredPayment ?? WorkPaymentType.CASH,
     });
-    return this.applicationsRepository.save(application);
+    const saved = await this.applicationsRepository.save(application);
+    await this.announceApplication(work, project, saved);
+    return saved;
+  }
+
+  // Reached from both halves of `apply` — a first application and a rejected one
+  // being tried again are the same news to the founder.
+  private async announceApplication(
+    work: ProjectWork,
+    project: Project | null,
+    application: WorkApplication,
+  ): Promise<void> {
+    if (!project) return;
+    await this.notifications.notify({
+      userId: project.founderId,
+      type: NotificationType.WORK_APPLICATION_RECEIVED,
+      payload: {
+        projectId: project.id,
+        projectTitle: project.title,
+        workId: work.id,
+        workTitle: work.title,
+        offeredPrice: application.offeredPrice === null ? null : parseFloat(application.offeredPrice),
+      },
+    });
   }
 
   // Applicant edits their own still-pending application.
@@ -253,7 +337,7 @@ export class ProjectWorksService {
 
   // Founder rejects one application, with a reason shown to the applicant.
   async rejectApplication(projectId: string, workId: string, appId: string, userId: string, reason?: string) {
-    await this.assertFounder(projectId, userId);
+    const project = await this.assertFounder(projectId, userId);
     const app = await this.applicationsRepository.findOne({ where: { id: appId, workId } });
     if (!app) throw new NotFoundException('Application not found');
     if (app.status === WorkApplicationStatus.SELECTED) {
@@ -261,7 +345,22 @@ export class ProjectWorksService {
     }
     app.status = WorkApplicationStatus.REJECTED;
     app.decisionReason = reason ?? null;
-    return this.applicationsRepository.save(app);
+    const saved = await this.applicationsRepository.save(app);
+    const work = await this.worksRepository.findOne({ where: { id: workId } });
+    // The reason is the whole message: it is the only thing an applicant is ever
+    // told about why they were passed over.
+    await this.notifications.notify({
+      userId: saved.applicantId,
+      type: NotificationType.WORK_APPLICATION_REJECTED,
+      payload: {
+        projectId,
+        projectTitle: project.title,
+        workId,
+        workTitle: work?.title ?? null,
+        comment: saved.decisionReason,
+      },
+    });
+    return saved;
   }
 
   async listApplications(projectId: string, workId: string, userId: string) {
@@ -296,12 +395,16 @@ export class ProjectWorksService {
     userId: string,
     agreedAmount?: number,
   ) {
-    return this.dataSource.transaction(async (manager) => {
-      const project = await manager.findOne(Project, { where: { id: projectId } });
-      if (!project) throw new NotFoundException('Project not found');
+    const outcome = await this.dataSource.transaction(async (manager) => {
+      // Project before work, the order every path in this service takes, so two of them
+      // running at once queue up instead of deadlocking on each other's row.
+      const project = await lockProject(manager, projectId);
       if (project.founderId !== userId) throw new ForbiddenException('Not your project');
 
-      const work = await manager.findOne(ProjectWork, { where: { id: workId, projectId } });
+      const work = await manager.findOne(ProjectWork, {
+        where: { id: workId, projectId },
+        lock: { mode: 'pessimistic_write' },
+      });
       if (!work) throw new NotFoundException('Work not found');
       if (work.status !== WorkStatus.OPEN) throw new ConflictException('This work already has an assignee');
 
@@ -328,6 +431,17 @@ export class ProjectWorksService {
 
       project.spendableBalance = (parseFloat(project.spendableBalance) - amount).toFixed(2);
       await manager.save(project);
+      // Escrow is an account in all but name — the frozen sum lives on the work
+      // row — so freezing it is a real movement of the project's money even
+      // though no wallet changes and no transaction was ever written for it.
+      await this.ledger.record(manager, {
+        kind: MovementKind.WORK_ESCROW_HOLD,
+        amount,
+        from: projectSpendable(project.id),
+        to: workEscrow(project.id),
+        workId: work.id,
+        description: work.title,
+      });
 
       work.assigneeId = application.applicantId;
       work.assigneePayment = payment;
@@ -337,14 +451,41 @@ export class ProjectWorksService {
 
       application.status = WorkApplicationStatus.SELECTED;
       await manager.save(application);
+      // Read before the update turns them all to REJECTED — afterwards there is
+      // no way to tell whom this particular selection passed over from whom the
+      // founder had already turned down by hand.
+      const passedOver = await manager.find(WorkApplication, {
+        where: { workId, status: WorkApplicationStatus.PENDING },
+        select: { id: true, applicantId: true },
+      });
       await manager.update(
         WorkApplication,
         { workId, status: WorkApplicationStatus.PENDING },
         { status: WorkApplicationStatus.REJECTED },
       );
 
-      return work;
+      return {
+        work,
+        selectedId: application.applicantId,
+        passedOverIds: passedOver.map((row) => row.applicantId),
+        amount,
+        projectTitle: project.title,
+      };
     });
+
+    const { work, selectedId, passedOverIds, amount, projectTitle } = outcome;
+    const about = { projectId, projectTitle, workId, workTitle: work.title };
+    await this.notifications.notifyMany([
+      { userId: selectedId, type: NotificationType.WORK_APPLICATION_SELECTED, payload: { ...about, amount } },
+      // Silently rejected until now: their application simply stopped being
+      // pending and nothing said so.
+      ...passedOverIds.map((applicantId) => ({
+        userId: applicantId,
+        type: NotificationType.WORK_APPLICATION_REJECTED,
+        payload: { ...about, comment: null, someoneElseSelected: true },
+      })),
+    ]);
+    return work;
   }
 
   async submit(projectId: string, workId: string, userId: string) {
@@ -353,15 +494,23 @@ export class ProjectWorksService {
     if (work.assigneeId !== userId) throw new ForbiddenException('Not your assignment');
     if (work.status !== WorkStatus.ASSIGNED) throw new ConflictException('Work is not in progress');
     work.status = WorkStatus.SUBMITTED;
-    return this.worksRepository.save(work);
+    const saved = await this.worksRepository.save(work);
+    const founderId = await this.founderIdOf(projectId);
+    if (founderId) {
+      await this.notifications.notify({
+        userId: founderId,
+        type: NotificationType.WORK_SUBMITTED,
+        payload: await this.about(saved),
+      });
+    }
+    return saved;
   }
 
   // Founder accepts: the escrow is paid out to the worker. MVP pays cash into
   // the worker's withdrawable balance.
   async accept(projectId: string, workId: string, userId: string) {
-    return this.dataSource.transaction(async (manager) => {
-      const project = await manager.findOne(Project, { where: { id: projectId } });
-      if (!project) throw new NotFoundException('Project not found');
+    const outcome = await this.dataSource.transaction(async (manager) => {
+      const project = await lockProject(manager, projectId);
       if (project.founderId !== userId) throw new ForbiddenException('Not your project');
 
       const work = await manager.findOne(ProjectWork, {
@@ -372,36 +521,69 @@ export class ProjectWorksService {
       if (work.status !== WorkStatus.SUBMITTED) throw new ConflictException('Work has not been submitted');
       if (!work.assigneeId || work.escrowAmount === null) throw new BadRequestException('Work has no escrow');
 
-      await this.payToWorker(manager, work, parseFloat(work.escrowAmount));
+      const paid = parseFloat(work.escrowAmount);
+      await this.payToWorker(manager, work, paid);
 
       // Consume the escrow so no other path can pay it again.
       work.escrowAmount = null;
       work.status = WorkStatus.ACCEPTED;
       work.acceptedAt = new Date();
-      return manager.save(work);
+      return { work: await manager.save(work), paid, workerId: work.assigneeId! };
     });
+
+    await this.notifications.notify({
+      userId: outcome.workerId,
+      type: NotificationType.WORK_ACCEPTED,
+      payload: { ...(await this.about(outcome.work)), amount: outcome.paid },
+    });
+    return outcome.work;
   }
 
   // Cancel/refund path (used by dispute resolution too): escrow goes back to the
   // project's spendable balance and the work reopens.
   async cancel(projectId: string, workId: string, userId: string) {
-    return this.dataSource.transaction(async (manager) => {
-      const project = await manager.findOne(Project, { where: { id: projectId } });
-      if (!project) throw new NotFoundException('Project not found');
+    const outcome = await this.dataSource.transaction(async (manager) => {
+      // Allowed on a deleted project: cancelling returns escrow to the project rather than
+      // taking anything from anyone, and a work left frozen in a deleted project is worse.
+      const project = await lockProject(manager, projectId, { allowDeleted: true });
       if (project.founderId !== userId) throw new ForbiddenException('Not your project');
 
-      const work = await manager.findOne(ProjectWork, { where: { id: workId, projectId } });
+      const work = await manager.findOne(ProjectWork, {
+        where: { id: workId, projectId },
+        lock: { mode: 'pessimistic_write' },
+      });
       if (!work) throw new NotFoundException('Work not found');
       if (work.status === WorkStatus.ACCEPTED) throw new ConflictException('An accepted work cannot be cancelled');
 
       if (work.escrowAmount !== null) {
-        project.spendableBalance = (parseFloat(project.spendableBalance) + parseFloat(work.escrowAmount)).toFixed(2);
+        const returned = parseFloat(work.escrowAmount);
+        project.spendableBalance = (parseFloat(project.spendableBalance) + returned).toFixed(2);
         await manager.save(project);
+        await this.ledger.record(manager, {
+          kind: MovementKind.WORK_ESCROW_RETURN,
+          amount: returned,
+          from: workEscrow(project.id),
+          to: projectSpendable(project.id),
+          workId: work.id,
+          description: `${work.title} — cancelled`,
+        });
       }
+      const workerId = work.assigneeId;
       work.status = WorkStatus.CANCELLED;
       work.escrowAmount = null;
-      return manager.save(work);
+      return { work: await manager.save(work), workerId };
     });
+
+    // An unassigned work being cancelled is the founder tidying up their own
+    // board; there is nobody else it happened to.
+    if (outcome.workerId) {
+      await this.notifications.notify({
+        userId: outcome.workerId,
+        type: NotificationType.WORK_CANCELLED,
+        payload: await this.about(outcome.work),
+      });
+    }
+    return outcome.work;
   }
 
   listMine(userId: string) {
@@ -450,19 +632,25 @@ export class ProjectWorksService {
     // Upsert: a founder may revise their rating instead of being blocked by a
     // "already rated" error on a second tap.
     const existing = await this.reviewsRepository.findOne({ where: { workId } });
-    if (existing) {
-      existing.rating = rating;
-      existing.comment = comment ?? null;
-      return this.reviewsRepository.save(existing);
-    }
-    const review = this.reviewsRepository.create({
-      workId,
-      revieweeId: work.assigneeId,
-      raterId: userId,
-      rating,
-      comment: comment ?? null,
+    const saved = existing
+      ? await this.reviewsRepository.save(Object.assign(existing, { rating, comment: comment ?? null }))
+      : await this.reviewsRepository.save(
+          this.reviewsRepository.create({
+            workId,
+            revieweeId: work.assigneeId,
+            raterId: userId,
+            rating,
+            comment: comment ?? null,
+          }),
+        );
+    // Sent on a revision too: a rating going from two stars to four is worth
+    // hearing about, and the worker has no other way to notice.
+    await this.notifications.notify({
+      userId: saved.revieweeId,
+      type: NotificationType.WORK_REVIEW_RECEIVED,
+      payload: { ...(await this.about(work)), rating: saved.rating, comment: saved.comment },
     });
-    return this.reviewsRepository.save(review);
+    return saved;
   }
 
   // --- Disputes ---
@@ -479,7 +667,25 @@ export class ProjectWorksService {
       throw new ConflictException('This work cannot be disputed');
     }
     work.status = WorkStatus.DISPUTED;
-    return this.worksRepository.save(work);
+    const saved = await this.worksRepository.save(work);
+
+    const about = await this.about(saved);
+    // Whoever did not raise it: a dispute is between two people and both have to
+    // know it is open. A moderator now has to settle the escrow either way, so
+    // the queue hears about it in the same breath.
+    const other = userId === project?.founderId ? saved.assigneeId : project?.founderId;
+    if (other) {
+      await this.notifications.notify({
+        userId: other,
+        type: NotificationType.WORK_DISPUTE_OPENED,
+        payload: { ...about, raisedByFounder: userId === project?.founderId },
+      });
+    }
+    await this.notifications.notifyAdmins(NotificationType.MOD_WORK_DISPUTED, {
+      ...about,
+      escrowAmount: saved.escrowAmount === null ? null : parseFloat(saved.escrowAmount),
+    });
+    return saved;
   }
 
   async listDisputed() {
@@ -502,7 +708,15 @@ export class ProjectWorksService {
 
   // Moderator resolves: pay the worker or refund the project's spendable balance.
   async resolveDispute(workId: string, releaseToWorker: boolean) {
-    return this.dataSource.transaction(async (manager) => {
+    const outcome = await this.dataSource.transaction(async (manager) => {
+      // Unlocked read purely to learn which project to lock first — the work is then taken
+      // again under a lock below, so nothing is decided on this copy.
+      const unlocked = await manager.findOne(ProjectWork, { where: { id: workId } });
+      if (!unlocked) throw new NotFoundException('Work not found');
+      // A dispute already in flight must stay resolvable even if the project was deleted
+      // underneath it — either outcome settles the escrow instead of leaving it frozen.
+      const project = await lockProject(manager, unlocked.projectId, { allowDeleted: true });
+
       const work = await manager.findOne(ProjectWork, {
         where: { id: workId },
         lock: { mode: 'pessimistic_write' },
@@ -517,18 +731,39 @@ export class ProjectWorksService {
         work.acceptedAt = new Date();
       } else {
         if (escrow > 0) {
-          const project = await manager.findOne(Project, { where: { id: work.projectId } });
-          if (project) {
-            project.spendableBalance = (parseFloat(project.spendableBalance) + escrow).toFixed(2);
-            await manager.save(project);
-          }
+          project.spendableBalance = (parseFloat(project.spendableBalance) + escrow).toFixed(2);
+          await manager.save(project);
+          await this.ledger.record(manager, {
+            kind: MovementKind.WORK_ESCROW_RETURN,
+            amount: escrow,
+            from: workEscrow(project.id),
+            to: projectSpendable(project.id),
+            workId: work.id,
+            description: `${work.title} — dispute resolved for the project`,
+          });
         }
         work.status = WorkStatus.CANCELLED;
       }
       // Escrow is consumed either way — never payable again.
       work.escrowAmount = null;
-      return manager.save(work);
+      return {
+        work: await manager.save(work),
+        workerId: work.assigneeId,
+        founderId: project.founderId,
+        escrow,
+      };
     });
+
+    const about = await this.about(outcome.work);
+    const payload = { ...about, releasedToWorker: releaseToWorker, amount: outcome.escrow };
+    // Both sides, the same verdict: whichever way it went, the other party is
+    // owed the news as much as the winner is.
+    await this.notifications.notifyMany(
+      [outcome.workerId, outcome.founderId]
+        .filter((id): id is string => !!id)
+        .map((id) => ({ userId: id, type: NotificationType.WORK_DISPUTE_RESOLVED, payload })),
+    );
+    return outcome.work;
   }
 
   // --- Milestones ---
@@ -562,15 +797,27 @@ export class ProjectWorksService {
     if (!milestone) throw new NotFoundException('Milestone not found');
     if (milestone.status !== MilestoneStatus.PENDING) throw new ConflictException('Milestone is not pending');
     milestone.status = MilestoneStatus.SUBMITTED;
-    return this.milestonesRepository.save(milestone);
+    const saved = await this.milestonesRepository.save(milestone);
+    const founderId = await this.founderIdOf(projectId);
+    if (founderId) {
+      await this.notifications.notify({
+        userId: founderId,
+        type: NotificationType.WORK_MILESTONE_SUBMITTED,
+        payload: {
+          ...(await this.about(work)),
+          milestoneTitle: saved.title,
+          amount: parseFloat(saved.amount),
+        },
+      });
+    }
+    return saved;
   }
 
   // Founder accepts a milestone: its amount is paid from the work escrow. When
   // the last milestone is accepted, the whole work is accepted.
   async acceptMilestone(projectId: string, workId: string, milestoneId: string, userId: string) {
-    return this.dataSource.transaction(async (manager) => {
-      const project = await manager.findOne(Project, { where: { id: projectId } });
-      if (!project) throw new NotFoundException('Project not found');
+    const outcome = await this.dataSource.transaction(async (manager) => {
+      const project = await lockProject(manager, projectId);
       if (project.founderId !== userId) throw new ForbiddenException('Not your project');
 
       const work = await manager.findOne(ProjectWork, {
@@ -613,7 +860,18 @@ export class ProjectWorksService {
         work.acceptedAt = new Date();
       }
       await manager.save(work);
-      return milestone;
+      return { milestone, work, payout, workerId: work.assigneeId! , isLast };
     });
+
+    await this.notifications.notify({
+      userId: outcome.workerId,
+      type: outcome.isLast ? NotificationType.WORK_ACCEPTED : NotificationType.WORK_MILESTONE_ACCEPTED,
+      payload: {
+        ...(await this.about(outcome.work)),
+        milestoneTitle: outcome.milestone.title,
+        amount: outcome.payout,
+      },
+    });
+    return outcome.milestone;
   }
 }

@@ -1,13 +1,54 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { fetchProjectHistory } from '../api/projects';
 import { ProjectReviewLogEntry } from '../types';
 import { formatDateTime } from '../utils/date';
 import { DIFF_FIELD_LABEL_KEYS } from '../utils/projectDiff';
-import { PRIORITY_COLORS, ProjectPriority } from '../utils/priority';
-import { colors, spacing } from '../theme';
+import { priorityColors, ProjectPriority } from '../utils/priority';
+import { maxWidth, radius, spacing, ThemeColors, typography, useBreakpoint, useTheme, useThemeStyles } from '../theme';
+import { Dialog, Icon, IconName } from './ui';
 import { RichTextView } from './RichTextView';
+import { apiErrorMessage } from '../utils/apiError';
+
+// Built per palette rather than at module load, so the action colours follow the theme.
+// Icons are drawn glyphs, not emoji: a log read top-to-bottom needs marks of one weight and
+// one colour system, and the emoji set rendered at a dozen different sizes and hues.
+const actionStyles = (
+  c: ThemeColors,
+): Record<string, { icon: IconName; labelKey: string; color: string; soft: string }> => ({
+  submitted: { icon: 'file', labelKey: 'founder.historySubmitted', color: c.primary, soft: c.primarySoft },
+  approved: { icon: 'check', labelKey: 'founder.historyApproved', color: c.success, soft: c.successSoft },
+  rejected: { icon: 'close', labelKey: 'founder.historyRejected', color: c.danger, soft: c.dangerSoft },
+  cancelled: { icon: 'undo', labelKey: 'founder.historyCancelled', color: c.textMuted, soft: c.surfaceSunken },
+  deletion_requested: {
+    icon: 'trash',
+    labelKey: 'founder.historyDeletionRequested',
+    color: c.danger,
+    soft: c.dangerSoft,
+  },
+  deletion_approved: {
+    icon: 'trash',
+    labelKey: 'founder.historyDeletionApproved',
+    color: c.danger,
+    soft: c.dangerSoft,
+  },
+  deletion_rejected: {
+    icon: 'shield',
+    labelKey: 'founder.historyDeletionRejected',
+    color: c.success,
+    soft: c.successSoft,
+  },
+  deleted: { icon: 'trash', labelKey: 'founder.historyDeleted', color: c.danger, soft: c.dangerSoft },
+  restored: { icon: 'refresh', labelKey: 'founder.historyRestored', color: c.success, soft: c.successSoft },
+  priority_changed: {
+    icon: 'flag',
+    labelKey: 'founder.historyPriorityChanged',
+    color: c.textMuted,
+    soft: c.surfaceSunken,
+  },
+  admin_edited: { icon: 'wrench', labelKey: 'founder.historyAdminEdited', color: c.warning, soft: c.warningSoft },
+});
 
 interface Props {
   visible: boolean;
@@ -15,22 +56,13 @@ interface Props {
   onClose: () => void;
 }
 
-const ACTION_STYLES: Record<string, { icon: string; labelKey: string; color: string }> = {
-  submitted: { icon: '📝', labelKey: 'founder.historySubmitted', color: colors.primary },
-  approved: { icon: '✅', labelKey: 'founder.historyApproved', color: colors.success },
-  rejected: { icon: '❌', labelKey: 'founder.historyRejected', color: colors.danger },
-  cancelled: { icon: '↩️', labelKey: 'founder.historyCancelled', color: colors.textMuted },
-  deletion_requested: { icon: '🗑', labelKey: 'founder.historyDeletionRequested', color: colors.danger },
-  deletion_approved: { icon: '🗑', labelKey: 'founder.historyDeletionApproved', color: colors.danger },
-  deletion_rejected: { icon: '🛡', labelKey: 'founder.historyDeletionRejected', color: colors.success },
-  deleted: { icon: '🗑', labelKey: 'founder.historyDeleted', color: colors.danger },
-  restored: { icon: '♻️', labelKey: 'founder.historyRestored', color: colors.success },
-  priority_changed: { icon: '🚩', labelKey: 'founder.historyPriorityChanged', color: colors.textMuted },
-  admin_edited: { icon: '🛠', labelKey: 'founder.historyAdminEdited', color: colors.warning },
-};
-
 export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
+  const PRIORITY_COLORS = useMemo(() => priorityColors(colors), [colors]);
+  const ACTION_STYLES = useMemo(() => actionStyles(colors), [colors]);
   const { t, i18n } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const [entries, setEntries] = useState<ProjectReviewLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +73,7 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
     fetchProjectHistory(projectId)
       .then(setEntries)
       .catch((err: any) => {
-        setError(err?.response?.data?.message ?? err?.message ?? 'Request failed');
+        setError(apiErrorMessage(err, t));
       })
       .finally(() => setLoading(false));
   }, [projectId]);
@@ -53,13 +85,13 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
   }, [visible, load]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+    <Dialog visible={visible} onClose={onClose} sheet maxWidth={maxWidth.dialogMd}>
+      <View style={[styles.card, !isCompact && styles.cardWide]}>
+          {isCompact && <View style={styles.grabber} />}
           <View style={styles.headerRow}>
             <Text style={styles.title}>{t('founder.historyTitle')}</Text>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <Text style={styles.closeIcon}>✕</Text>
+            <Pressable onPress={onClose} hitSlop={10} style={({ pressed }) => pressed && styles.pressed}>
+              <Icon name="close" size={18} color={colors.textMuted} />
             </Pressable>
           </View>
 
@@ -67,32 +99,46 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
             <ActivityIndicator color={colors.primary} style={styles.loader} />
           ) : error ? (
             <Text style={styles.errorText}>{error}</Text>
+          ) : entries.length === 0 ? (
+            <Text style={styles.empty}>{t('founder.historyEmpty')}</Text>
           ) : (
-            <ScrollView>
-              {entries.length === 0 ? (
-                <Text style={styles.empty}>{t('founder.historyEmpty')}</Text>
-              ) : (
-                entries.map((entry, index) => {
-                  const meta = ACTION_STYLES[entry.action] ?? ACTION_STYLES.submitted;
-                  const isPriorityChange = entry.action === 'priority_changed';
-                  const changedFields = entry.changes && !isPriorityChange ? Object.keys(entry.changes) : [];
-                  return (
-                    <View key={entry.id} style={styles.entry}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {entries.map((entry, index) => {
+                const meta = ACTION_STYLES[entry.action] ?? ACTION_STYLES.submitted;
+                const isPriorityChange = entry.action === 'priority_changed';
+                const changedFields = entry.changes && !isPriorityChange ? Object.keys(entry.changes) : [];
+                const last = index === entries.length - 1;
+
+                return (
+                  <View key={entry.id} style={styles.entry}>
+                    {/* Rail and plaque: the marks stack into one vertical line down the log. */}
+                    <View style={styles.rail}>
+                      <View style={[styles.plaque, { backgroundColor: meta.soft }]}>
+                        <Icon name={meta.icon} size={15} color={meta.color} />
+                      </View>
+                      {!last && <View style={styles.railLine} />}
+                    </View>
+
+                    <View style={styles.entryBody}>
                       <View style={styles.entryHeader}>
-                        <Text style={styles.entryIcon}>{meta.icon}</Text>
-                        <Text style={[styles.entryAction, { color: meta.color }]}>{t(meta.labelKey)}</Text>
+                        <Text style={[styles.entryAction, { color: meta.color }]} numberOfLines={1}>
+                          {t(meta.labelKey)}
+                        </Text>
                         <Text style={styles.entryDate}>{formatDateTime(entry.createdAt, i18n.language)}</Text>
                       </View>
+
                       {entry.moderatorName && (
-                        <Text style={styles.entryModerator}>
+                        <Text style={styles.entryNote}>
                           {t('project.by')} {entry.moderatorName}
                         </Text>
                       )}
+
                       {index === 0 && entry.action === 'submitted' && !entry.changes && (
                         <Text style={styles.entryNote}>{t('founder.historyFirstSubmission')}</Text>
                       )}
+
                       {isPriorityChange && entry.changes && (
-                        <View style={styles.priorityChangeRow}>
+                        <View style={styles.priorityRow}>
                           <View
                             style={[
                               styles.priorityDot,
@@ -100,7 +146,7 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
                             ]}
                           />
                           <Text style={styles.entryNote}>{t(`project.priority.${entry.changes.from}`)}</Text>
-                          <Text style={styles.entryNote}> → </Text>
+                          <Text style={styles.entryNote}>→</Text>
                           <View
                             style={[
                               styles.priorityDot,
@@ -110,126 +156,152 @@ export function ProjectHistoryModal({ visible, projectId, onClose }: Props) {
                           <Text style={styles.entryNote}>{t(`project.priority.${entry.changes.to}`)}</Text>
                         </View>
                       )}
+
                       {changedFields.length > 0 && (
                         <Text style={styles.entryNote}>
                           {t('founder.historyChangedFields')}:{' '}
                           {changedFields.map((f) => t(DIFF_FIELD_LABEL_KEYS[f] ?? f)).join(', ')}
                         </Text>
                       )}
+
                       {entry.comment && (
-                        <View style={styles.entryCommentBox}>
+                        <View style={styles.commentBox}>
                           <RichTextView
                             html={entry.comment}
-                            textStyle={styles.entryComment}
+                            textStyle={styles.comment}
                             color={colors.text}
                             fontSize={13}
                           />
                         </View>
                       )}
                     </View>
-                  );
-                })
-              )}
+                  </View>
+                );
+              })}
             </ScrollView>
           )}
-        </View>
       </View>
-    </Modal>
+    </Dialog>
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: spacing.lg,
-    maxHeight: '80%',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  closeIcon: {
-    fontSize: 18,
-    color: colors.textMuted,
-  },
-  loader: {
-    marginVertical: spacing.xl,
-  },
-  empty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    marginVertical: spacing.xl,
-  },
-  errorText: {
-    textAlign: 'center',
-    color: colors.danger,
-    marginVertical: spacing.xl,
-  },
-  entry: {
-    borderLeftWidth: 2,
-    borderLeftColor: colors.border,
-    paddingLeft: spacing.md,
-    paddingBottom: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  entryHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  entryIcon: {
-    fontSize: 14,
-    marginRight: spacing.xs,
-  },
-  entryAction: {
-    fontSize: 14,
-    fontWeight: '700',
-    flex: 1,
-  },
-  entryDate: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  entryModerator: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  entryNote: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-  priorityChangeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.xs,
-  },
-  priorityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  entryCommentBox: {
-    marginTop: spacing.xs,
-  },
-  entryComment: {
-    fontSize: 13,
-    color: colors.text,
-    fontStyle: 'italic',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: c.surface,
+      borderTopLeftRadius: radius.xl + 4,
+      borderTopRightRadius: radius.xl + 4,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.lg,
+      maxHeight: '82%',
+    },
+    // Centred on a desktop window: rounded all round, and free to use more of the height
+    // than the phone sheet's 82% since it isn't anchored to the bottom edge.
+    cardWide: {
+      borderRadius: radius.xl,
+      paddingTop: spacing.md,
+      maxHeight: '90%',
+    },
+    grabber: {
+      alignSelf: 'center',
+      width: 36,
+      height: 4,
+      borderRadius: radius.pill,
+      backgroundColor: c.border,
+      marginBottom: spacing.sm,
+    },
+    pressed: {
+      opacity: 0.6,
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    title: {
+      ...typography.heading,
+      color: c.text,
+    },
+    loader: {
+      marginVertical: spacing.xl,
+    },
+    empty: {
+      ...typography.body,
+      textAlign: 'center',
+      color: c.textMuted,
+      marginVertical: spacing.xl,
+    },
+    errorText: {
+      ...typography.body,
+      textAlign: 'center',
+      color: c.danger,
+      marginVertical: spacing.xl,
+    },
+
+    entry: {
+      flexDirection: 'row',
+      gap: spacing.sm + 2,
+    },
+    rail: {
+      alignItems: 'center',
+      width: 28,
+    },
+    plaque: {
+      width: 28,
+      height: 28,
+      borderRadius: radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    railLine: {
+      flex: 1,
+      width: 1,
+      backgroundColor: c.border,
+      marginVertical: spacing.xs,
+    },
+    entryBody: {
+      flex: 1,
+      paddingBottom: spacing.md + 2,
+    },
+    entryHeader: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      gap: spacing.sm,
+    },
+    entryAction: {
+      ...typography.labelStrong,
+      flex: 1,
+    },
+    entryDate: {
+      ...typography.micro,
+      color: c.textMuted,
+    },
+    entryNote: {
+      ...typography.micro,
+      color: c.textMuted,
+      marginTop: 3,
+    },
+    priorityRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: spacing.xs,
+      marginTop: 3,
+    },
+    priorityDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+    },
+    commentBox: {
+      marginTop: spacing.sm,
+      backgroundColor: c.surfaceSunken,
+      borderRadius: radius.sm,
+      padding: spacing.sm,
+    },
+    comment: {
+      ...typography.caption,
+      color: c.text,
+    },
+  });

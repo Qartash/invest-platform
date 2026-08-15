@@ -6,10 +6,24 @@ interface AuthResponse {
   user: AuthUser;
 }
 
-export function login(username: string, password: string) {
-  return apiClient.post<AuthResponse>('/auth/login', { username, password }).then((r) => r.data);
+// `username` carries whichever identifier was typed — the backend resolves it
+// against both the username and the email column.
+export function login(identifier: string, password: string) {
+  return apiClient.post<AuthResponse>('/auth/login', { username: identifier, password }).then((r) => r.data);
 }
 
-export function register(data: { username: string; password: string; fullName?: string; languagePref?: string }) {
+// The id_token is verified server-side against our OAuth client IDs — the client
+// never decides who the user is. `referralCode` attributes a first-time sign-up.
+export function loginWithGoogle(idToken: string, referralCode?: string) {
+  return apiClient.post<AuthResponse>('/auth/google', { idToken, referralCode }).then((r) => r.data);
+}
+
+export function register(data: {
+  email: string;
+  password: string;
+  fullName?: string;
+  languagePref?: string;
+  referralCode?: string;
+}) {
   return apiClient.post<AuthResponse>('/auth/register', data).then((r) => r.data);
 }

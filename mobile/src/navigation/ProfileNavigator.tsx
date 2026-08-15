@@ -6,17 +6,37 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { WalletScreen } from '../screens/investor/WalletScreen';
 import { PortfolioScreen } from '../screens/investor/PortfolioScreen';
-import { ReportsScreen } from '../screens/ReportsScreen';
+import { lazyScreen } from './lazyScreen';
+import { ReferralScreen } from '../screens/referrals/ReferralScreen';
+import { ReferralTreeScreen } from '../screens/referrals/ReferralTreeScreen';
+import { ReferralEarningsScreen } from '../screens/referrals/ReferralEarningsScreen';
+import { QuestsScreen } from '../screens/referrals/QuestsScreen';
+import { PartnerScreen } from '../screens/referrals/PartnerScreen';
+import { GuideScreen } from '../screens/GuideScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
 
 export type ProfileStackParamList = {
   Profile: undefined;
+  Notifications: undefined;
   EditProfile: undefined;
   Wallet: undefined;
   Portfolio: undefined;
   Reports: undefined;
+  Referrals: undefined;
+  ReferralTree: undefined;
+  ReferralEarnings: undefined;
+  Quests: undefined;
+  Partner: undefined;
+  Guide: undefined;
 };
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
+
+// One of the heaviest screens in the app — fetched when somebody actually opens it rather
+// than shipped inside the first bundle everyone downloads.
+const ReportsScreen = lazyScreen(() =>
+  import('../screens/ReportsScreen').then((m) => ({ default: m.ReportsScreen })),
+);
 
 // Wallet/Portfolio can also be reached by jumping in from a different tab (e.g.
 // "insufficient funds" while buying a ticket). When that happens before the
@@ -33,6 +53,9 @@ export function ProfileStackNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      {/* Draws its own header, like Profile itself — see the note on the same
+          screen in the home stack. */}
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen
         name="EditProfile"
         component={EditProfileScreen}
@@ -64,6 +87,36 @@ export function ProfileStackNavigator() {
           title: t('reports.title'),
           headerLeft: () => <BackToProfileButton navigation={navigation} />,
         })}
+      />
+      <Stack.Screen
+        name="Referrals"
+        component={ReferralScreen}
+        options={{ headerShown: true, title: t('referrals.title') }}
+      />
+      <Stack.Screen
+        name="ReferralTree"
+        component={ReferralTreeScreen}
+        options={{ headerShown: true, title: t('referrals.treeTitle') }}
+      />
+      <Stack.Screen
+        name="ReferralEarnings"
+        component={ReferralEarningsScreen}
+        options={{ headerShown: true, title: t('referrals.earningsTitle') }}
+      />
+      <Stack.Screen
+        name="Quests"
+        component={QuestsScreen}
+        options={{ headerShown: true, title: t('quests.title') }}
+      />
+      <Stack.Screen
+        name="Partner"
+        component={PartnerScreen}
+        options={{ headerShown: true, title: t('partners.title') }}
+      />
+      <Stack.Screen
+        name="Guide"
+        component={GuideScreen}
+        options={{ headerShown: true, title: t('guide.title') }}
       />
     </Stack.Navigator>
   );

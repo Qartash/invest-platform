@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { logEvent } from '../utils/logger';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, typography, useThemeStyles } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 
 interface Props {
@@ -10,6 +10,19 @@ interface Props {
 
 interface State {
   error: Error | null;
+}
+
+// The fallback is split out as a function component because the boundary itself must stay a
+// class (only classes can catch render errors) and hooks are illegal there.
+function ErrorFallback({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const styles = useThemeStyles(createStyles);
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Something went wrong</Text>
+      <Text style={styles.message}>{message}</Text>
+      <PrimaryButton title="Try again" onPress={onRetry} />
+    </View>
+  );
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
@@ -25,36 +38,30 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
   render() {
     if (this.state.error) {
-      return (
-        <View style={styles.container}>
-          <Text style={styles.title}>Something went wrong</Text>
-          <Text style={styles.message}>{this.state.error.message}</Text>
-          <PrimaryButton title="Try again" onPress={() => this.setState({ error: null })} />
-        </View>
-      );
+      return <ErrorFallback message={this.state.error.message} onRetry={() => this.setState({ error: null })} />;
     }
     return this.props.children;
   }
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.sm,
-  },
-  message: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: spacing.lg,
-    textAlign: 'center',
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: spacing.lg,
+      backgroundColor: c.background,
+    },
+    title: {
+      ...typography.heading,
+      color: c.text,
+      marginBottom: spacing.sm,
+    },
+    message: {
+      ...typography.caption,
+      color: c.textMuted,
+      marginBottom: spacing.lg,
+      textAlign: 'center',
+    },
+  });

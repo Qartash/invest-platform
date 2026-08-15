@@ -6,8 +6,11 @@
     "continue": "Continue",
     "back": "Back",
     "error": "Something went wrong",
+    "loadFailed": "Could not load this. Check your connection and try again.",
+    "serverRefused": "The server refused that. Try again, or contact support if it keeps happening.",
     "retry": "Retry",
     "close": "Close",
+    "ok": "OK",
     "confirm": "Confirm",
     "delete": "Delete",
     "currency": "֏",
@@ -31,7 +34,25 @@
     "registerButton": "Sign up",
     "noAccount": "No account?",
     "haveAccount": "Already have an account?",
-    "invalidCredentials": "Invalid username or password"
+    "invalidCredentials": "Wrong login, email or password",
+    "identifier": "Login or email",
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Sign in to keep investing",
+    "forgotPassword": "Forgot password?",
+    "registerTitle": "Create an account",
+    "registerSubtitle": "Takes less than a minute",
+    "passwordHint": "At least 8 characters",
+    "referralCode": "Invite code",
+    "referralCodeHint": "If someone invited you — optional",
+    "referralCodeLocked": "You arrived on an invite — the code is filled in and needs no changing",
+    "referralCodeRequiredHint": "Registration is invite-only. Get a code from someone already on the platform",
+    "emailTaken": "That email is already registered",
+    "terms": "By signing up you accept the terms and the privacy policy",
+    "or": "or",
+    "orWithEmail": "or with email",
+    "continueWithGoogle": "Continue with Google",
+    "signUpWithGoogle": "Sign up with Google",
+    "googleFailed": "Google sign-in failed"
   },
   "home": {
     "title": "Projects",
@@ -44,12 +65,22 @@
     "started": "Started",
     "deadline": "Ends",
     "ofGoal": "of {{amount}} {{currency}}",
-    "percentFunded": "{{percent}}% funded"
+    "percentFunded": "{{percent}}% funded",
+    "statTickets": "Tickets",
+    "statTicketsLeft": "Tickets left",
+    "statTicketsSold": "Tickets sold",
+    "statInvestors": "Investors",
+    "statDeadline": "Left",
+    "statStarted": "Started",
+    "daysShort": "{{days}} d",
+    "emptyRaising": "No projects are raising right now",
+    "emptyStarted": "No project has started yet"
   },
   "project": {
     "about": "About the project",
     "ticketPrice": "Ticket price",
     "ticketsLeft": "Tickets left",
+    "ticketsAvailable": "{{count}} ticket(s) available",
     "riskLevel": "Risk level",
     "quantity": "Quantity",
     "totalCost": "Total cost",
@@ -109,6 +140,7 @@
     },
     "calculatorTitle": "Return forecast",
     "ticketsToReceive": "Tickets you'll receive",
+    "equityToReceive": "Share of the company you'll own",
     "payoutStarts": "Payout accrual starts",
     "inDays": "in {{days}} days",
     "expectedDailyProfit": "Expected daily profit",
@@ -210,7 +242,43 @@
         "awaiting_payment": "Awaiting payment",
         "completed": "Completed"
       }
-    }
+    },
+    "tabAbout": "Overview",
+    "tabMarket": "Market",
+    "tabActivity": "Activity",
+    "metricsSection": "Metrics",
+    "moreSection": "More",
+    "roundsSection": "Rounds",
+    "resaleSection": "Resale",
+    "toPay": "Total",
+    "availableFunds": "Available",
+    "buyMax": "Max",
+    "forecastSummary": "Forecast: ≈ {{amount}} {{currency}} per month",
+    "equityOffered": "Company share offered",
+    "equityOfferedHint": "The share of the company all tickets together carry. Sold tickets earn a matching share of the profit; anything unsold stays with the founder.",
+    "equityRetained": "Founder keeps",
+    "valuation": "Company valuation",
+    "valuationHint": "What the founder is pricing the whole company at: the funding goal buys exactly the share on offer, so goal ÷ share. It's their asking price, not an independent appraisal.",
+    "equityPerTicket": "One ticket",
+    "equityPerTicketHint": "Every ticket carries the same share of the company, whichever price round you buy it in — the later rounds cost more for the same slice.",
+    "annualReturn": "Annual return",
+    "statusRaising": "Raising",
+    "resaleExtra": "+{{count}} on resale",
+    "worksCount": "Works · {{count}}",
+    "resaleFromPrice": "From {{price}} per ticket",
+    "resaleCheaper": "{{percent}}% cheaper than the primary offer",
+    "resaleCostlier": "{{percent}}% dearer than the primary offer",
+    "resaleSamePrice": "same price as the primary offer",
+    "financeSubtitle": "Income, expenses, payouts",
+    "worksSubtitle": "One-off paid project tasks",
+    "roundSold": "Round {{round}} · {{sold}} of {{total}} sold",
+    "roundPending": "Round {{round}} · {{total}} tickets",
+    "tabTeam": "Team",
+    "teamEmpty": "The founder has not introduced the team yet",
+    "teamCaption": "The people behind this project.",
+    "buySection": "Buy tickets",
+    "tabUpdates": "Updates",
+    "tabQuestions": "Questions"
   },
   "portfolio": {
     "title": "My portfolio",
@@ -233,7 +301,11 @@
     "showPurchases": "Show purchases",
     "hidePurchases": "Hide",
     "sellQuantityLabel": "Quantity to sell",
-    "availableToSell": "Available: {{max}}"
+    "availableToSell": "Available: {{max}}",
+    "openProject": "Open project",
+    "statEntryPrice": "Entry price",
+    "statHeld": "Held for",
+    "cancelListingShort": "Unlist"
   },
   "wallet": {
     "title": "Wallet",
@@ -244,6 +316,14 @@
     "history": "Transaction history",
     "amount": "Amount",
     "noTransactions": "No transactions yet",
+    "txCount": "{{count}} total",
+    "totalDeposited": "Deposited in total",
+    "totalWithdrawn": "Withdrawn in total",
+    "totalInvestCredited": "Investment credit granted",
+    "totalInvestCreditedHint": "All time, including what has already gone on tickets",
+    "pageOf": "{{page}} / {{pageCount}}",
+    "prevPage": "Previous page",
+    "nextPage": "Next page",
     "txType": {
       "deposit": "Deposit",
       "withdraw": "Withdrawal",
@@ -297,9 +377,76 @@
       "pending": "Pending review",
       "approved": "Verified",
       "rejected": "Rejected"
-    }
+    },
+    "theme": "Theme",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeHint": "System follows your phone’s setting.",
+    "appearance": "Appearance",
+    "accountSection": "Account",
+    "contactsSection": "Contacts",
+    "financeSection": "Finance",
+    "walletSubtitle": "Balance and top-up",
+    "portfolioSubtitle": "Your tickets and returns",
+    "reportsSubtitle": "Charts and statistics",
+    "logoutConfirmTitle": "Log out?",
+    "logoutConfirmMessage": "You will need to sign in again."
   },
   "founder": {
+    "wizard": {
+      "back": "Back",
+      "next": "Next",
+      "stepOf": "{{current}}/{{total}}",
+      "aboutName": "About",
+      "aboutHint": "The cover, name and description are all an investor sees in the feed.",
+      "fundingName": "Funding",
+      "fundingHint": "The ticket price is derived from the goal, the ticket count and the rounds — it can't be typed in.",
+      "budgetName": "Budget",
+      "budgetHint": "Where the money goes. Optional, but it raises trust a lot.",
+      "teamName": "Team",
+      "teamHint": "Who is building this. Order means seniority: the first person reads as the lead.",
+      "mediaName": "Materials",
+      "mediaHint": "Video and documents. These can be added after review too.",
+      "reviewName": "Review",
+      "reviewHint": "What's ready and what will block moderation. Tap a problem to jump to it.",
+      "previewName": "Preview",
+      "previewHint": "Exactly what an investor will see. Happy with it — send it.",
+      "previewNotice": "Once sent, the project goes to moderation. You can't edit it while it's being reviewed — files and team can be added at any time.",
+      "reviewNotice": "Anything marked red will block moderation. Tap a row to jump to that step.",
+      "groupRaise": "Raising",
+      "groupEquity": "Company share",
+      "groupRounds": "Price rounds",
+      "groupReturn": "Investor return",
+      "impliedValuation": "This values your company at",
+      "valuationNotAvailable": "Set a funding goal and a share first",
+      "equityInvestors": "Investors",
+      "equityRetained": "You keep",
+      "equityPerTicket": "One ticket = {{percent}} of the company",
+      "equityControlWarning": "You keep less than a controlling stake. And if you raise again later, a new round dilutes everyone — including you.",
+      "languagesProgress": "{{done}} of {{total}} languages",
+      "ticketPriceRound1": "Ticket price · round 1",
+      "roundsToggle": "Rounds",
+      "budgetOfGoal": "of {{amount}} {{currency}}",
+      "budgetRemaining": "{{amount}} {{currency}} left to allocate",
+      "budgetOver": "{{amount}} {{currency}} over the funding goal",
+      "budgetAllDone": "The whole goal is allocated",
+      "budgetNoGoal": "Set a funding goal first",
+      "previewNoCover": "No cover image",
+      "previewNoTitle": "No name yet",
+      "previewNoDescription": "The description in this language is empty — an investor sees nothing here.",
+      "previewRound": "Raising · round {{current}} of {{total}}",
+      "sumAboutOk": "Name and description in every language",
+      "sumFundingOk": "{{amount}} {{currency}} · {{tickets}} tickets · {{rounds}} rounds · {{equity}}% of the company",
+      "sumFundingBad": "Goal, ticket count, rounds or company share are missing",
+      "sumBudgetOk": "{{count}} items · {{percent}}% allocated",
+      "sumBudgetEmpty": "No breakdown — optional",
+      "sumTeamOk": "{{count}} members",
+      "sumTeamIncomplete": "{{filled}} filled, {{empty}} incomplete",
+      "sumTeamEmpty": "No team — optional",
+      "sumMediaOk": "{{count}} documents",
+      "sumMediaEmpty": "No documents or video"
+    },
     "myProjects": "My projects",
     "tabOwned": "Owned",
     "tabInvested": "Invested",
@@ -318,6 +465,12 @@
     "totalTickets": "Number of tickets",
     "deadline": "Deadline",
     "priceTierCount": "Number of price rounds",
+    "equityOfferedPercent": "Share of the company offered (%)",
+    "equityOfferedHint": "E.g. 49 — the share all tickets together carry",
+    "equityOfferedLockedHint": "Tickets have already been sold, so this share can no longer be changed",
+    "equityOfferedRangeError": "Enter a share between 0.01 and 100",
+    "equityOfferedFieldHint": "How much of the company investors get if every ticket is sold. Each ticket carries an equal slice of it, so one ticket = this share ÷ ticket count. Whatever stays unsold stays yours, along with the share you didn't offer. Once the first ticket is sold this can't be changed — investors bought that exact share.",
+    "impliedValuationHint": "Your funding goal buys exactly the share you offered, which sets what the whole company is worth: goal ÷ share. Raising 10,000,000 for 49% prices the company at about 20,400,000. If that number looks wrong, the share is the thing to fix.",
     "resaleEnabled": "Allow ticket resale",
     "submit": "Submit for review",
     "moderation": "Moderation",
@@ -328,6 +481,7 @@
     "changePhoto": "Change photo",
     "editProject": "Edit project",
     "reviewCommentLabel": "Moderator comment",
+    "approveBlocked": "Still to fill in: {{fields}}",
     "reviewCommentPlaceholder": "Describe the reason for this decision (approval or rejection)",
     "expectedAnnualReturn": "Expected annual return (%)",
     "expectedAnnualReturnHint": "E.g. 20 — investors will earn roughly 20% per year",
@@ -409,7 +563,31 @@
     "expectedAnnualReturnFieldHint": "The expected annual return investors will earn on the amount they invest, e.g. 20%.",
     "payoutStartDaysFieldHint": "How many days after buying a ticket an investor starts earning payouts.",
     "resaleEnabledFieldHint": "If enabled, investors can resell their tickets to other investors right within the platform.",
-    "historyAdminEdited": "Edited by administrator"
+    "historyAdminEdited": "Edited by administrator",
+    "teamSection": "Project team",
+    "teamHint": "Say who is building this. Investors back people as much as ideas.",
+    "teamAdd": "Add member",
+    "teamName": "Name",
+    "teamNamePlaceholder": "e.g. Armen Grigoryan",
+    "teamRole": "Role",
+    "teamRolePlaceholder": "e.g. founder and baker",
+    "teamBio": "A line about them (optional)",
+    "teamBioPlaceholder": "Experience, what they own in the project",
+    "teamPhoto": "Photo",
+    "teamAddPhoto": "Add photo",
+    "teamChangePhoto": "Change",
+    "teamRemove": "Remove member",
+    "teamRemoveConfirm": "Remove this member from the team?",
+    "teamMoveUp": "Up",
+    "teamMoveDown": "Down",
+    "teamMemberIncomplete": "Fill in name and role, or this member will not be saved",
+    "navFinance": "Finance",
+    "navWorks": "Works",
+    "previewProject": "Open as investor",
+    "statEquity": "Equity",
+    "diffExpand": "Show {{count}} more",
+    "diffCollapse": "Collapse",
+    "verificationRequiredShort": "Requires a verified profile (KYC)"
   },
   "works": {
     "title": "Works",
@@ -505,6 +683,8 @@
     "selectFrozen": "To freeze"
   },
   "moderation": {
+    "stakeChangeWarning": "This edit redraws what has already been sold",
+    "stakeChangeFacts": "{{sold}} of {{total}} tickets sold, {{collected}} {{currency}} collected. Changing the price or the equity share changes what those holders own.",
     "refund": {
       "confirmTitle": "Refund investors?",
       "confirmMessage": "Mark this project failed and refund the frozen treasury to ticket holders in proportion to tickets held. This cannot be undone.",
@@ -519,6 +699,48 @@
       "none": "No pending release requests"
     },
     "tabPending": "Pending review",
+    "seedDemo": {
+      "action": "Create demo project",
+      "title": "Fill the platform with demo data?",
+      "intro": "One project walked through every state it has, plus the accounts around it:",
+      "items": [
+        "\"Coffee Roastery Yerevan\" — cover image, description in three languages, 2 documents, a team of 3, risk level and moderator approval",
+        "4 budget stages: the first unfrozen by a moderator, the second waiting in the release queue",
+        "40 of 100 tickets sold to two investors, treasury filled, 5 tickets listed for resale",
+        "4 works: one accepted and rated 5★, one mid-milestones (1 of 2 paid), one open with 2 applications, one in dispute",
+        "3 months of books: income, expenses, a paid report with dividends and one still payable",
+        "A referral tree of the founder plus three invitees, wallets with balances"
+      ],
+      "note": "Nothing is deleted. If the demo project already exists the button refuses — wipe first.",
+      "doneTitle": "Demo data created",
+      "doneMessage": "The project and its accounts are ready. Logins:"
+    },
+    "wipe": {
+      "zoneTitle": "Danger zone",
+      "zoneDescription": "Testing tools: fill the platform with demo data, or erase it entirely. This block should be removed before production.",
+      "action": "Erase all data",
+      "title": "Erase all platform data?",
+      "warning": "Absolutely everything below is deleted from the database, with no way back:",
+      "items": [
+        "Every user, their profile and their password",
+        "Every project, including covers, images and attached files",
+        "Every ticket, stake and portfolio",
+        "Every wallet, balance, invest credit and transaction",
+        "All financial reports, income, expenses and payouts",
+        "All works, applications, milestones and disputes",
+        "The entire referral network, its earnings and partner applications",
+        "Every quest, completion and daily draw",
+        "All system logs and action history",
+        "Every uploaded file on the server"
+      ],
+      "keepsAdmin": "Only your own admin account survives — without it nobody could sign in again. Its wallet is zeroed and its avatar removed.",
+      "passwordLabel": "Wipe password",
+      "passwordPlaceholder": "Enter the password",
+      "confirmLabel": "Type {{word}} to confirm",
+      "confirmWord": "DELETE",
+      "doneTitle": "Database cleared",
+      "doneMessage": "{{tablesCleared}} table(s) cleared. {{usersDeleted}} user(s) and {{filesDeleted}} file(s) deleted."
+    },
     "logs": {
       "title": "Logs",
       "frontendClicks": "App clicks",
@@ -537,6 +759,12 @@
         "error": "Errors",
         "database": "Database",
         "console": "Console"
+      },
+      "columns": {
+        "source": "Source",
+        "time": "Time",
+        "category": "Category",
+        "message": "Message"
       }
     },
     "tabAll": "All projects",
@@ -560,6 +788,35 @@
         "investor": "Investor",
         "founder": "Founder",
         "admin": "Administrator"
+      }
+    },
+    "content": {
+      "tab": "Reports",
+      "reports": "Reported content",
+      "noReports": "Nothing reported.",
+      "neglected": "Projects leaving investors in the dark",
+      "noNeglected": "Every project is answering.",
+      "unanswered": "{{count}} unanswered",
+      "silentDays": "silent for {{count}} days",
+      "neverPosted": "never posted",
+      "reportCount": "{{count}} report(s)",
+      "reasons": "Reasons",
+      "reasonPlaceholder": "Reason shown to the author",
+      "reasonRequired": "Hiding requires a reason — the author is shown it.",
+      "hide": "Hide",
+      "keep": "Keep",
+      "hideNote": "Hiding does not delete: the text stays and the author is told why.",
+      "target": {
+        "question": "question",
+        "answer": "answer",
+        "update": "post"
+      },
+      "reason": {
+        "off_platform": "deal off the platform",
+        "contacts": "contact details",
+        "spam": "spam",
+        "not_an_answer": "not an answer",
+        "other": "other"
       }
     }
   },
@@ -598,6 +855,654 @@
       "year": "1Y",
       "5year": "5Y",
       "max": "MAX"
+    }
+  },
+  "errors": {
+    "tooManyAttempts": "Too many attempts. Give it a little while and try again.",
+    "insufficientFunds": "Not enough money in your wallet for this.",
+    "insufficientFundsDividends": "The wallet does not hold enough to pay these dividends.",
+    "amountMustBePositive": "Enter an amount greater than zero.",
+    "invalidQuantity": "Enter a whole number of tickets, at least one.",
+    "notEnoughTickets": "There are not that many tickets available.",
+    "emailTaken": "That email is already registered.",
+    "usernameTaken": "That username is already taken.",
+    "invalidCredentials": "Wrong login or password.",
+    "accountBanned": "This account is blocked. Contact support.",
+    "verificationRequired": "Verify your account before creating a project.",
+    "projectClosedForInvestment": "This project is no longer taking investment.",
+    "cannotBuyOwnListing": "You cannot buy your own listing.",
+    "listingGone": "This listing is no longer for sale.",
+    "resaleDisabled": "Resale is switched off for this project.",
+    "applicationInProgress": "You already have an application under review.",
+    "stakeLockedAfterSale": "Price and equity share cannot be changed once tickets have been sold.",
+    "goalBelowCollected": "The goal cannot be lower than the amount already collected.",
+    "ticketCountBelowSold": "The ticket count cannot be lower than the number already sold.",
+    "editAlreadyPending": "This project already has an edit under review. Wait for the decision.",
+    "inviteRequired": "Registration is invite-only — a code is required.",
+    "inviteUnknown": "No such invite code. Check it for a typo.",
+    "inviteNotActive": "This code is not active yet. Whoever invited you needs a deposit and 7 days on the platform — ask them for a new code, or wait.",
+    "wrongWipePassword": "Wrong wipe password.",
+    "demoAlreadySeeded": "The demo project already exists. Wipe the data first.",
+    "wipeNotConfigured": "ADMIN_WIPE_PASSWORD is not set on the server — the wipe is disabled."
+  },
+  "partners": {
+    "admin": {
+      "tab": "Partners",
+      "tabApplications": "Applications",
+      "tabPayouts": "Owed",
+      "approve": "Approve",
+      "requestChanges": "Ask for changes",
+      "reject": "Reject",
+      "noteRequired": "Write a note first — the applicant has to know what to do next.",
+      "notePlaceholder": "What the applicant should know",
+      "memberSince": "With us since {{date}}",
+      "appliedOn": "applied {{date}}",
+      "noApplications": "No applications waiting",
+      "noPayouts": "Nothing owed to partners right now",
+      "earningCount": "{{count}} matured earning(s)",
+      "markPaid": "Mark as paid",
+      "markPaidHint": "Records that you already sent the transfer. Moves no money.",
+      "settled": "{{count}} earning(s) marked as paid"
+    },
+    "title": "Partnership",
+    "heroTitle": "Partner programme",
+    "heroText": "If you run a blog, channel or community, the terms differ from ordinary invites. Paid in real money to a card.",
+    "termsTitle": "Terms",
+    "perPerson": "Per invitee who funds their account",
+    "percentOfDeposit": "Of their first deposit",
+    "cap": "up to {{cap}} ֏",
+    "depth": "Depth",
+    "depthValue": "your own invitees only",
+    "paidTo": "Where the money goes",
+    "paidToCard": "to a card",
+    "whyNoDepth": "A partner earns five times more per direct invitee but nothing from other people's invites. That makes this advertising paid on results rather than a network — which is also how the contract describes it.",
+    "rulesTitle": "What you may and may not say",
+    "ruleOk1": "\"A place to invest in local business\"",
+    "ruleOk2": "Show your real portfolio, losses included",
+    "ruleNo1": "Promise a return — \"30% a year\" and the like",
+    "ruleNo2": "\"Passive income\", \"earn with no investment\"",
+    "ruleNo3": "Hide that a post is paid for",
+    "formTitle": "Application",
+    "channelType": "Where your audience is",
+    "channelUrl": "Link to the channel",
+    "audienceSize": "How many followers",
+    "topic": "What the channel is about",
+    "plan": "How you plan to talk about the platform",
+    "planHint": "The field that matters most: it's where a reviewer sees whether returns are about to be promised.",
+    "submit": "Send",
+    "sentTitle": "Application sent",
+    "sentText": "We usually reply within 2–3 working days.",
+    "applyFailed": "Could not send the application. It may already be under review.",
+    "underReviewTitle": "Application under review",
+    "underReviewText": "We're looking at the channel and its recent posts. This usually takes 2–3 working days.",
+    "whileWaiting": "Ordinary invites work without partnership — your code is already active and bonuses go to your invest account.",
+    "owedToCard": "Owed to your card",
+    "payoutSchedule": "Paid monthly against an invoice. Earnings confirm after 14 days.",
+    "settled": "Settled",
+    "earnedTotal": "Earned in total",
+    "rulesNote": "Breaking the rules ends the contract and voids unpaid earnings.",
+    "reviewNote": "A moderator reviews the application. If the audience doesn't fit the topic we'll decline and say why.",
+    "status": {
+      "pending": "Under review",
+      "approved": "Approved",
+      "rejected": "Declined",
+      "changes_requested": "Changes requested"
+    }
+  },
+  "quests": {
+    "title": "Quests",
+    "profileSub": "Small rewards for activity",
+    "streakTitle": "Visit streak",
+    "streakHint": "{{count}} more day(s) in a row earns a reward. Missing a day resets it.",
+    "draw": {
+      "title": "Daily draw",
+      "poolLabel": "Today's pot",
+      "participants": "Taking part",
+      "seats": "Seats",
+      "chance": "Your chance",
+      "winners": "Winners",
+      "youIn": "You're in — today's visit counts. Results this evening.",
+      "notInYet": "Open the app today to take part in the draw.",
+      "done": "Today's draw has already run.",
+      "noPoolToday": "Nothing in the pot yet: the draw runs on days someone arrives on their own, without anybody's link.",
+      "wonToday": "You won today's bonus",
+      "yesterday": "Yesterday: {{participants}} took part, {{winners}} won {{share}} ֏ each.",
+      "yesterdayNone": "There was no draw yesterday.",
+      "explain": "Someone who arrives on their own, without anybody's link, earns no one a referral bonus. Instead the platform puts {{perArrival}} ֏ into a shared pot for each of them and splits it between everyone who was active that day. More people arriving makes the pot bigger, not your chance smaller."
+    },
+    "fromProjects": "From projects",
+    "fromProjectsNote": "These are paid for by the project. They pay for your attention, not your investment — watching and investing are separate decisions.",
+    "fromPlatform": "From the platform",
+    "investCreditNote": "Rewards land on your invest account: they can buy tickets, but can't be withdrawn.",
+    "done": "Done",
+    "claim": "Claim",
+    "markDone": "Mark done",
+    "byModerator": "Confirmed by a moderator",
+    "notEligible": "Not met yet",
+    "rewarded": "Reward credited",
+    "notYetTitle": "Not yet",
+    "notYetText": "The condition isn't met yet, or the quest is already counted.",
+    "catalog": {
+      "profile_complete": {
+        "title": "Complete your profile",
+        "description": "Name, phone, occupation and date of birth."
+      },
+      "first_investment": {
+        "title": "First investment",
+        "description": "Buy your first ticket in any project."
+      },
+      "bug_report": {
+        "title": "Report a bug",
+        "description": "Describe what broke and how to repeat it. Confirmed reports are paid."
+      }
+    }
+  },
+  "referrals": {
+    "title": "Invites",
+    "profileSub": "Code, tree and earnings",
+    "communitySection": "Community & bonuses",
+    "yourCode": "Your code",
+    "lock": {
+      "title": "This code does not work yet. To invite, you need to:",
+      "deposit": "Top up your account at least once",
+      "ageLeft": "Stay on the platform {{days}} more day(s)",
+      "ageDone": "{{days}} days on the platform"
+    },
+    "share": "Share",
+    "copyLink": "Copy link",
+    "copied": "Link copied",
+    "shareMessage": "Join the platform with my link: {{link}}",
+    "earnedOnInvest": "Credited to invest account",
+    "investOnly": "Buys tickets only · can't be withdrawn",
+    "available": "Available",
+    "pending": "Maturing",
+    "inTree": "In tree",
+    "invited": "Invited",
+    "depth": "Depth",
+    "earned": "Earned",
+    "ladderTitle": "What each level pays",
+    "ladderNear": "Levels 1–5",
+    "ladderNearSub": "for each one who qualifies",
+    "ladderFar": "Levels 6–15",
+    "ladderFarSub": "ten levels deep",
+    "ladderDeep": "Levels 16+",
+    "ladderDeepSub": "no level cap",
+    "ladderPercent": "1% of level-1 first deposit",
+    "ladderPercentSub": "once, to the direct referrer",
+    "inviteToProjectTitle": "Invite into your project",
+    "inviteToProjectSub": "Copy a link to this project",
+    "inviteToProjectHint": "Your projects only: the ones you founded, and the ones you hold tickets in. They land straight on the project, and the invite still counts for you.",
+    "shareProjectMessage": "Take a look at \"{{title}}\": {{link}}",
+    "communityTitle": "Community",
+    "treeTitle": "Community tree",
+    "treeSub": "{{count}} people in your branch",
+    "earningsTitle": "Earnings history",
+    "earningsSub": "When it counts, when it matures",
+    "blogger": {
+      "canApplyTitle": "Have an audience?",
+      "canApplyText": "Bloggers earn 500 ֏ per person instead of 100, paid to a card.",
+      "canApplyCta": "I'm a blogger — apply",
+      "pendingTitle": "Your application is under review",
+      "pendingText": "We will get back to you. Nothing else is needed from you for now.",
+      "pendingCta": "See the application",
+      "changesRequestedTitle": "Your application needs changes",
+      "changesRequestedText": "The moderator left a note on what to fix before applying again.",
+      "changesRequestedCta": "Read the note",
+      "isPartnerTitle": "You are a partner",
+      "isPartnerText": "500 ֏ per person you bring in, paid to a card.",
+      "isPartnerCta": "Partner details"
+    },
+    "bloggerSoon": "The partner programme is coming soon.",
+    "noPyramidNote": "We don't pay for sign-ups or a cut of invitees' investments. Bonuses go only to the invest account and are funded by the platform.",
+    "nodeLevel": "Level {{level}}",
+    "nodeInvited": "invited {{count}}",
+    "treeEmptyTitle": "No one yet",
+    "treeEmptyText": "Your tree appears once your first invitee funds their account or keeps a week's streak.",
+    "treePrivacyNote": "Names below the first level are hidden. Others' investment amounts are never shown.",
+    "filterAll": "All",
+    "earningLevel": "{{name}} · level {{level}}",
+    "earningPercent": "{{name}} · 1% of deposit",
+    "maturesOn": "Available from {{date}}",
+    "earningsEmpty": "No earnings yet",
+    "earningsHoldNote": "A bonus confirms 14 days after the event. If the deposit is refunded, the earning is voided — before payout.",
+    "status": {
+      "pending": "Maturing",
+      "paid": "Available",
+      "cancelled": "Voided"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "profileSub": "Everything that happened while you were away",
+    "markAllRead": "Mark all read",
+    "empty": "Nothing yet",
+    "unreadCount": "{{count}} unread",
+    "aProject": "a project",
+    "items": {
+      "unknown": {
+        "title": "Notification",
+        "body": "Something happened on the platform."
+      },
+      "tickets_purchased": {
+        "title": "Tickets bought",
+        "body": "{{quantity}} ticket(s) in “{{project}}” for {{amount}}."
+      },
+      "listing_sold": {
+        "title": "Your listing sold",
+        "body": "{{quantity}} of your tickets in “{{project}}” were bought for {{amount}}."
+      },
+      "listing_bought": {
+        "title": "Bought on the resale market",
+        "body": "{{quantity}} ticket(s) in “{{project}}” for {{amount}}."
+      },
+      "project_funded": {
+        "title": "Project fully funded",
+        "body": "“{{project}}” has sold every ticket."
+      },
+      "financial_report_published": {
+        "title": "New financial report",
+        "body": "“{{project}}” published its books for {{period}}."
+      },
+      "dividends_received": {
+        "title": "Dividends paid",
+        "body": "{{amount}} for {{period}} from “{{project}}”."
+      },
+      "project_refunded": {
+        "title": "Money returned",
+        "body": "“{{project}}” was closed. {{amount}} is back in your wallet."
+      },
+      "project_closed": {
+        "title": "Project closed",
+        "body": "“{{project}}” has been closed by a moderator."
+      },
+      "project_deleted": {
+        "title": "Project removed",
+        "body": "“{{project}}” has been deleted."
+      },
+      "project_risk_changed": {
+        "title": "Risk level changed",
+        "body": "“{{project}}” is now rated {{risk}}. {{comment}}"
+      },
+      "project_admin_edited": {
+        "title": "Project edited by a moderator",
+        "body": "{{actor}} changed “{{project}}”."
+      },
+      "project_approved": {
+        "title": "Project approved",
+        "body": "“{{project}}” is live. {{comment}}"
+      },
+      "project_rejected": {
+        "title": "Project rejected",
+        "body": "“{{project}}”: {{comment}}"
+      },
+      "project_deletion_approved": {
+        "title": "Deletion approved",
+        "body": "“{{project}}” has been deleted."
+      },
+      "project_deletion_rejected": {
+        "title": "Deletion refused",
+        "body": "“{{project}}”: {{comment}}"
+      },
+      "investment_received": {
+        "title": "New investment",
+        "body": "{{quantity}} ticket(s) in “{{project}}” sold for {{amount}}."
+      },
+      "fund_release_approved": {
+        "title": "Stage released",
+        "body": "{{amount}} for “{{stage}}” is now spendable in “{{project}}”. {{comment}}"
+      },
+      "fund_release_rejected": {
+        "title": "Stage release refused",
+        "body": "“{{stage}}” in “{{project}}”: {{comment}}"
+      },
+      "work_application_received": {
+        "title": "New application",
+        "body": "Someone applied to “{{work}}” in “{{project}}”."
+      },
+      "work_submitted": {
+        "title": "Work submitted",
+        "body": "“{{work}}” in “{{project}}” is ready for review."
+      },
+      "work_milestone_submitted": {
+        "title": "Milestone submitted",
+        "body": "“{{milestone}}” in “{{work}}” is ready for review."
+      },
+      "work_application_selected": {
+        "title": "You were selected",
+        "body": "“{{work}}” in “{{project}}” is yours, for {{amount}}."
+      },
+      "work_application_rejected": {
+        "title": "Application declined",
+        "body": "“{{work}}” in “{{project}}”. {{comment}}"
+      },
+      "work_accepted": {
+        "title": "Work accepted",
+        "body": "{{amount}} paid for “{{work}}”."
+      },
+      "work_milestone_accepted": {
+        "title": "Milestone accepted",
+        "body": "{{amount}} paid for “{{milestone}}”."
+      },
+      "work_cancelled": {
+        "title": "Work cancelled",
+        "body": "“{{work}}” in “{{project}}” was cancelled."
+      },
+      "work_review_received": {
+        "title": "You were rated",
+        "body": "{{rating}}/5 for “{{work}}”. {{comment}}"
+      },
+      "work_dispute_opened": {
+        "title": "Dispute opened",
+        "body": "A dispute was opened on “{{work}}” in “{{project}}”."
+      },
+      "work_dispute_resolved": {
+        "title": "Dispute resolved",
+        "body": "“{{work}}”: the escrow of {{amount}} has been settled."
+      },
+      "wallet_deposited": {
+        "title": "Wallet topped up",
+        "body": "{{amount}} added. Balance: {{balance}}."
+      },
+      "wallet_withdrawn": {
+        "title": "Withdrawal",
+        "body": "{{amount}} withdrawn. Balance: {{balance}}."
+      },
+      "project_funds_withdrawn": {
+        "title": "Project funds withdrawn",
+        "body": "{{amount}} moved from “{{project}}” to your wallet."
+      },
+      "referral_joined": {
+        "title": "Someone joined by your invite",
+        "body": "Your invite code was used to create an account."
+      },
+      "referral_earning_accrued": {
+        "title": "Referral bonus earned",
+        "body": "{{amount}} is maturing and will be credited once the hold ends."
+      },
+      "referral_earning_paid": {
+        "title": "Referral bonus credited",
+        "body": "{{amount}} added to your invest credit."
+      },
+      "referral_earning_cancelled": {
+        "title": "Referral bonus voided",
+        "body": "{{amount}} will not be paid."
+      },
+      "partner_application_approved": {
+        "title": "You are a partner",
+        "body": "Your partner application was approved. {{comment}}"
+      },
+      "partner_application_rejected": {
+        "title": "Partner application declined",
+        "body": "{{comment}}"
+      },
+      "partner_application_changes_requested": {
+        "title": "Changes requested",
+        "body": "{{comment}}"
+      },
+      "partner_revoked": {
+        "title": "Partner status withdrawn",
+        "body": "Anything already earned is still owed to you."
+      },
+      "partner_payout_settled": {
+        "title": "Partner payout settled",
+        "body": "{{amount}} has been transferred."
+      },
+      "streak_rewarded": {
+        "title": "Streak reward",
+        "body": "{{streak}} days in a row — {{amount}}."
+      },
+      "daily_draw_won": {
+        "title": "You won the daily draw",
+        "body": "{{amount}} added to your invest credit."
+      },
+      "quest_rewarded": {
+        "title": "Quest reward",
+        "body": "{{amount}} credited for a completed task."
+      },
+      "project_quest_added": {
+        "title": "New paid task",
+        "body": "“{{quest}}” in “{{project}}” — {{amount}}."
+      },
+      "account_banned": {
+        "title": "Account blocked",
+        "body": "Contact support if you think this is a mistake."
+      },
+      "account_unbanned": {
+        "title": "Account unblocked",
+        "body": "You have full access again."
+      },
+      "account_deleted": {
+        "title": "Account deleted",
+        "body": "Your account was deleted by a moderator."
+      },
+      "account_restored": {
+        "title": "Account restored",
+        "body": "Your account is active again."
+      },
+      "account_edited_by_admin": {
+        "title": "Account details changed",
+        "body": "A moderator changed: {{fields}}."
+      },
+      "mod_project_submitted": {
+        "title": "Project awaiting review",
+        "body": "“{{project}}” is in the moderation queue. {{comment}}"
+      },
+      "mod_project_deletion_requested": {
+        "title": "Deletion requested",
+        "body": "“{{project}}” is asking to be deleted."
+      },
+      "mod_fund_release_requested": {
+        "title": "Stage release requested",
+        "body": "{{amount}} for “{{stage}}” in “{{project}}”."
+      },
+      "mod_work_disputed": {
+        "title": "Work dispute",
+        "body": "“{{work}}” in “{{project}}” needs a decision."
+      },
+      "mod_partner_applied": {
+        "title": "New partner application",
+        "body": "A partner application is waiting for review."
+      },
+      "mod_partner_payout_due": {
+        "title": "Partner payouts due",
+        "body": "{{partners}} partner(s) are owed {{amount}}."
+      },
+      "mod_referral_pool_empty": {
+        "title": "Referral pool cannot pay",
+        "body": "{{count}} matured earning(s) are waiting to be funded."
+      },
+      "mod_dividend_ledger_mismatch": {
+        "title": "Dividends on hold",
+        "body": "A project holds {{ticketsHeld}} tickets but issued {{ticketsIssued}}."
+      },
+      "mod_demo_seeded": {
+        "title": "Demo data seeded",
+        "body": "{{actor}} created the demo project."
+      },
+      "question_asked": {
+        "title": "New question about your project",
+        "body": "“{{excerpt}}” — {{project}}. Answer within 48 hours."
+      },
+      "question_answered": {
+        "title": "Your question was answered",
+        "body": "{{project}} — “{{excerpt}}”"
+      },
+      "question_thread_reply": {
+        "title": "New reply in a thread you follow",
+        "body": "{{project}} — “{{excerpt}}”"
+      },
+      "question_trending": {
+        "title": "Your question has {{quantity}} votes",
+        "body": "{{project}} — other investors want the same answer."
+      },
+      "project_update_posted": {
+        "title": "News from “{{project}}”",
+        "body": "{{excerpt}}"
+      },
+      "content_hidden": {
+        "title": "A moderator hid your post",
+        "body": "Reason: {{comment}}"
+      },
+      "questions_awaiting_answer": {
+        "title": "{{quantity}} question(s) waiting for an answer",
+        "body": "{{project}} — unanswered questions lower the answer rate investors see."
+      },
+      "project_silent": {
+        "title": "Investors have not heard from you in {{quantity}} days",
+        "body": "{{project}} — tell them how it is going. Three sentences is enough."
+      },
+      "mod_content_reported": {
+        "title": "Content reported",
+        "body": "Somebody flagged a question, an answer or a post."
+      }
+    }
+  },
+  "ledger": {
+    "tab": "Finance",
+    "poolTitle": "Platform account",
+    "poolHint": "Quests, visit streaks, the daily draw and referral bonuses are all paid out of this. It belongs to the platform, not to anybody personally.",
+    "fund": "Add funds",
+    "fundTitle": "Fund the platform account",
+    "fundText": "This is money entering the platform from outside. It is recorded as a movement of its own, so the sum always has a source you can point at.",
+    "fundAmount": "Amount",
+    "fundNote": "Reference",
+    "fundNotePlaceholder": "e.g. transfer of 08.08, August budget",
+    "fundConfirm": "Add funds",
+    "whereMoneyIs": "Where the money sits",
+    "whereMoneyCameFrom": "Where it came from",
+    "movements": "All movements",
+    "allKinds": "All",
+    "noMovements": "No movements yet.",
+    "prev": "Back",
+    "next": "Next",
+    "unaccountedNote": "Money with no recorded source: everything that was on the platform before the ledger existed. This figure should only ever fall. If it grows, a movement went unrecorded.",
+    "sheet": {
+      "userBalances": "User wallets",
+      "userInvest": "Invest credit",
+      "projectTreasuries": "Project treasuries (escrow)",
+      "projectSpendable": "Project spendable funds",
+      "workEscrow": "Frozen for works",
+      "platform": "Platform account",
+      "held": "Total on the platform",
+      "emittedIn": "Came in from outside",
+      "emittedOut": "Went out",
+      "unaccounted": "No source"
+    },
+    "account": {
+      "external": "Outside world",
+      "platform": "Platform account",
+      "user_balance": "wallet",
+      "user_invest": "invest credit",
+      "project_treasury": "treasury",
+      "project_spendable": "spendable",
+      "work_escrow": "work escrow",
+      "deletedUser": "Deleted user",
+      "deletedProject": "Deleted project"
+    },
+    "kind": {
+      "deposit": "Deposit",
+      "withdrawal": "Withdrawal",
+      "ticket_purchase": "Ticket purchase",
+      "ticket_resale": "Resale",
+      "stage_release": "Stage release",
+      "founder_withdrawal": "Founder withdrawal",
+      "project_refund": "Refund to investors",
+      "work_escrow_hold": "Frozen for a work",
+      "work_payment": "Work payment",
+      "work_escrow_return": "Escrow returned",
+      "dividend": "Dividend",
+      "reward": "Reward",
+      "referral_bonus": "Referral bonus",
+      "partner_settlement": "Partner payout",
+      "platform_funding": "Platform account funded"
+    }
+  },
+  "social": {
+    "deletedUser": "Deleted user",
+    "founder": "founder",
+    "answered": "answered",
+    "answerAction": "Answer",
+    "replyAction": "Add a follow-up",
+    "follow": "Follow",
+    "following": "Following",
+    "awaitingAnswer": "The founder has not answered yet",
+    "responsiveness": {
+      "detail": "answered {{answered}} of {{total}} questions",
+      "fast": "answers in {{count}} min",
+      "hours": "answers in {{count}} h",
+      "days": "answers in {{count}} d",
+      "silent": "does not answer · {{count}} questions",
+      "patchy": "leaves questions unanswered · {{count}}"
+    },
+    "header": {
+      "noQuestionsYet": "Nobody has asked anything yet."
+    },
+    "sort": {
+      "top": "Top",
+      "new": "Newest",
+      "unanswered": "Unanswered"
+    },
+    "empty": {
+      "title": "No questions yet",
+      "body": "Ask first — the founder usually answers the same day.",
+      "founderBody": "Investors have not asked anything yet."
+    },
+    "ask": {
+      "placeholder": "What do you want to ask the founder?",
+      "send": "Send",
+      "similar": "Already asked",
+      "publicNotice": "Questions and answers are public, and so is your name. The answer arrives as a notification."
+    },
+    "answer": {
+      "placeholder": "Answer plainly — everyone will read it",
+      "send": "Answer",
+      "alsoPost": "Post as an update",
+      "alsoPostHint": "Notifies every ticket holder, not just the person who asked",
+      "pin": "Pin to the top",
+      "pinHint": "Shown first to everyone who opens the project"
+    },
+    "reply": {
+      "placeholder": "Add a follow-up…"
+    },
+    "vote": {
+      "helped": "Helped · {{count}}",
+      "notAnAnswer": "Not an answer · {{count}}"
+    },
+    "queue": {
+      "overdue": "Overdue — this lowers your answer rate",
+      "hoursLeft": "{{count}} h left to answer"
+    },
+    "hidden": {
+      "title": "Hidden by a moderator"
+    },
+    "delete": {
+      "title": "Delete the question?",
+      "body": "It can only be deleted while nobody has replied."
+    },
+    "report": {
+      "action": "Report",
+      "sentTitle": "Reported",
+      "sentBody": "A moderator will look at it."
+    },
+    "updates": {
+      "promptTitle": "Tell investors how it is going",
+      "promptSince": "Last update: {{date}}",
+      "promptNever": "You have not posted anything yet. People who paid have no idea what is happening.",
+      "write": "Write",
+      "publish": "Publish",
+      "titlePlaceholder": "Headline",
+      "bodyPlaceholder": "What happened with the project?",
+      "notify": "Notify holders",
+      "notifyHint": "Everyone holding tickets gets a notification",
+      "editWindow": "A post can be edited for an hour, after that only added to.",
+      "emptyTitle": "No news yet",
+      "emptyBody": "Updates from the founder and published reports appear here.",
+      "reportTitle": "Financial report published",
+      "revenue": "revenue {{amount}}",
+      "holders": "{{count}} holders",
+      "automatic": "automatic",
+      "edited": "edited",
+      "readBy": "read by {{count}}"
     }
   }
 }

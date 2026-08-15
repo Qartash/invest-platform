@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { formatDate, formatDateTime } from '../utils/date';
 
 interface PricePoint {
@@ -22,6 +22,8 @@ interface Props {
 
 export function TicketPriceChart({ points, isProjected, width = 320, height = 200 }: Props) {
   const { t, i18n } = useTranslation();
+  const { colors } = useTheme();
+  const styles = useThemeStyles(createStyles);
   const [selected, setSelected] = useState<number | null>(null);
 
   if (points.length === 0) return null;
@@ -212,56 +214,57 @@ export function TicketPriceChart({ points, isProjected, width = 320, height = 20
   );
 }
 
-const styles = StyleSheet.create({
-  legendRow: {
-    flexDirection: 'row',
-    marginTop: spacing.xs,
-    marginLeft: 56,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: spacing.xs,
-  },
-  legendDotDashed: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-  },
-  legendText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  tooltip: {
-    position: 'absolute',
-    backgroundColor: colors.text,
-    borderRadius: 10,
-    padding: spacing.sm,
-  },
-  tooltipTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.surface,
-    marginBottom: 2,
-  },
-  tooltipText: {
-    fontSize: 12,
-    color: colors.surface,
-  },
-  tooltipTotal: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.surface,
-    marginTop: 2,
-  },
-  tooltipDate: {
-    fontSize: 11,
-    color: colors.border,
-    marginTop: 2,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+    StyleSheet.create({
+    legendRow: {
+      flexDirection: 'row',
+      marginTop: spacing.xs,
+      marginLeft: 56,
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginRight: spacing.md,
+    },
+    legendDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: spacing.xs,
+    },
+    legendDotDashed: {
+      backgroundColor: 'transparent',
+      borderWidth: 2,
+    },
+    legendText: {
+      fontSize: 12,
+      color: c.textMuted,
+    },
+    tooltip: {
+      position: 'absolute',
+      backgroundColor: c.text,
+      borderRadius: 10,
+      padding: spacing.sm,
+    },
+    tooltipTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.surface,
+      marginBottom: 2,
+    },
+    tooltipText: {
+      fontSize: 12,
+      color: c.surface,
+    },
+    tooltipTotal: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.surface,
+      marginTop: 2,
+    },
+    tooltipDate: {
+      fontSize: 11,
+      color: c.border,
+      marginTop: 2,
+    },
+  });

@@ -1,11 +1,13 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { SystemLog } from './entities/system-log.entity';
 import { LogSettings } from './entities/log-settings.entity';
 import { LogLevel, LogSource } from '../common/enums';
 import { setDbLogWriter } from './db-query-logger';
 import { setConsoleLogWriter } from './console-log-bridge';
+import { withCronLock } from '../common/cron-lock';
 
 export interface LogFilters {
   source?: LogSource;
@@ -17,15 +19,54 @@ export interface LogFilters {
 
 const SETTINGS_ID = 1;
 const MAX_METADATA_LENGTH = 4000;
+// Ceilings on the shape of a metadata object, not just on the strings inside it.
+const MAX_METADATA_DEPTH = 6;
+const MAX_METADATA_ITEMS = 50;
+const MAX_METADATA_BYTES = 16_000;
+
+/**
+ * How long a log row is worth keeping, by how much it is worth.
+ *
+ * `system_logs` had no expiry at all, and with request logging on that is one row — carrying
+ * the request body as jsonb, across four indexes — for every call the API answers. Nobody
+ * deletes them, because the only thing that could was a button in the admin panel that wipes
+ * the lot. A table that grows with traffic and never shrinks does not fail politely: it fills
+ * the database the rest of the platform is running in, and the first thing anybody notices is
+ * that buying a ticket stopped working.
+ *
+ * Split by level because the levels have genuinely different lifespans. An info row is for
+ * watching something happen this week; nobody has ever gone back three months to read a 200.
+ * An error is the opposite — the value of keeping it is precisely that it is still there when
+ * somebody finally comes asking why.
+ */
+const RETENTION_DAYS: Readonly<Record<LogLevel, number>> = {
+  [LogLevel.DEBUG]: 3,
+  [LogLevel.INFO]: 7,
+  [LogLevel.WARN]: 30,
+  [LogLevel.ERROR]: 90,
+};
+
+// Deleted in batches rather than as one statement per level. A first purge against a table
+// that has been accumulating for months would otherwise be a single DELETE holding locks over
+// millions of rows, on a database that is also serving requests.
+const PURGE_BATCH_SIZE = 5_000;
+const MAX_PURGE_BATCHES = 200;
 
 @Injectable()
 export class LogsService implements OnModuleInit {
+  private readonly logger = new Logger(LogsService.name);
+
   // Cached in memory so the hot path (logging itself) never blocks on a DB round trip;
   // refreshed synchronously whenever an admin updates settings.
   private settings: LogSettings = {
     id: SETTINGS_ID,
     frontendClicksEnabled: true,
-    backendRequestsEnabled: true,
+    // Off unless an admin turns it on. This is the one toggle that writes a row per request,
+    // so leaving it on by default meant the platform's busiest table was its log of itself —
+    // every purchase paying for two writes, one of them nobody was reading. It stays a toggle
+    // rather than being removed: turned on for an afternoon while chasing something, it is
+    // exactly the right tool. Left on for a year, it is the thing that fills the database.
+    backendRequestsEnabled: false,
     errorsEnabled: true,
     databaseQueriesEnabled: false,
     consoleLogsEnabled: true,
@@ -35,6 +76,7 @@ export class LogsService implements OnModuleInit {
   constructor(
     @InjectRepository(SystemLog) private readonly logsRepository: Repository<SystemLog>,
     @InjectRepository(LogSettings) private readonly settingsRepository: Repository<LogSettings>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -63,6 +105,56 @@ export class LogsService implements OnModuleInit {
         if (!this.settings.consoleLogsEnabled) return;
         this.write(LogSource.BACKEND, level === 'warn' ? LogLevel.WARN : LogLevel.INFO, 'console', message, null, null);
       }
+    });
+
+    // Purging on boot as well as on the schedule, for the same reason the draw catches up
+    // there: a service that sleeps through the small hours never reaches three in the
+    // morning, and a retention policy that only runs at a time the process is never awake
+    // is not a retention policy. Not awaited — nothing about starting up depends on it.
+    void this.purgeOldLogs().catch((err) => this.logger.error('Log purge on boot failed', err as Error));
+  }
+
+  /**
+   * Deletes log rows past the retention for their level.
+   *
+   * Three in the morning to stay clear of the notification purge an hour later — both are
+   * large deletes against the same database, and the free tier has little enough headroom
+   * without them overlapping.
+   */
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  async purgeOldLogs(): Promise<void> {
+    await withCronLock(this.dataSource, 'logs-purge', async () => {
+      let removed = 0;
+      for (const [level, days] of Object.entries(RETENTION_DAYS) as Array<[LogLevel, number]>) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - days);
+
+        // A bounded delete repeated, rather than one unbounded one. The subquery picks the
+        // batch off the (created_at) index; the loop stops as soon as a batch comes back
+        // short, which is what tells us the level is clear.
+        for (let batch = 0; batch < MAX_PURGE_BATCHES; batch += 1) {
+          // RETURNING because the count is the loop's stopping condition and it has to be
+          // exact: a DELETE with no RETURNING hands back an empty result through TypeORM's
+          // `query`, which would read as "nothing left" after the very first batch.
+          // `level::text` because the column is a Postgres enum and a bound parameter
+          // arrives as text — comparing the two directly is an error, not a cast.
+          const deleted: Array<{ id: string }> = await this.logsRepository.query(
+            `DELETE FROM system_logs
+              WHERE id IN (
+                SELECT id FROM system_logs
+                 WHERE created_at < $1 AND level::text = $2
+                 LIMIT $3
+              )
+              RETURNING id`,
+            [cutoff.toISOString(), level, PURGE_BATCH_SIZE],
+          );
+          removed += deleted.length;
+          if (deleted.length < PURGE_BATCH_SIZE) break;
+        }
+      }
+      // Logged through Nest's logger rather than this service's own `write`, which would put
+      // a row back into the table it has just finished emptying every single night.
+      if (removed > 0) this.logger.log(`Purged ${removed} log row(s) past retention`);
     });
   }
 
@@ -121,7 +213,7 @@ export class LogsService implements OnModuleInit {
     metadata?: Record<string, any> | null,
     userId?: string | null,
   ): void {
-    const safeMetadata = metadata ? JSON.parse(JSON.stringify(metadata, jsonReplacer)) : null;
+    const safeMetadata = boundMetadata(metadata);
     const entry = this.logsRepository.create({
       source,
       level,
@@ -162,4 +254,43 @@ function jsonReplacer(_key: string, value: any) {
     return `${value.slice(0, MAX_METADATA_LENGTH)}…`;
   }
   return value;
+}
+
+/**
+ * Metadata as it is safe to store: bounded in depth and in total size.
+ *
+ * `metadata` on POST /logs/client is an `@IsObject()` and nothing more, so the shape is the
+ * caller's to choose. Truncating strings — which is all this did — leaves both the depth and
+ * the number of keys unbounded, and a body of a few tens of kilobytes can hold tens of
+ * thousands of them: expensive to walk on the way in, stored forever as jsonb, and read back
+ * by an admin screen that then has to render it.
+ *
+ * Depth is cut first, because that is what makes the walk itself cheap, and the result is
+ * measured whole: past the ceiling the metadata is dropped for a note saying so, which keeps
+ * a log row honest about the fact that something was there.
+ */
+function boundMetadata(metadata?: Record<string, any> | null): Record<string, any> | null {
+  if (!metadata) return null;
+  try {
+    const pruned = pruneDepth(metadata, MAX_METADATA_DEPTH);
+    const serialised = JSON.stringify(pruned, jsonReplacer);
+    if (!serialised || serialised.length > MAX_METADATA_BYTES) {
+      return { note: 'metadata omitted: too large' };
+    }
+    return JSON.parse(serialised) as Record<string, any>;
+  } catch {
+    // Circular, or something that throws from a getter on the way through. Either way it is
+    // not worth a row, and logging must never be the thing that fails.
+    return { note: 'metadata omitted: not serialisable' };
+  }
+}
+
+function pruneDepth(value: unknown, depth: number): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  if (depth <= 0) return '[deep]';
+  if (Array.isArray(value)) {
+    return value.slice(0, MAX_METADATA_ITEMS).map((item) => pruneDepth(item, depth - 1));
+  }
+  const entries = Object.entries(value as Record<string, unknown>).slice(0, MAX_METADATA_ITEMS);
+  return Object.fromEntries(entries.map(([key, item]) => [key, pruneDepth(item, depth - 1)]));
 }

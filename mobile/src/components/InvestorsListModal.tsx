@@ -1,7 +1,8 @@
 import React from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { colors, spacing } from '../theme';
+import { spacing, ThemeColors, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
 import { PrimaryButton } from './PrimaryButton';
 import { Avatar } from './Avatar';
 
@@ -22,12 +23,12 @@ interface Props {
 }
 
 export function InvestorsListModal({ visible, investors, onClose, onSelect }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+    <Dialog visible={visible} onClose={onClose}>
+      <View style={styles.card}>
           <Text style={styles.title}>{t('project.investorsListTitle')}</Text>
           <FlatList
             data={investors}
@@ -49,55 +50,51 @@ export function InvestorsListModal({ visible, investors, onClose, onSelect }: Pr
           />
           <View style={{ height: spacing.sm }} />
           <PrimaryButton title={t('common.close')} variant="outline" onPress={onClose} />
-        </View>
       </View>
-    </Modal>
+    </Dialog>
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: spacing.lg,
-    maxHeight: '75%',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  list: {
-    flexGrow: 0,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  avatarWrap: {
-    marginRight: spacing.sm,
-  },
-  rowText: {
-    flex: 1,
-  },
-  name: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  meta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: 14,
+      padding: spacing.lg,
+      // The dialog already caps at the window; this keeps the list from filling it entirely
+      // so the card still reads as a card rather than a takeover.
+      maxHeight: '75%',
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: spacing.md,
+    },
+    list: {
+      flexGrow: 0,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    avatarWrap: {
+      marginRight: spacing.sm,
+    },
+    rowText: {
+      flex: 1,
+    },
+    name: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: c.text,
+    },
+    meta: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: 2,
+    },
+  });

@@ -84,10 +84,12 @@ export interface Project {
   ticketsSold: number;
   priceTierCount: number;
   priceTierIncrementPercent?: string;
+  equityOfferedPercent: string;
   youtubeUrl?: string | null;
   resaleEnabled: boolean;
   resaleListingsCount?: number;
   resaleTicketsCount?: number;
+  worksCount?: number;
   expectedAnnualReturnPercent: string;
   payoutStartDays: number;
   status: ProjectStatus;
@@ -101,13 +103,20 @@ export interface Project {
   priority: 'low' | 'medium' | 'high';
   pendingChanges?: Record<string, any> | null;
   pendingChangeReason?: string | null;
-  statusBeforeReview?: ProjectStatus | null;
   deletionRequestedAt?: string | null;
   deletedAt?: string | null;
   coverImageUrl?: string;
   createdAt: string;
   deadline?: string | null;
   daysLeft?: number | null;
+  // What the responsiveness badge is drawn from — see utils/responsiveness. Kept
+  // on the project rather than fetched per card: the catalogue renders dozens at
+  // once and the badge is the whole reason the questions feature changes
+  // anything, so it cannot cost a request each.
+  questionsCount?: number;
+  questionsAnsweredCount?: number;
+  answerMedianMinutes?: number | null;
+  lastUpdateAt?: string | null;
   pricing: TicketPricing;
 }
 
@@ -302,6 +311,31 @@ export interface ProjectAttachment {
   createdAt: string;
 }
 
+export interface ProjectTeamMember {
+  id: string;
+  projectId: string;
+  name: string;
+  role: string;
+  bio: string | null;
+  photoUrl: string | null;
+  order: number;
+  createdAt: string;
+}
+
+/** What the founder is composing. No `id`: the roster is saved whole, not patched. */
+export interface TeamMemberInput {
+  name: string;
+  role: string;
+  bio?: string;
+  photoUrl?: string;
+}
+
+/**
+ * A holding in a project as it stands now, not a record of a sale. Once a ticket is
+ * resold, this row reports the new owner and the secondary price they paid — money that
+ * went to the previous holder, never to the project. Sum these for "who owns what", but
+ * take what the project actually raised from Project.collectedAmount.
+ */
 export interface ProjectPurchase {
   id: string;
   buyerId: string;
@@ -311,6 +345,8 @@ export interface ProjectPurchase {
   unitPrice: number;
   totalPrice: number;
   purchaseDate: string;
+  /** Bought off another investor rather than from the project. */
+  isResale?: boolean;
 }
 
 export type ProjectReviewAction =

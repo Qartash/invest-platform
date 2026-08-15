@@ -1,6 +1,5 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTranslation } from 'react-i18next';
 import {
@@ -14,6 +13,7 @@ import {
   rejectProjectDeletion,
 } from '../../api/projects';
 import { refundProject } from '../../api/projectFunding';
+import { invalidateQuery, useCachedQuery } from '../../api/useCachedQuery';
 import { resolveMediaUrl } from '../../api/client';
 import { Project, ProjectAttachment } from '../../types';
 import { getLocalizedText } from '../../utils/localized';
@@ -21,6 +21,7 @@ import { formatDate } from '../../utils/date';
 import {
   DIFF_FIELD_LABEL_KEYS,
   LOCALIZED_DIFF_FIELDS,
+  STAKE_DIFF_FIELDS,
   formatDiffValue,
   formatLocalizedDiffText,
   getChangedLanguages,
@@ -28,12 +29,14 @@ import {
 import { RichTextView } from '../../components/RichTextView';
 import { RichTextEditor } from '../../components/RichTextEditor';
 import { isRichTextEmpty } from '../../utils/richText';
-import { PRIORITY_LEVELS, PRIORITY_COLORS } from '../../utils/priority';
+import { PRIORITY_LEVELS, priorityColors } from '../../utils/priority';
 import { LANGUAGE_LABELS } from '../../i18n';
-import { colors, spacing } from '../../theme';
+import { maxWidth, spacing, ThemeColors, useBreakpoint, useTheme, useThemeStyles } from '../../theme';
+import { Icon } from '../../components/ui';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { TicketPriceChart } from '../../components/TicketPriceChart';
 import { showAlert } from '../../utils/alert';
+import { apiErrorMessage } from '../../utils/apiError';
 import { InvestorProfileModal } from '../../components/InvestorProfileModal';
 import { ProjectHistoryModal } from '../../components/ProjectHistoryModal';
 import { ModerationStackParamList } from '../../navigation/ModerationNavigator';
@@ -49,10 +52,12 @@ function formatFileSize(bytes: number): string {
 }
 
 export function ModerationDetailScreen({ route, navigation }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
+  const PRIORITY_COLORS = useMemo(() => priorityColors(colors), [colors]);
   const { projectId } = route.params;
   const { t, i18n } = useTranslation();
-  const [project, setProject] = useState<Project | null>(null);
-  const [attachments, setAttachments] = useState<ProjectAttachment[]>([]);
+  const { isCompact } = useBreakpoint();
   const [riskLevel, setRiskLevel] = useState<'low' | 'medium' | 'high' | null>(null);
   const [riskComment, setRiskComment] = useState('');
   const [generalComment, setGeneralComment] = useState('');
@@ -61,28 +66,45 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
   const [showHistory, setShowHistory] = useState(false);
   const [priorityUpdating, setPriorityUpdating] = useState(false);
 
-  const load = useCallback(() => {
-    fetchProject(projectId).then((data) => {
-      setProject(data);
-      // Pre-fill with the risk assessment already on file so a re-review of a
-      // minor edit doesn't force the moderator to redo it from scratch (and
-      // risk picking a different level than before by mistake).
-      setRiskLevel((prev) => prev ?? (data.riskLevel ?? null));
-      setRiskComment((prev) => prev || (data.riskReason ?? ''));
-    });
-    fetchProjectAttachments(projectId).then(setAttachments);
-  }, [projectId]);
+  // Both keys are the ones the investor's project screen uses, so a moderator who has just
+  // looked at the project sees it here without a second round of requests. Every decision
+  // below retires the whole `projects:` prefix, so nothing here outlives the decision.
+  const { data: project, refresh: refreshProject } = useCachedQuery<Project>(
+    `projects:one:${projectId}`,
+    useCallback(() => fetchProject(projectId), [projectId]),
+  );
+  const { data: fetchedAttachments, refresh: refreshAttachments } = useCachedQuery<ProjectAttachment[]>(
+    `projects:one:${projectId}:attachments`,
+    useCallback(() => fetchProjectAttachments(projectId), [projectId]),
+  );
 
-  useFocusEffect(load);
+  const attachments = fetchedAttachments ?? [];
+
+  const load = useCallback(() => {
+    invalidateQuery('projects');
+    void refreshProject();
+    void refreshAttachments();
+  }, [refreshProject, refreshAttachments]);
+
+  // Pre-fill with the risk assessment already on file so a re-review of a minor edit doesn't
+  // force the moderator to redo it from scratch (and risk picking a different level than
+  // before by mistake). Only ever fills a blank field — never types over the moderator.
+  useEffect(() => {
+    if (!project) return;
+    setRiskLevel((prev) => prev ?? (project.riskLevel ?? null));
+    setRiskComment((prev) => prev || (project.riskReason ?? ''));
+  }, [project]);
 
   const handleSetPriority = async (priority: 'low' | 'medium' | 'high') => {
     if (!project || priority === project.priority) return;
     setPriorityUpdating(true);
     try {
-      const updated = await setProjectPriority(project.id, priority);
-      setProject(updated);
+      await setProjectPriority(project.id, priority);
+      // The priority shows on the queue behind this screen and on the project cards, so it
+      // is reloaded from the server rather than patched in here.
+      load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setPriorityUpdating(false);
     }
@@ -96,7 +118,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
       await approveProject(project.id, generalComment.trim());
       navigation.goBack();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -109,7 +131,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
       await rejectProject(project.id, generalComment.trim());
       navigation.goBack();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -122,7 +144,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
       await approveProjectDeletion(project.id);
       navigation.goBack();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -135,13 +157,21 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
       await rejectProjectDeletion(project.id, generalComment.trim());
       navigation.goBack();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
   };
 
   if (!project) return null;
+
+  // Which of the three preconditions for approval are still unmet, in the order the
+  // form asks for them.
+  const missingToApprove = [
+    !riskLevel && 'project.riskLevelLabel',
+    isRichTextEmpty(riskComment) && 'project.riskReasonLabel',
+    isRichTextEmpty(generalComment) && 'founder.reviewCommentLabel',
+  ].filter(Boolean) as string[];
 
   const isDeletionRequest = !!project.deletionRequestedAt;
   const { pricing } = project;
@@ -151,7 +181,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
   const chartPoints = pricing.tiers.map((tier) => ({ unitPrice: tier.price }));
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}>
       {project.coverImageUrl ? (
         <Image source={{ uri: resolveMediaUrl(project.coverImageUrl) }} style={styles.cover} />
       ) : null}
@@ -192,7 +222,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
                     showAlert(t('moderation.refund.done', { amount: res.refundedTotal.toLocaleString(), count: res.holders }));
                     navigation.goBack();
                   } catch (err: any) {
-                    showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+                    showAlert(t('common.error'), apiErrorMessage(err, t));
                   }
                 },
               },
@@ -261,6 +291,24 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
           {project.pendingChanges && (
         <View style={styles.diffBox}>
           <Text style={styles.diffTitle}>{t('founder.pendingChangesTitle')}</Text>
+          {/* "Ticket count 100 → 50" reads like any other row, but it halves what
+              every existing holder was sold. The sold count and the money already
+              collected go above the diff so they are read before the decision, not
+              looked up after it. */}
+          {project.ticketsSold > 0 &&
+            Object.keys(project.pendingChanges).some((field) => STAKE_DIFF_FIELDS.includes(field)) && (
+              <View style={styles.stakeWarnBox}>
+                <Text style={styles.stakeWarnTitle}>{t('moderation.stakeChangeWarning')}</Text>
+                <Text style={styles.stakeWarnText}>
+                  {t('moderation.stakeChangeFacts', {
+                    sold: project.ticketsSold,
+                    total: project.totalTickets,
+                    collected: parseFloat(project.collectedAmount).toLocaleString(),
+                    currency: t('common.currency'),
+                  })}
+                </Text>
+              </View>
+            )}
           {project.pendingChangeReason && (
             <View style={styles.founderNoteBox}>
               <Text style={styles.founderNoteLabel}>{t('founder.pendingChangeReasonLabel')}</Text>
@@ -353,8 +401,9 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
                 if (url) Linking.openURL(url);
               }}
             >
+              <Icon name="file" color={colors.textMuted} size={15} />
               <Text style={styles.attachmentName} numberOfLines={1}>
-                📄 {file.fileName}
+                {file.fileName}
               </Text>
               <Text style={styles.attachmentMeta}>{formatFileSize(file.fileSize)}</Text>
             </Pressable>
@@ -446,7 +495,7 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
             title={t('founder.approve')}
             onPress={handleApprove}
             loading={submitting}
-            disabled={!riskLevel || isRichTextEmpty(riskComment) || isRichTextEmpty(generalComment)}
+            disabled={missingToApprove.length > 0}
           />
         </View>
         <View style={{ width: spacing.sm }} />
@@ -460,6 +509,14 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
           />
         </View>
       </View>
+      {/* Three separate conditions gate approval, and a dead button named none of
+          them. Naming what is still missing is the difference between "this is
+          broken" and "I have one field left". */}
+      {missingToApprove.length > 0 && (
+        <Text style={styles.blockedHint}>
+          {t('founder.approveBlocked', { fields: missingToApprove.map((key) => t(key)).join(', ') })}
+        </Text>
+      )}
         </>
       )}
 
@@ -473,291 +530,324 @@ export function ModerationDetailScreen({ route, navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    padding: spacing.lg,
-  },
-  diffBox: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  diffTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.primary,
-    marginBottom: spacing.sm,
-  },
-  founderNoteBox: {
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  founderNoteLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginBottom: 2,
-  },
-  founderNoteText: {
-    fontSize: 13,
-    color: colors.text,
-    fontStyle: 'italic',
-  },
-  diffRow: {
-    marginBottom: spacing.sm,
-  },
-  diffLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: 2,
-  },
-  diffLangSummary: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-  diffValues: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  diffValuesText: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  diffValuesTextColumn: {
-    flex: 1,
-  },
-  diffArrowVertical: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginVertical: spacing.xs,
-  },
-  diffLangTag: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.textMuted,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 4,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    marginRight: spacing.xs,
-  },
-  diffOld: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.danger,
-    textDecorationLine: 'line-through',
-  },
-  diffArrow: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginHorizontal: spacing.xs,
-  },
-  diffNew: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.success,
-  },
-  deletionBox: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.danger,
-    borderRadius: 12,
-    padding: spacing.md,
-  },
-  deletionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.danger,
-    marginBottom: spacing.sm,
-  },
-  cover: {
-    width: '100%',
-    height: 180,
-    borderRadius: 12,
-    marginBottom: spacing.md,
-    backgroundColor: colors.border,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  founder: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-  founderLink: {
-    color: colors.primary,
-    textDecorationLine: 'underline',
-  },
-  historyLink: {
-    alignSelf: 'flex-start',
-    marginBottom: spacing.md,
-  },
-  historyLinkText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.primary,
-    textDecorationLine: 'underline',
-  },
-  section: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  sectionSpacing: {
-    marginTop: spacing.lg,
-  },
-  description: {
-    fontSize: 15,
-    color: colors.text,
-    marginBottom: spacing.lg,
-  },
-  attachmentsBox: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 10,
-    padding: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  attachmentsTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  attachmentRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  attachmentName: {
-    flex: 1,
-    fontSize: 13,
-    color: colors.primary,
-    fontWeight: '600',
-    marginRight: spacing.sm,
-  },
-  attachmentMeta: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  progressTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.border,
-    overflow: 'hidden',
-    marginBottom: spacing.xs,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: colors.primary,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-  },
-  stat: {
-    flex: 1,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  meta: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  resaleNote: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginVertical: spacing.md,
-  },
-  tierList: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  tierRow: {
-    paddingVertical: spacing.xs,
-  },
-  tierText: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  levelRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.sm,
-  },
-  levelChip: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingVertical: spacing.sm,
-    marginRight: spacing.xs,
-    alignItems: 'center',
-  },
-  levelChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  levelChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  levelChipTextActive: {
-    color: '#fff',
-  },
-  priorityChip: {
-    flex: 1,
-    borderWidth: 1.5,
-    borderRadius: 8,
-    paddingVertical: spacing.sm,
-    marginRight: spacing.xs,
-    alignItems: 'center',
-  },
-  priorityChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  priorityChipTextActive: {
-    color: '#fff',
-  },
-  actions: {
-    flexDirection: 'row',
-    marginTop: spacing.lg,
-    marginBottom: spacing.xl,
-  },
-  actionButton: {
-    flex: 1,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    content: {
+      padding: spacing.lg,
+    },
+    // A review page: the moderator reads a description and a diff top to bottom, and prose
+    // is what suffers first from a full-window measure.
+    contentWide: {
+      maxWidth: maxWidth.column,
+      width: '100%',
+      alignSelf: 'center',
+    },
+    diffBox: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    diffTitle: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: c.primary,
+      marginBottom: spacing.sm,
+    },
+    blockedHint: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: spacing.sm,
+      textAlign: 'center',
+    },
+    stakeWarnBox: {
+      backgroundColor: c.dangerSoft,
+      borderLeftWidth: 3,
+      borderLeftColor: c.danger,
+      borderRadius: 8,
+      padding: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    stakeWarnTitle: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.danger,
+      marginBottom: 2,
+    },
+    stakeWarnText: {
+      fontSize: 13,
+      color: c.text,
+    },
+    founderNoteBox: {
+      backgroundColor: c.background,
+      borderRadius: 8,
+      padding: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    founderNoteLabel: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: c.textMuted,
+      marginBottom: 2,
+    },
+    founderNoteText: {
+      fontSize: 13,
+      color: c.text,
+      fontStyle: 'italic',
+    },
+    diffRow: {
+      marginBottom: spacing.sm,
+    },
+    diffLabel: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginBottom: 2,
+    },
+    diffLangSummary: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: c.primary,
+    },
+    diffValues: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    diffValuesText: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    diffValuesTextColumn: {
+      flex: 1,
+    },
+    diffArrowVertical: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginVertical: spacing.xs,
+    },
+    diffLangTag: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: c.textMuted,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 4,
+      paddingHorizontal: 4,
+      paddingVertical: 1,
+      marginRight: spacing.xs,
+    },
+    diffOld: {
+      flex: 1,
+      fontSize: 13,
+      color: c.danger,
+      textDecorationLine: 'line-through',
+    },
+    diffArrow: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginHorizontal: spacing.xs,
+    },
+    diffNew: {
+      flex: 1,
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.success,
+    },
+    deletionBox: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.danger,
+      borderRadius: 12,
+      padding: spacing.md,
+    },
+    deletionTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: c.danger,
+      marginBottom: spacing.sm,
+    },
+    cover: {
+      width: '100%',
+      height: 180,
+      borderRadius: 12,
+      marginBottom: spacing.md,
+      backgroundColor: c.border,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: 2,
+    },
+    founder: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginBottom: spacing.md,
+    },
+    founderLink: {
+      color: c.primary,
+      textDecorationLine: 'underline',
+    },
+    historyLink: {
+      alignSelf: 'flex-start',
+      marginBottom: spacing.md,
+    },
+    historyLinkText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.primary,
+      textDecorationLine: 'underline',
+    },
+    section: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: c.textMuted,
+      marginBottom: spacing.xs,
+    },
+    sectionSpacing: {
+      marginTop: spacing.lg,
+    },
+    description: {
+      fontSize: 15,
+      color: c.text,
+      marginBottom: spacing.lg,
+    },
+    attachmentsBox: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 10,
+      padding: spacing.md,
+      marginBottom: spacing.lg,
+    },
+    attachmentsTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: c.textMuted,
+      marginBottom: spacing.xs,
+    },
+    attachmentRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: spacing.xs + 2,
+      paddingVertical: spacing.xs,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    attachmentName: {
+      flex: 1,
+      fontSize: 13,
+      color: c.primary,
+      fontWeight: '600',
+      marginRight: spacing.sm,
+    },
+    attachmentMeta: {
+      fontSize: 11,
+      color: c.textMuted,
+    },
+    progressTrack: {
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: c.border,
+      overflow: 'hidden',
+      marginBottom: spacing.xs,
+    },
+    progressFill: {
+      height: '100%',
+      backgroundColor: c.primary,
+    },
+    statsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginBottom: spacing.sm,
+    },
+    stat: {
+      flex: 1,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: c.textMuted,
+    },
+    statValue: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: c.text,
+    },
+    meta: {
+      fontSize: 13,
+      color: c.textMuted,
+    },
+    resaleNote: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginVertical: spacing.md,
+    },
+    tierList: {
+      marginTop: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    tierRow: {
+      paddingVertical: spacing.xs,
+    },
+    tierText: {
+      fontSize: 13,
+      color: c.textMuted,
+    },
+    levelRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.sm,
+    },
+    levelChip: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingVertical: spacing.sm,
+      marginRight: spacing.xs,
+      alignItems: 'center',
+    },
+    levelChipActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    levelChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.text,
+    },
+    levelChipTextActive: {
+      color: c.textOnAccent,
+    },
+    priorityChip: {
+      flex: 1,
+      borderWidth: 1.5,
+      borderRadius: 8,
+      paddingVertical: spacing.sm,
+      marginRight: spacing.xs,
+      alignItems: 'center',
+    },
+    priorityChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.text,
+    },
+    priorityChipTextActive: {
+      color: c.textOnAccent,
+    },
+    actions: {
+      flexDirection: 'row',
+      marginTop: spacing.lg,
+      marginBottom: spacing.xl,
+    },
+    actionButton: {
+      flex: 1,
+    },
+  });

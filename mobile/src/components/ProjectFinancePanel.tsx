@@ -26,7 +26,8 @@ import { requestRelease } from '../api/projectFunding';
 import { fetchWallet } from '../api/wallet';
 import { formatDate, formatMonth } from '../utils/date';
 import { showAlert } from '../utils/alert';
-import { colors, spacing } from '../theme';
+import { apiErrorMessage } from '../utils/apiError';
+import { maxWidth, spacing, ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { PrimaryButton } from './PrimaryButton';
 import { TextField } from './TextField';
 import { MonthFinanceChart, MonthFinancePoint } from './MonthFinanceChart';
@@ -83,6 +84,8 @@ interface Props {
 type Tab = 'journal' | 'reports' | 'budget';
 
 export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTickets, myTicketQuantity = 0 }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<Tab>('journal');
   const [expenses, setExpenses] = useState<ProjectExpense[]>([]);
@@ -299,7 +302,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
       setSelectedMonth(entryDate.slice(0, 7));
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -328,7 +331,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
       setDeleteReason('');
       await load();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -353,7 +356,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
       await load();
       setTab('reports');
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setSubmitting(false);
     }
@@ -376,7 +379,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
               await payProjectFinancialReport(projectId, report.id);
               await load();
             } catch (err: any) {
-              showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+              showAlert(t('common.error'), apiErrorMessage(err, t));
             } finally {
               setSubmitting(false);
             }
@@ -397,7 +400,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
             await deleteProjectFinancialReport(projectId, report.id);
             load();
           } catch (err: any) {
-            showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+            showAlert(t('common.error'), apiErrorMessage(err, t));
           }
         },
       },
@@ -420,7 +423,7 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
             await requestRelease(projectId, { budgetItemId: item.id });
             showAlert(t('project.finance.releaseRequested'));
           } catch (err: any) {
-            showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+            showAlert(t('common.error'), apiErrorMessage(err, t));
           }
         },
       },
@@ -432,14 +435,14 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
   const renderStatusChip = (report: ProjectFinancialReport | null) => {
     if (!report) {
       return (
-        <View style={[styles.monthChip, { backgroundColor: '#EAF3EE' }]}>
+        <View style={[styles.monthChip, { backgroundColor: colors.primarySoft }]}>
           <Text style={[styles.monthChipText, { color: colors.primary }]}>{t('project.finance.monthOpen')}</Text>
         </View>
       );
     }
     const paid = report.status === 'paid';
     return (
-      <View style={[styles.monthChip, { backgroundColor: paid ? '#E8F6EE' : '#FDF3E3' }]}>
+      <View style={[styles.monthChip, { backgroundColor: paid ? colors.successSoft : colors.warningSoft }]}>
         <Text style={[styles.monthChipText, { color: paid ? colors.success : colors.warning }]}>
           {t(paid ? 'project.finance.monthPaid' : 'project.finance.monthPublished')}
         </Text>
@@ -931,523 +934,524 @@ export function ProjectFinancePanel({ projectId, canEdit, ticketsSold, totalTick
   );
 }
 
-const styles = StyleSheet.create({
-  tabs: {
-    flexDirection: 'row',
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  tabActive: {
-    backgroundColor: colors.surface,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  tabTextActive: {
-    color: colors.primary,
-  },
-  tabCaption: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    marginTop: spacing.xs,
-    marginBottom: spacing.md,
-  },
-  freshnessRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  freshnessDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: spacing.xs,
-  },
-  freshnessText: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  monthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  monthArrow: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  monthArrowDisabled: {
-    opacity: 0.35,
-  },
-  monthArrowText: {
-    fontSize: 20,
-    color: colors.text,
-    lineHeight: 22,
-  },
-  monthCenter: {
-    alignItems: 'center',
-  },
-  monthTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    textTransform: 'capitalize',
-  },
-  monthChip: {
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    marginTop: 4,
-  },
-  monthChipText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    marginBottom: spacing.md,
-  },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
-    alignItems: 'center',
-    marginHorizontal: 2,
-  },
-  summaryLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  summaryValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  lockedNote: {
-    fontSize: 12,
-    color: colors.warning,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  activityCard: {
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  activityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  activityTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  activityMissed: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  stripRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
-  },
-  stripCell: {
-    flex: 1,
-    height: 18,
-    borderRadius: 3,
-    borderWidth: 1,
-    marginHorizontal: 1,
-  },
-  stripCellActive: {
-    backgroundColor: colors.success,
-    borderColor: colors.success,
-  },
-  stripCellMissed: {
-    backgroundColor: '#FBE9E7',
-    borderColor: '#F3C0B8',
-  },
-  stripCellFuture: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-  },
-  stripAxis: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 3,
-  },
-  stripAxisText: {
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  chartDivider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginVertical: spacing.md,
-  },
-  chartHeader: {
-    marginBottom: spacing.xs,
-  },
-  chartEmpty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    fontSize: 13,
-    paddingVertical: spacing.lg,
-  },
-  legendRow: {
-    flexDirection: 'row',
-    marginTop: spacing.sm,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: spacing.md,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 3,
-    marginRight: 4,
-  },
-  legendDotMissed: {
-    backgroundColor: '#FBE9E7',
-    borderWidth: 1,
-    borderColor: '#F3C0B8',
-  },
-  legendText: {
-    fontSize: 11,
-    color: colors.textMuted,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.md,
-  },
-  actionButton: {
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  closeMonthButton: {
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.md,
-    alignItems: 'center',
-  },
-  closeMonthButtonText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  dayHeader: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    marginTop: spacing.sm,
-    marginBottom: 2,
-  },
-  empty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    paddingVertical: spacing.lg,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  budgetRow: {
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  rowMain: {
-    flex: 1,
-  },
-  rowTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  rowAmount: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  rowMeta: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  rowDescription: {
-    fontSize: 13,
-    color: colors.text,
-    marginTop: 2,
-  },
-  deleteLink: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.danger,
-    marginLeft: spacing.sm,
-  },
-  rowAmountLine: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  deletedText: {
-    textDecorationLine: 'line-through',
-    color: colors.textMuted,
-  },
-  deletedBadge: {
-    backgroundColor: '#FBE9E7',
-    borderRadius: 6,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 1,
-    marginLeft: spacing.sm,
-  },
-  deletedBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: colors.danger,
-    textTransform: 'uppercase',
-  },
-  deletedReason: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    marginTop: 3,
-  },
-  deleteSummary: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  deleteNote: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
-  },
-  reportCard: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    backgroundColor: colors.surface,
-  },
-  reportHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  reportPeriod: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: colors.text,
-    textTransform: 'capitalize',
-  },
-  reportLine: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 3,
-  },
-  reportLineLabel: {
-    fontSize: 13,
-    color: colors.textMuted,
-  },
-  reportNetLabel: {
-    fontWeight: '700',
-    color: colors.text,
-  },
-  reportLineValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  reportActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
-  },
-  reportPayButton: {
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  statusChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: spacing.xs,
-  },
-  statusChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    marginRight: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  statusChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  statusChipText: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  statusChipTextActive: {
-    color: '#fff',
-  },
-  statusBadge: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.primary,
-    marginTop: spacing.xs,
-    alignSelf: 'flex-start',
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  releasedBadge: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.success,
-    marginTop: spacing.xs,
-  },
-  releaseButton: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.xs,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  releaseButtonText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.primary,
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: spacing.md,
-  },
-  categoryChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    marginRight: spacing.xs,
-    marginBottom: spacing.xs,
-  },
-  categoryChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  categoryChipText: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontWeight: '600',
-  },
-  categoryChipTextActive: {
-    color: '#fff',
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: spacing.lg,
-    maxHeight: '85%',
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  kindRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 4,
-    marginBottom: spacing.md,
-  },
-  kindChip: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  kindChipActive: {
-    backgroundColor: colors.surface,
-  },
-  kindChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-  },
-  kindChipTextActive: {
-    color: colors.primary,
-  },
-  warningNote: {
-    fontSize: 12,
-    color: colors.warning,
-    marginBottom: spacing.sm,
-  },
-  closeMonthNote: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginVertical: spacing.md,
-  },
-  modalCancel: {
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-  },
-  modalCancelText: {
-    color: colors.textMuted,
-    fontWeight: '600',
-    fontSize: 14,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    tabs: {
+      flexDirection: 'row',
+      backgroundColor: c.background,
+      borderRadius: 10,
+      padding: 4,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      borderRadius: 8,
+    },
+    tabActive: {
+      backgroundColor: c.surface,
+    },
+    tabText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textMuted,
+    },
+    tabTextActive: {
+      color: c.primary,
+    },
+    tabCaption: {
+      fontSize: 12,
+      color: c.textMuted,
+      fontStyle: 'italic',
+      marginTop: spacing.xs,
+      marginBottom: spacing.md,
+    },
+    freshnessRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    freshnessDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      marginRight: spacing.xs,
+    },
+    freshnessText: {
+      fontSize: 12,
+      color: c.textMuted,
+    },
+    monthRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+    },
+    monthArrow: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    monthArrowDisabled: {
+      opacity: 0.35,
+    },
+    monthArrowText: {
+      fontSize: 20,
+      color: c.text,
+      lineHeight: 22,
+    },
+    monthCenter: {
+      alignItems: 'center',
+    },
+    monthTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: c.text,
+      textTransform: 'capitalize',
+    },
+    monthChip: {
+      borderRadius: 8,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 2,
+      marginTop: 4,
+    },
+    monthChipText: {
+      fontSize: 11,
+      fontWeight: '700',
+    },
+    summaryRow: {
+      flexDirection: 'row',
+      marginBottom: spacing.md,
+    },
+    summaryCard: {
+      flex: 1,
+      backgroundColor: c.background,
+      borderRadius: 10,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.xs,
+      alignItems: 'center',
+      marginHorizontal: 2,
+    },
+    summaryLabel: {
+      fontSize: 11,
+      color: c.textMuted,
+      fontWeight: '600',
+    },
+    summaryValue: {
+      fontSize: 14,
+      fontWeight: '700',
+      marginTop: 2,
+    },
+    lockedNote: {
+      fontSize: 12,
+      color: c.warning,
+      marginBottom: spacing.sm,
+      textAlign: 'center',
+    },
+    activityCard: {
+      backgroundColor: c.background,
+      borderRadius: 12,
+      padding: spacing.sm,
+      marginBottom: spacing.md,
+    },
+    activityHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    activityTitle: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: c.text,
+    },
+    activityMissed: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    stripRow: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+    },
+    stripCell: {
+      flex: 1,
+      height: 18,
+      borderRadius: 3,
+      borderWidth: 1,
+      marginHorizontal: 1,
+    },
+    stripCellActive: {
+      backgroundColor: c.success,
+      borderColor: c.success,
+    },
+    stripCellMissed: {
+      backgroundColor: c.dangerSoft,
+      borderColor: c.danger,
+    },
+    stripCellFuture: {
+      backgroundColor: c.surface,
+      borderColor: c.border,
+    },
+    stripAxis: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 3,
+    },
+    stripAxisText: {
+      fontSize: 10,
+      color: c.textMuted,
+    },
+    chartDivider: {
+      height: 1,
+      backgroundColor: c.border,
+      marginVertical: spacing.md,
+    },
+    chartHeader: {
+      marginBottom: spacing.xs,
+    },
+    chartEmpty: {
+      textAlign: 'center',
+      color: c.textMuted,
+      fontSize: 13,
+      paddingVertical: spacing.lg,
+    },
+    legendRow: {
+      flexDirection: 'row',
+      marginTop: spacing.sm,
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginRight: spacing.md,
+    },
+    legendDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 3,
+      marginRight: 4,
+    },
+    legendDotMissed: {
+      backgroundColor: c.dangerSoft,
+      borderWidth: 1,
+      borderColor: c.danger,
+    },
+    legendText: {
+      fontSize: 11,
+      color: c.textMuted,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.md,
+    },
+    actionButton: {
+      flex: 1,
+      marginRight: spacing.sm,
+    },
+    closeMonthButton: {
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: 10,
+      paddingVertical: 12,
+      paddingHorizontal: spacing.md,
+      alignItems: 'center',
+    },
+    closeMonthButtonText: {
+      color: c.primary,
+      fontWeight: '700',
+      fontSize: 14,
+    },
+    dayHeader: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.textMuted,
+      textTransform: 'uppercase',
+      marginTop: spacing.sm,
+      marginBottom: 2,
+    },
+    empty: {
+      textAlign: 'center',
+      color: c.textMuted,
+      paddingVertical: spacing.lg,
+    },
+    row: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    budgetRow: {
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    rowMain: {
+      flex: 1,
+    },
+    rowTitle: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: c.text,
+    },
+    rowAmount: {
+      fontSize: 15,
+      fontWeight: '700',
+    },
+    rowMeta: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginTop: 2,
+    },
+    rowDescription: {
+      fontSize: 13,
+      color: c.text,
+      marginTop: 2,
+    },
+    deleteLink: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.danger,
+      marginLeft: spacing.sm,
+    },
+    rowAmountLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+    },
+    deletedText: {
+      textDecorationLine: 'line-through',
+      color: c.textMuted,
+    },
+    deletedBadge: {
+      backgroundColor: c.dangerSoft,
+      borderRadius: 6,
+      paddingHorizontal: spacing.xs,
+      paddingVertical: 1,
+      marginLeft: spacing.sm,
+    },
+    deletedBadgeText: {
+      fontSize: 10,
+      fontWeight: '700',
+      color: c.danger,
+      textTransform: 'uppercase',
+    },
+    deletedReason: {
+      fontSize: 12,
+      color: c.textMuted,
+      fontStyle: 'italic',
+      marginTop: 3,
+    },
+    deleteSummary: {
+      backgroundColor: c.background,
+      borderRadius: 10,
+      padding: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    deleteNote: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginBottom: spacing.sm,
+    },
+    reportCard: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+      backgroundColor: c.surface,
+    },
+    reportHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.sm,
+    },
+    reportPeriod: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: c.text,
+      textTransform: 'capitalize',
+    },
+    reportLine: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 3,
+    },
+    reportLineLabel: {
+      fontSize: 13,
+      color: c.textMuted,
+    },
+    reportNetLabel: {
+      fontWeight: '700',
+      color: c.text,
+    },
+    reportLineValue: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.text,
+    },
+    reportActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginTop: spacing.sm,
+    },
+    reportPayButton: {
+      flex: 1,
+      marginRight: spacing.sm,
+    },
+    statusChipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: spacing.xs,
+    },
+    statusChip: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      marginRight: spacing.xs,
+      marginBottom: spacing.xs,
+    },
+    statusChipActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    statusChipText: {
+      fontSize: 11,
+      color: c.textMuted,
+      fontWeight: '600',
+    },
+    statusChipTextActive: {
+      color: c.textOnAccent,
+    },
+    statusBadge: {
+      fontSize: 12,
+      fontWeight: '600',
+      color: c.primary,
+      marginTop: spacing.xs,
+      alignSelf: 'flex-start',
+      backgroundColor: c.background,
+      borderRadius: 8,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    releasedBadge: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.success,
+      marginTop: spacing.xs,
+    },
+    releaseButton: {
+      alignSelf: 'flex-start',
+      marginTop: spacing.xs,
+      borderWidth: 1,
+      borderColor: c.primary,
+      borderRadius: 8,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    releaseButtonText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.primary,
+    },
+    categoryRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginBottom: spacing.md,
+    },
+    categoryChip: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 8,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      marginRight: spacing.xs,
+      marginBottom: spacing.xs,
+    },
+    categoryChipActive: {
+      backgroundColor: c.primary,
+      borderColor: c.primary,
+    },
+    categoryChipText: {
+      fontSize: 12,
+      color: c.textMuted,
+      fontWeight: '600',
+    },
+    categoryChipTextActive: {
+      color: c.textOnAccent,
+    },
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      justifyContent: 'center',
+      padding: spacing.lg,
+    },
+    modalCard: {
+      backgroundColor: c.surface,
+      borderRadius: 16,
+      padding: spacing.lg,
+      maxHeight: '85%',
+      width: '100%',
+      maxWidth: maxWidth.dialogMd,
+      alignSelf: 'center',
+    },
+    modalTitle: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: spacing.md,
+    },
+    kindRow: {
+      flexDirection: 'row',
+      backgroundColor: c.background,
+      borderRadius: 10,
+      padding: 4,
+      marginBottom: spacing.md,
+    },
+    kindChip: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      alignItems: 'center',
+      borderRadius: 8,
+    },
+    kindChipActive: {
+      backgroundColor: c.surface,
+    },
+    kindChipText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.textMuted,
+    },
+    kindChipTextActive: {
+      color: c.primary,
+    },
+    warningNote: {
+      fontSize: 12,
+      color: c.warning,
+      marginBottom: spacing.sm,
+    },
+    closeMonthNote: {
+      fontSize: 12,
+      color: c.textMuted,
+      marginVertical: spacing.md,
+    },
+    modalCancel: {
+      alignItems: 'center',
+      paddingVertical: spacing.md,
+    },
+    modalCancelText: {
+      color: c.textMuted,
+      fontWeight: '600',
+      fontSize: 14,
+    },
+  });

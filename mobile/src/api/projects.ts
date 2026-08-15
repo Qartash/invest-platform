@@ -7,6 +7,8 @@ import {
   ProjectBudgetItem,
   ProjectPurchase,
   ProjectReviewLogEntry,
+  ProjectTeamMember,
+  TeamMemberInput,
   TicketListing,
 } from '../types';
 
@@ -104,6 +106,7 @@ interface ProjectFormData {
   deadline?: string;
   priceTierCount?: number;
   priceTierIncrementPercent?: number;
+  equityOfferedPercent?: number;
   youtubeUrl?: string;
   resaleEnabled?: boolean;
   expectedAnnualReturnPercent?: number;
@@ -151,6 +154,35 @@ export function uploadProjectAttachment(id: string, file: File) {
 
 export function deleteProjectAttachment(id: string, attachmentId: string) {
   return apiClient.delete(`/projects/${id}/attachments/${attachmentId}`).then((r) => r.data);
+}
+
+export function fetchProjectTeam(id: string) {
+  return apiClient.get<ProjectTeamMember[]>(`/projects/${id}/team`).then((r) => r.data);
+}
+
+/** Replaces the whole roster. An empty array clears it. */
+export function setProjectTeam(id: string, members: TeamMemberInput[]) {
+  return apiClient.put<ProjectTeamMember[]>(`/projects/${id}/team`, { members }).then((r) => r.data);
+}
+
+/**
+ * Stores a photo and returns its URL, without creating a member. The URL then travels in the
+ * roster passed to `setProjectTeam` — which is what lets photos be attached while the list is
+ * still being composed, before any member row exists.
+ */
+export async function uploadTeamPhoto(id: string, file: { uri: string; name: string; type: string }) {
+  const formData = new FormData();
+  if (Platform.OS === 'web') {
+    const blob = await fetch(file.uri).then((r) => r.blob());
+    formData.append('file', blob, file.name);
+  } else {
+    formData.append('file', file as unknown as Blob);
+  }
+  return apiClient
+    .post<{ url: string }>(`/projects/${id}/team-photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    .then((r) => r.data.url);
 }
 
 export function fetchProjectBudgetItems(id: string) {

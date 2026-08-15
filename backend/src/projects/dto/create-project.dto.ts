@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   IsArray,
   IsBoolean,
   IsDateString,
@@ -10,15 +11,22 @@ import {
   IsPositive,
   IsString,
   Max,
+  MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class BudgetItemInputDto {
   @IsString()
+  @MaxLength(300)
   title: string;
 
+  // Bounded above as well as below: the column is decimal(14,2), so a larger figure is not
+  // a big budget line, it is a 500 from the driver on the way in.
   @IsNumber()
   @IsPositive()
+  @Max(1_000_000_000_000)
   amount: number;
 }
 
@@ -33,9 +41,15 @@ export class CreateProjectDto {
   @IsPositive()
   targetAmount: number;
 
+  /**
+   * @deprecated Ignored. The round-1 price is derived server-side from targetAmount,
+   * totalTickets and the round settings so that selling out raises exactly the goal.
+   * Still accepted so existing clients that send it don't fail validation.
+   */
   @IsNumber()
   @IsPositive()
-  ticketPrice: number;
+  @IsOptional()
+  ticketPrice?: number;
 
   @IsInt()
   @IsPositive()
@@ -75,6 +89,12 @@ export class CreateProjectDto {
   @IsOptional()
   priceTierIncrementPercent?: number;
 
+  @IsNumber()
+  @Min(0.01)
+  @Max(100)
+  @IsOptional()
+  equityOfferedPercent?: number;
+
   @IsString()
   @IsOptional()
   youtubeUrl?: string;
@@ -93,7 +113,12 @@ export class CreateProjectDto {
   @IsOptional()
   payoutStartDays?: number;
 
+  // Same as AddBudgetItemsDto: the element type is what makes the rules on
+  // BudgetItemInputDto apply at all, and what lets whitelisting strip unknown keys.
   @IsArray()
   @IsOptional()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => BudgetItemInputDto)
   budgetItems?: BudgetItemInputDto[];
 }

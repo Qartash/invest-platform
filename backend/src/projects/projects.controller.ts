@@ -1,9 +1,8 @@
-import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Put, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { ProjectsService } from './projects.service';
 import { TicketsService } from '../tickets/tickets.service';
+import { ProjectWorksService } from '../project-works/project-works.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { SetRiskDto } from './dto/set-risk.dto';
@@ -11,6 +10,7 @@ import { SetPriorityDto } from './dto/set-priority.dto';
 import { ReviewProjectDto } from './dto/review-project.dto';
 import { UpdateBudgetItemStatusDto } from './dto/update-budget-item-status.dto';
 import { AddBudgetItemsDto } from './dto/add-budget-items.dto';
+import { SetTeamMembersDto } from './dto/set-team-members.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -19,49 +19,71 @@ import { User } from '../users/entities/user.entity';
 import { Project } from './entities/project.entity';
 import { KycStatus, ProjectStatus, UserRole } from '../common/enums';
 import { toProjectResponse } from './project-response';
+import { cached } from '../common/response-cache';
+import {
+  ATTACHMENT_UPLOAD_TYPES,
+  IMAGE_UPLOAD_TYPES,
+  displayFileName,
+  uploadOptions,
+} from '../common/upload-storage';
 
-const ALLOWED_ATTACHMENT_MIME_TYPES = [
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'image/jpeg',
-  'image/png',
-];
+// Matches the client's own cache window, so a figure never looks stale on one side and
+// fresh on the other.
+const PROJECT_LIST_TTL_MS = 30_000;
 
 @Controller('projects')
 export class ProjectsController {
   constructor(
     private readonly projectsService: ProjectsService,
     private readonly ticketsService: TicketsService,
+    private readonly worksService: ProjectWorksService,
   ) {}
 
+  // Three counts ride along with every project so the cards can show how many people are in,
+  // what is up for resale and whether there is work to look at — without them the app would
+  // need a request per card to know. They are fetched for the whole list in three queries
+  // rather than three per project: the list used to cost sixty round trips on a page of
+  // twenty, every one of them paid at full price against a database waking from sleep.
+  private async withInvestorCounts(projects: Project[]) {
+    const ids = projects.map((project) => project.id);
+    const [investorCounts, resaleStats, worksCounts] = await Promise.all([
+      this.ticketsService.countInvestorsByProject(ids),
+      this.ticketsService.getResaleStatsByProject(ids),
+      this.worksService.countWorksByProject(ids),
+    ]);
+
+    return projects.map((project) => {
+      // Resale figures belong to projects that allow resale; the others get zeros rather
+      // than whatever rows happen to exist from before the setting was turned off.
+      const resale = project.resaleEnabled
+        ? resaleStats.get(project.id) ?? { listingsCount: 0, ticketsCount: 0 }
+        : { listingsCount: 0, ticketsCount: 0 };
+      return {
+        ...toProjectResponse(project),
+        investorCount: investorCounts.get(project.id) ?? 0,
+        resaleListingsCount: resale.listingsCount,
+        resaleTicketsCount: resale.ticketsCount,
+        worksCount: worksCounts.get(project.id) ?? 0,
+      };
+    });
+  }
+
   private async withInvestorCount(project: Project) {
-    const investorCount = await this.ticketsService.countInvestors(project.id);
-    const resaleStats = project.resaleEnabled
-      ? await this.ticketsService.getResaleStats(project.id)
-      : { listingsCount: 0, ticketsCount: 0 };
-    return {
-      ...toProjectResponse(project),
-      investorCount,
-      resaleListingsCount: resaleStats.listingsCount,
-      resaleTicketsCount: resaleStats.ticketsCount,
-    };
+    const [withCounts] = await this.withInvestorCounts([project]);
+    return withCounts;
   }
 
-  private withInvestorCounts(projects: Project[]) {
-    return Promise.all(projects.map((project) => this.withInvestorCount(project)));
-  }
-
+  // The only endpoint here that is the same for everyone, and the one every visitor hits
+  // first, so it is worth holding briefly in memory — see response-cache.ts. Writes that
+  // could move it clear it immediately (ProjectCacheInterceptor); the half minute is the
+  // ceiling on how stale it can get when nothing is written at all.
   @Get()
   async findActive(@Query('status') status?: 'active' | 'funded') {
-    const projects = await this.projectsService.findByStatus(
-      status === 'funded' ? ProjectStatus.FUNDED : ProjectStatus.ACTIVE,
-    );
-    return this.withInvestorCounts(projects);
+    const wanted = status === 'funded' ? ProjectStatus.FUNDED : ProjectStatus.ACTIVE;
+    return cached(`projects:list:${wanted}`, PROJECT_LIST_TTL_MS, async () => {
+      const projects = await this.projectsService.findByStatus(wanted);
+      return this.withInvestorCounts(projects);
+    });
   }
 
   @UseGuards(JwtAuthGuard)
@@ -237,21 +259,10 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard)
   @Post(':id/cover-image')
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/projects',
-        filename: (req, file, cb) => {
-          cb(null, `${req.params.id}-${Date.now()}${extname(file.originalname)}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
-          return cb(new BadRequestException('Only image files are allowed'), false);
-        }
-        cb(null, true);
-      },
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
+    FileInterceptor(
+      'file',
+      uploadOptions({ destination: './uploads/projects', accept: IMAGE_UPLOAD_TYPES, maxBytes: 5 * 1024 * 1024 }),
+    ),
   )
   async uploadCoverImage(
     @CurrentUser() user: User,
@@ -274,21 +285,14 @@ export class ProjectsController {
   @UseGuards(JwtAuthGuard)
   @Post(':id/attachments')
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
+    FileInterceptor(
+      'file',
+      uploadOptions({
         destination: './uploads/attachments',
-        filename: (req, file, cb) => {
-          cb(null, `${req.params.id}-${Date.now()}${extname(file.originalname)}`);
-        },
+        accept: ATTACHMENT_UPLOAD_TYPES,
+        maxBytes: 20 * 1024 * 1024,
       }),
-      fileFilter: (req, file, cb) => {
-        if (!ALLOWED_ATTACHMENT_MIME_TYPES.includes(file.mimetype)) {
-          return cb(new BadRequestException('Unsupported file type'), false);
-        }
-        cb(null, true);
-      },
-      limits: { fileSize: 20 * 1024 * 1024 },
-    }),
+    ),
   )
   async uploadAttachment(
     @CurrentUser() user: User,
@@ -302,7 +306,9 @@ export class ProjectsController {
       id,
       user.id,
       {
-        fileName: file.originalname,
+        // What the uploader called it, kept for the download link and shown as-is in the
+        // attachment list — so it is flattened first (see displayFileName).
+        fileName: displayFileName(file.originalname),
         fileUrl: `/uploads/attachments/${file.filename}`,
         fileSize: file.size,
         mimeType: file.mimetype ?? null,
@@ -320,6 +326,41 @@ export class ProjectsController {
   ) {
     await this.projectsService.deleteAttachment(id, attachmentId, user.id, user.role);
     return { success: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/team')
+  findTeamMembers(@Param('id') id: string) {
+    return this.projectsService.listTeamMembers(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put(':id/team')
+  setTeamMembers(@CurrentUser() user: User, @Param('id') id: string, @Body() dto: SetTeamMembersDto) {
+    return this.projectsService.setTeamMembers(id, user.id, user.role, dto.members);
+  }
+
+  // Uploads a photo and hands back its URL, without touching any team row. Keeping the two
+  // apart is what lets a founder attach photos while composing the roster — the members do
+  // not exist yet at that point, and on a brand-new project neither does anything to key on.
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/team-photo')
+  @UseInterceptors(
+    FileInterceptor(
+      'file',
+      uploadOptions({ destination: './uploads/team', accept: IMAGE_UPLOAD_TYPES, maxBytes: 5 * 1024 * 1024 }),
+    ),
+  )
+  async uploadTeamPhoto(
+    @CurrentUser() user: User,
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+    await this.projectsService.assertCanEditTeam(id, user.id, user.role);
+    return { url: `/uploads/team/${file.filename}` };
   }
 
   @UseGuards(JwtAuthGuard)

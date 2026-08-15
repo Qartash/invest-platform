@@ -10,6 +10,7 @@ import { ProjectFinanceService } from './project-finance/project-finance.service
 import { User } from './users/entities/user.entity';
 import { Project } from './projects/entities/project.entity';
 import { ExpenseCategory, FinancialReportStatus, KycStatus, UserRole } from './common/enums';
+import { hashPassword, isHashed, verifyPassword } from './auth/password';
 
 const LEGACY_PASSWORD = 'password123';
 
@@ -22,17 +23,31 @@ async function ensureUser(
   let user = await usersRepo.findOne({ where: { username: opts.username } });
   const isNew = !user;
   if (!user) {
-    await authService.register({
-      username: opts.username,
-      password: opts.password,
-      fullName: opts.fullName,
-      languagePref: 'ru',
-    });
+    await authService.register(
+      {
+        username: opts.username,
+        // Registration is email-keyed now; demo accounts get a placeholder so they
+        // can still be created by handle.
+        email: `${opts.username}@demo.local`,
+        password: opts.password,
+        fullName: opts.fullName,
+        languagePref: 'ru',
+      },
+      // Registration is invite-only, and a seed runs where no code is active yet.
+      { skipInviteCheck: true },
+    );
     user = await usersRepo.findOneOrFail({ where: { username: opts.username } });
     console.log(`Created user ${opts.username}`);
   }
-  if (user.role !== opts.role || user.kycStatus !== KycStatus.APPROVED || user.passwordHash !== opts.password) {
-    await usersRepo.update(user.id, { role: opts.role, kycStatus: KycStatus.APPROVED, passwordHash: opts.password });
+  // `!isHashed` also drags rows seeded before hashing landed over to bcrypt,
+  // so a plain `npm run seed` is enough to clear the plaintext out of the DB.
+  const passwordOk = (await verifyPassword(opts.password, user.passwordHash)) && isHashed(user.passwordHash);
+  if (user.role !== opts.role || user.kycStatus !== KycStatus.APPROVED || !passwordOk) {
+    await usersRepo.update(user.id, {
+      role: opts.role,
+      kycStatus: KycStatus.APPROVED,
+      passwordHash: await hashPassword(opts.password),
+    });
     user = await usersRepo.findOneOrFail({ where: { username: opts.username } });
   }
   if (isNew && opts.deposit) {
@@ -135,10 +150,10 @@ async function seed() {
         en: 'A small coffee roastery for the local market',
       },
       targetAmount: 5_000_000,
-      ticketPrice: 50_000,
       totalTickets: 100,
       priceTierCount: 4,
       resaleEnabled: true,
+      equityOfferedPercent: 40,
       expectedAnnualReturnPercent: 24,
       payoutStartDays: 30,
     } as any);
@@ -173,10 +188,10 @@ async function seed() {
         en: 'Growing greens in the city center',
       },
       targetAmount: 8_000_000,
-      ticketPrice: 80_000,
       totalTickets: 100,
       priceTierCount: 4,
       resaleEnabled: false,
+      equityOfferedPercent: 25,
       expectedAnnualReturnPercent: 18,
       payoutStartDays: 45,
     } as any);
@@ -194,10 +209,10 @@ async function seed() {
         en: 'Self-service car wash',
       },
       targetAmount: 3_000_000,
-      ticketPrice: 30_000,
       totalTickets: 100,
       priceTierCount: 4,
       resaleEnabled: false,
+      equityOfferedPercent: 30,
       expectedAnnualReturnPercent: 15,
       payoutStartDays: 30,
     } as any);

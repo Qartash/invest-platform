@@ -1,15 +1,27 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
 import { Project } from './entities/project.entity';
 import { ProjectReviewLog } from './entities/project-review-log.entity';
 import { ProjectAttachment } from './entities/project-attachment.entity';
 import { ProjectBudgetItem } from './entities/project-budget-item.entity';
+import { ProjectTeamMember } from './entities/project-team-member.entity';
 import { BudgetItemInputDto, CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
+import { TeamMemberInputDto } from './dto/set-team-members.dto';
 import { SetRiskDto } from './dto/set-risk.dto';
 import { SetPriorityDto } from './dto/set-priority.dto';
 import { BudgetItemStatus, ProjectPriority, ProjectReviewAction, ProjectStatus, UserRole } from '../common/enums';
+import { deriveBaseTicketPrice } from './pricing';
+import { TicketsService } from '../tickets/tickets.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType, NotifyInput } from '../notifications/notification-types';
 
 const MAX_ATTACHMENTS_PER_PROJECT = 10;
 
@@ -24,7 +36,36 @@ export class ProjectsService {
     private readonly attachmentsRepository: Repository<ProjectAttachment>,
     @InjectRepository(ProjectBudgetItem)
     private readonly budgetItemsRepository: Repository<ProjectBudgetItem>,
+    @InjectRepository(ProjectTeamMember)
+    private readonly teamMembersRepository: Repository<ProjectTeamMember>,
+    private readonly ticketsService: TicketsService,
+    private readonly notifications: NotificationsService,
   ) {}
+
+  // The two shapes every notification about a project carries: which project, and
+  // what it is called. The title is copied into the payload rather than joined at
+  // read time so the notice still names the project after it is deleted.
+  private static about(project: Project) {
+    return { projectId: project.id, projectTitle: project.title };
+  }
+
+  // Tells a project's investors something, skipping the founder — they are told
+  // separately, in words that fit their side of it.
+  private async notifyHolders(
+    project: Project,
+    type: NotificationType,
+    payload: Record<string, unknown> = {},
+  ): Promise<void> {
+    const holders = await this.ticketsService.holderIds(project.id);
+    const messages: NotifyInput[] = holders
+      .filter((holderId) => holderId !== project.founderId)
+      .map((holderId) => ({
+        userId: holderId,
+        type,
+        payload: { ...ProjectsService.about(project), ...payload },
+      }));
+    await this.notifications.notifyMany(messages);
+  }
 
   private logReview(
     projectId: string,
@@ -61,8 +102,20 @@ export class ProjectsService {
     return this.findByStatus(ProjectStatus.ACTIVE);
   }
 
+  // The moderation queue holds two different things, and they are not the same
+  // question. A project *in* PENDING_REVIEW has never been live and is waiting for
+  // the gate that lets it out. A live project with `pendingChanges` is already out
+  // — it keeps running, keeps selling, keeps its own status — and only an edit to
+  // it is waiting. Both belong in the queue; only the first is a status.
   findPendingReview(): Promise<Project[]> {
-    return this.findByStatus(ProjectStatus.PENDING_REVIEW);
+    return this.projectsRepository.find({
+      where: [
+        { status: ProjectStatus.PENDING_REVIEW, deletedAt: IsNull() },
+        { pendingChanges: Not(IsNull()), deletedAt: IsNull() },
+      ],
+      relations: { founder: true },
+      order: { createdAt: 'DESC' },
+    });
   }
 
   findPendingDeletions(): Promise<Project[]> {
@@ -98,20 +151,30 @@ export class ProjectsService {
   }
 
   async create(founderId: string, dto: CreateProjectDto): Promise<Project> {
+    const priceTierCount = dto.priceTierCount ?? 4;
+    const priceTierIncrementPercent = dto.priceTierIncrementPercent ?? 20;
     const project = this.projectsRepository.create({
       founderId,
       title: dto.title,
       description: dto.description,
       targetAmount: dto.targetAmount.toFixed(2),
-      ticketPrice: dto.ticketPrice.toFixed(2),
+      // Derived, not dto.ticketPrice: see deriveBaseTicketPrice for why a caller-supplied
+      // price can't be trusted to keep a sell-out equal to the funding goal.
+      ticketPrice: deriveBaseTicketPrice({
+        targetAmount: dto.targetAmount,
+        totalTickets: dto.totalTickets,
+        priceTierCount,
+        incrementPercent: priceTierIncrementPercent,
+      }).toFixed(2),
       totalTickets: dto.totalTickets,
       category: dto.category,
       riskLevel: dto.riskLevel,
       priority: (dto.priority as ProjectPriority) ?? ProjectPriority.MEDIUM,
       coverImageUrl: dto.coverImageUrl,
       deadline: dto.deadline ?? null,
-      priceTierCount: dto.priceTierCount ?? 4,
-      priceTierIncrementPercent: (dto.priceTierIncrementPercent ?? 20).toFixed(2),
+      priceTierCount,
+      priceTierIncrementPercent: priceTierIncrementPercent.toFixed(2),
+      equityOfferedPercent: (dto.equityOfferedPercent ?? 100).toFixed(2),
       youtubeUrl: dto.youtubeUrl ?? null,
       resaleEnabled: dto.resaleEnabled ?? false,
       expectedAnnualReturnPercent: (dto.expectedAnnualReturnPercent ?? 20).toFixed(2),
@@ -135,11 +198,62 @@ export class ProjectsService {
         await this.budgetItemsRepository.save(items);
       }
     }
+    // A new project goes straight into the review queue, which until now nobody
+    // was told about — a moderator had to open the tab and look.
+    await this.notifications.notifyAdmins(NotificationType.MOD_PROJECT_SUBMITTED, {
+      ...ProjectsService.about(saved),
+      firstSubmission: true,
+    });
     return saved;
   }
 
   listBudgetItems(projectId: string): Promise<ProjectBudgetItem[]> {
     return this.budgetItemsRepository.find({ where: { projectId }, order: { order: 'ASC' } });
+  }
+
+  listTeamMembers(projectId: string): Promise<ProjectTeamMember[]> {
+    return this.teamMembersRepository.find({ where: { projectId }, order: { order: 'ASC' } });
+  }
+
+  /**
+   * Replaces the whole roster. The founder edits the team as a list — adding, removing and
+   * reordering — so a diff-based API would only make both sides reconstruct the same thing.
+   * Rows are keyed by position, which is also what `order` means to the reader.
+   */
+  async setTeamMembers(
+    projectId: string,
+    founderId: string,
+    userRole: UserRole,
+    members: TeamMemberInputDto[],
+  ): Promise<ProjectTeamMember[]> {
+    const project = await this.findOne(projectId);
+    if (project.founderId !== founderId && userRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Not your project');
+    }
+    const valid = members.filter((member) => member.name?.trim() && member.role?.trim());
+
+    await this.teamMembersRepository.delete({ projectId });
+    if (valid.length === 0) return [];
+
+    const created = valid.map((member, index) =>
+      this.teamMembersRepository.create({
+        projectId,
+        name: member.name.trim(),
+        role: member.role.trim(),
+        bio: member.bio?.trim() || null,
+        photoUrl: member.photoUrl ?? null,
+        order: index,
+      }),
+    );
+    return this.teamMembersRepository.save(created);
+  }
+
+  /** Ownership gate for the standalone team-photo upload, which writes no rows itself. */
+  async assertCanEditTeam(projectId: string, userId: string, userRole: UserRole): Promise<void> {
+    const project = await this.findOne(projectId);
+    if (project.founderId !== userId && userRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Not your project');
+    }
   }
 
   async addBudgetItems(
@@ -194,18 +308,143 @@ export class ProjectsService {
     'deadline',
     'priceTierCount',
     'priceTierIncrementPercent',
+    'equityOfferedPercent',
     'youtubeUrl',
     'resaleEnabled',
     'expectedAnnualReturnPercent',
     'payoutStartDays',
   ] as const;
 
+  // Editing any of these moves the round-1 price with them.
+  private static readonly PRICE_INPUT_FIELDS = [
+    'targetAmount',
+    'totalTickets',
+    'priceTierCount',
+    'priceTierIncrementPercent',
+  ] as const;
+
+  // Everything an investor's stake is priced off. `equityOfferedPercent` is not a
+  // price input — it does not move ticketPrice — but it decides what fraction of
+  // the company a ticket carries, so it belongs to the same promise.
+  //
+  // `ticketPrice` is here even though no DTO can set it. normalizeEdit re-derives
+  // it whenever a price field is *present*, not only when it changed, so a form
+  // that submits every field re-derives against a stored price that may have
+  // drifted — that is what src/repair-ticket-prices.ts exists to clean up. Without
+  // this entry such a reprice would arrive as a lone `ticketPrice` change and walk
+  // straight past a guard watching only the inputs.
+  private static readonly STAKE_FIELDS = [
+    ...ProjectsService.PRICE_INPUT_FIELDS,
+    'equityOfferedPercent',
+    'ticketPrice',
+  ] as const;
+
+  /**
+   * Decides whether a set of already-normalized changes may be applied to this
+   * project as it stands right now.
+   *
+   * Two tiers, because they answer different questions.
+   *
+   * The hard invariants are arithmetic: fewer tickets than have been sold, or a
+   * goal below what has already been collected, describe a project that cannot
+   * exist. Nobody may write one — not the founder, not a moderator — because
+   * every number downstream is computed off these two. `ticketsLeft` goes
+   * negative on the card, dividends in project-finance.service divide by a ticket
+   * count that no longer matches the ticket rows, and refunds in
+   * project-funding.service pay against a goal smaller than the escrow.
+   *
+   * The stake policy is a promise: once anyone has bought in, the price and the
+   * share a ticket carries are part of what they paid for, and the founder cannot
+   * redraw them. This is the rule that already existed for equityOfferedPercent,
+   * now covering the three price inputs that reach the same outcome by another
+   * route — dropping totalTickets from 100 to 50 doubles every holder's share
+   * just as surely as editing the percentage would.
+   *
+   * A moderator keeps the escape hatch adminUpdate always was: `enforceStakePolicy`
+   * off means only the arithmetic is checked, so a genuinely mispriced project can
+   * still be repaired by hand. The invariants stay on for them regardless.
+   *
+   * Called from all three write paths. `approve` matters most: an edit that was
+   * valid when the founder sent it can go stale while it waits, because tickets
+   * keep selling — so the question has to be asked at the moment of applying, not
+   * only at the moment of proposing.
+   */
+  private assertChangesApplicable(
+    project: Project,
+    changes: Record<string, any>,
+    { enforceStakePolicy }: { enforceStakePolicy: boolean },
+  ): void {
+    if (project.ticketsSold <= 0) return;
+
+    if (changes.totalTickets !== undefined && Number(changes.totalTickets) < project.ticketsSold) {
+      throw new BadRequestException(
+        `Cannot set the ticket count below the ${project.ticketsSold} already sold.`,
+      );
+    }
+    if (
+      changes.targetAmount !== undefined &&
+      parseFloat(changes.targetAmount) < parseFloat(project.collectedAmount)
+    ) {
+      throw new BadRequestException('Cannot set the goal below the amount already collected.');
+    }
+
+    if (!enforceStakePolicy) return;
+
+    const touched = ProjectsService.STAKE_FIELDS.filter((field) => changes[field] !== undefined);
+    if (touched.length > 0) {
+      throw new BadRequestException(
+        'Cannot change the pricing or the offered equity share after tickets have been sold.',
+      );
+    }
+  }
+
+  /**
+   * Turns an edit DTO into the column values it implies, shared by the founder and
+   * moderator edit paths so the two can't normalize differently.
+   *
+   * ticketPrice is never taken from the DTO. It's a function of the goal, ticket count
+   * and round settings, so it's re-derived from the merged project+DTO values whenever
+   * one of those moves, and left untouched otherwise. Deriving from the merge matters:
+   * an edit that only sends targetAmount still has to price against the project's
+   * existing ticket count.
+   */
+  private normalizeEdit(project: Project, dto: UpdateProjectDto): Record<string, any> {
+    const normalized: Record<string, any> = { ...dto };
+    if (dto.targetAmount !== undefined) normalized.targetAmount = dto.targetAmount.toFixed(2);
+    if (dto.expectedAnnualReturnPercent !== undefined) {
+      normalized.expectedAnnualReturnPercent = dto.expectedAnnualReturnPercent.toFixed(2);
+    }
+    if (dto.priceTierIncrementPercent !== undefined) {
+      normalized.priceTierIncrementPercent = dto.priceTierIncrementPercent.toFixed(2);
+    }
+    if (dto.equityOfferedPercent !== undefined) {
+      normalized.equityOfferedPercent = dto.equityOfferedPercent.toFixed(2);
+    }
+    if (dto.deadline !== undefined) normalized.deadline = dto.deadline;
+
+    const touchesPrice = ProjectsService.PRICE_INPUT_FIELDS.some((field) => dto[field] !== undefined);
+    if (touchesPrice) {
+      normalized.ticketPrice = deriveBaseTicketPrice({
+        targetAmount: dto.targetAmount ?? parseFloat(project.targetAmount),
+        totalTickets: dto.totalTickets ?? project.totalTickets,
+        priceTierCount: dto.priceTierCount ?? project.priceTierCount,
+        incrementPercent: dto.priceTierIncrementPercent ?? parseFloat(project.priceTierIncrementPercent),
+      }).toFixed(2);
+    } else {
+      delete normalized.ticketPrice;
+    }
+
+    return normalized;
+  }
+
   async update(id: string, founderId: string, dto: UpdateProjectDto): Promise<Project> {
     const project = await this.findOne(id);
     if (project.founderId !== founderId) {
       throw new ForbiddenException('Not your project');
     }
-    if (project.status === ProjectStatus.PENDING_REVIEW) {
+    // One edit in flight at a time, whichever shape the wait takes: a project
+    // sitting in PENDING_REVIEW, or a live one carrying pendingChanges.
+    if (project.status === ProjectStatus.PENDING_REVIEW || project.pendingChanges) {
       throw new BadRequestException(
         'This project already has changes pending review. Wait for the moderator to approve or reject it first.',
       );
@@ -213,17 +452,7 @@ export class ProjectsService {
     if (project.deletedAt || project.deletionRequestedAt) {
       throw new BadRequestException('Cannot edit a project that is deleted or pending deletion.');
     }
-
-    const normalized: Record<string, any> = { ...dto };
-    if (dto.targetAmount !== undefined) normalized.targetAmount = dto.targetAmount.toFixed(2);
-    if (dto.ticketPrice !== undefined) normalized.ticketPrice = dto.ticketPrice.toFixed(2);
-    if (dto.expectedAnnualReturnPercent !== undefined) {
-      normalized.expectedAnnualReturnPercent = dto.expectedAnnualReturnPercent.toFixed(2);
-    }
-    if (dto.priceTierIncrementPercent !== undefined) {
-      normalized.priceTierIncrementPercent = dto.priceTierIncrementPercent.toFixed(2);
-    }
-    if (dto.deadline !== undefined) normalized.deadline = dto.deadline;
+    const normalized = this.normalizeEdit(project, dto);
 
     const changes: Record<string, any> = {};
     for (const field of ProjectsService.EDITABLE_FIELDS) {
@@ -234,6 +463,10 @@ export class ProjectsService {
       }
     }
 
+    // Checked against the diff rather than the DTO, so re-sending a field at its
+    // current value is not an edit and does not trip the policy.
+    this.assertChangesApplicable(project, changes, { enforceStakePolicy: true });
+
     if (Object.keys(changes).length === 0) {
       if (project.status === ProjectStatus.REJECTED || project.status === ProjectStatus.DRAFT) {
         // Nothing textual changed, but the founder still wants another look
@@ -242,6 +475,10 @@ export class ProjectsService {
         project.pendingChangeReason = dto.changeReason?.trim() || null;
         const saved = await this.projectsRepository.save(project);
         await this.logReview(saved.id, ProjectReviewAction.SUBMITTED, { comment: project.pendingChangeReason });
+        await this.notifications.notifyAdmins(NotificationType.MOD_PROJECT_SUBMITTED, {
+          ...ProjectsService.about(saved),
+          comment: saved.pendingChangeReason,
+        });
         return saved;
       }
       return project;
@@ -249,11 +486,22 @@ export class ProjectsService {
 
     project.pendingChanges = changes;
     project.pendingChangeReason = dto.changeReason?.trim() || null;
-    project.statusBeforeReview =
-      project.status === ProjectStatus.ACTIVE || project.status === ProjectStatus.FUNDED ? project.status : null;
-    project.status = ProjectStatus.PENDING_REVIEW;
+    // A live project keeps its status while its edit waits. It used to drop to
+    // PENDING_REVIEW and be restored afterwards from statusBeforeReview, which was
+    // worst on a funded one: the raise is over, there is nothing left to pause, and
+    // yet a typo fix parked 5 000 000 ֏ of finished project two rungs down the
+    // ladder, in the queue beside unreviewed drafts. A project that has never been
+    // live still goes to PENDING_REVIEW below — for it the review is the gate, not
+    // an interruption.
+    if (project.status === ProjectStatus.DRAFT || project.status === ProjectStatus.REJECTED) {
+      project.status = ProjectStatus.PENDING_REVIEW;
+    }
     const saved = await this.projectsRepository.save(project);
     await this.logReview(saved.id, ProjectReviewAction.SUBMITTED, { changes, comment: project.pendingChangeReason });
+    await this.notifications.notifyAdmins(NotificationType.MOD_PROJECT_SUBMITTED, {
+      ...ProjectsService.about(saved),
+      comment: saved.pendingChangeReason,
+    });
     return saved;
   }
 
@@ -266,16 +514,7 @@ export class ProjectsService {
       throw new BadRequestException('Cannot edit a deleted project. Restore it first.');
     }
 
-    const normalized: Record<string, any> = { ...dto };
-    if (dto.targetAmount !== undefined) normalized.targetAmount = dto.targetAmount.toFixed(2);
-    if (dto.ticketPrice !== undefined) normalized.ticketPrice = dto.ticketPrice.toFixed(2);
-    if (dto.expectedAnnualReturnPercent !== undefined) {
-      normalized.expectedAnnualReturnPercent = dto.expectedAnnualReturnPercent.toFixed(2);
-    }
-    if (dto.priceTierIncrementPercent !== undefined) {
-      normalized.priceTierIncrementPercent = dto.priceTierIncrementPercent.toFixed(2);
-    }
-    if (dto.deadline !== undefined) normalized.deadline = dto.deadline;
+    const normalized = this.normalizeEdit(project, dto);
 
     const changes: Record<string, any> = {};
     for (const field of ProjectsService.EDITABLE_FIELDS) {
@@ -285,6 +524,10 @@ export class ProjectsService {
         changes[field] = normalized[field];
       }
     }
+
+    // The moderator is trusted to reprice a project the founder no longer may —
+    // that is what this path is for — but not to write a state that cannot exist.
+    this.assertChangesApplicable(project, changes, { enforceStakePolicy: false });
 
     if (Object.keys(changes).length === 0) {
       return project;
@@ -297,6 +540,14 @@ export class ProjectsService {
       moderatorId,
       moderatorName,
     });
+    // A moderator editing a live project changes something its investors bought
+    // into, so they hear about it too and not only the founder.
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_ADMIN_EDITED,
+      payload: { ...ProjectsService.about(saved), actorName: moderatorName },
+    });
+    await this.notifyHolders(saved, NotificationType.PROJECT_ADMIN_EDITED, { actorName: moderatorName });
     return saved;
   }
 
@@ -305,13 +556,16 @@ export class ProjectsService {
     if (project.founderId !== founderId) {
       throw new ForbiddenException('Not your project');
     }
-    if (project.status !== ProjectStatus.PENDING_REVIEW) {
+    if (project.status !== ProjectStatus.PENDING_REVIEW && !project.pendingChanges) {
       throw new BadRequestException('This project is not currently pending review');
     }
-    // Withdraw the request: an edit-in-progress project goes back to how it was live;
-    // a project that has never been reviewed yet goes back to draft.
-    project.status = project.statusBeforeReview ?? ProjectStatus.DRAFT;
-    project.statusBeforeReview = null;
+    // Withdraw the request. A live project never left its status, so there is
+    // nothing to restore — dropping the proposed changes is the whole undo. Only a
+    // project that went *into* PENDING_REVIEW has to come back out, and it came
+    // from draft.
+    if (project.status === ProjectStatus.PENDING_REVIEW) {
+      project.status = ProjectStatus.DRAFT;
+    }
     project.pendingChanges = null;
     project.pendingChangeReason = null;
     const saved = await this.projectsRepository.save(project);
@@ -333,12 +587,16 @@ export class ProjectsService {
       throw new BadRequestException('Deletion is already pending moderator approval');
     }
 
-    if (project.ticketsSold > 0) {
-      // Investors already hold tickets in this project — a moderator must sign off
-      // before it disappears from view.
+    if (project.ticketsSold > 0 || ProjectsService.heldFunds(project) > 0) {
+      // Investors already hold tickets in this project, or it is still holding money — a
+      // moderator must sign off before it disappears from view.
       project.deletionRequestedAt = new Date();
       const saved = await this.projectsRepository.save(project);
       await this.logReview(saved.id, ProjectReviewAction.DELETION_REQUESTED);
+      await this.notifications.notifyAdmins(NotificationType.MOD_PROJECT_DELETION_REQUESTED, {
+        ...ProjectsService.about(saved),
+        ticketsSold: saved.ticketsSold,
+      });
       return saved;
     }
 
@@ -362,15 +620,38 @@ export class ProjectsService {
     return saved;
   }
 
+  // How much of investors' and the project's money is still sitting in a project. Deleting it
+  // while this is non-zero strands the money: the row keeps the balances but drops out of every
+  // listing, so nobody can reach it again.
+  private static heldFunds(project: Project): number {
+    return parseFloat(project.treasuryBalance) + parseFloat(project.spendableBalance);
+  }
+
   async approveDeletion(id: string, moderatorId: string, moderatorName: string): Promise<Project> {
     const project = await this.findOne(id);
     if (!project.deletionRequestedAt) {
       throw new BadRequestException('There is no pending deletion request for this project');
     }
+    // Refuse rather than silently refunding: paying money back to investors is a decision a
+    // moderator should make deliberately, via the refund endpoint, not a side effect of
+    // approving a deletion. Refunding first also closes the project, so the order is natural.
+    if (ProjectsService.heldFunds(project) > 0) {
+      throw new ConflictException(
+        'This project still holds investor funds — refund it before approving the deletion',
+      );
+    }
     project.deletionRequestedAt = null;
     project.deletedAt = new Date();
     const saved = await this.projectsRepository.save(project);
     await this.logReview(saved.id, ProjectReviewAction.DELETION_APPROVED, { moderatorId, moderatorName });
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_DELETION_APPROVED,
+      payload: { ...ProjectsService.about(saved), actorName: moderatorName },
+    });
+    // Their money is already out — approval is refused while any is still held —
+    // but a project they hold tickets in disappearing is worth being told about.
+    await this.notifyHolders(saved, NotificationType.PROJECT_DELETED);
     return saved;
   }
 
@@ -382,6 +663,11 @@ export class ProjectsService {
     project.deletionRequestedAt = null;
     const saved = await this.projectsRepository.save(project);
     await this.logReview(saved.id, ProjectReviewAction.DELETION_REJECTED, { comment, moderatorId, moderatorName });
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_DELETION_REJECTED,
+      payload: { ...ProjectsService.about(saved), comment, actorName: moderatorName },
+    });
     return saved;
   }
 
@@ -458,29 +744,55 @@ export class ProjectsService {
   async approve(id: string, comment: string, moderatorId: string, moderatorName: string): Promise<Project> {
     const project = await this.findOne(id);
     if (project.pendingChanges) {
+      // Time passed while this waited, and tickets kept selling. An edit that was
+      // valid when it was proposed can be invalid by now, so it is judged against
+      // the project as it stands, under the same policy the founder was held to.
+      // Refusing here leaves the request in the queue for the moderator to reject
+      // with a reason, which is the honest outcome — silently dropping the offending
+      // fields would tell the founder their edit went through.
+      this.assertChangesApplicable(project, project.pendingChanges, { enforceStakePolicy: true });
       Object.assign(project, project.pendingChanges);
     }
-    project.status = project.statusBeforeReview ?? ProjectStatus.ACTIVE;
-    project.statusBeforeReview = null;
+    // Only a project waiting at the gate changes status on approval. A live one
+    // was never moved, so approving its edit must leave FUNDED as FUNDED — the old
+    // code sent it to statusBeforeReview, and to ACTIVE if that had been lost.
+    if (project.status === ProjectStatus.PENDING_REVIEW) {
+      project.status = ProjectStatus.ACTIVE;
+    }
     project.pendingChanges = null;
     project.pendingChangeReason = null;
     project.reviewComment = comment;
     const saved = await this.projectsRepository.save(project);
     await this.logReview(saved.id, ProjectReviewAction.APPROVED, { comment, moderatorId, moderatorName });
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_APPROVED,
+      payload: { ...ProjectsService.about(saved), comment, actorName: moderatorName },
+    });
     return saved;
   }
 
   async reject(id: string, comment: string, moderatorId: string, moderatorName: string): Promise<Project> {
     const project = await this.findOne(id);
-    // If this was a re-review of an edit to an already-live project, discard the
-    // proposed changes and restore it to whatever state it was live in before.
-    project.status = project.statusBeforeReview ?? ProjectStatus.REJECTED;
-    project.statusBeforeReview = null;
+    // Rejecting an edit to a live project discards the proposal and nothing else:
+    // the project is still live, still selling, and REJECTED would be a verdict on
+    // the project rather than on the edit. Only a project that has never passed the
+    // gate is rejected as such.
+    if (project.status === ProjectStatus.PENDING_REVIEW) {
+      project.status = ProjectStatus.REJECTED;
+    }
     project.pendingChanges = null;
     project.pendingChangeReason = null;
     project.reviewComment = comment;
     const saved = await this.projectsRepository.save(project);
     await this.logReview(saved.id, ProjectReviewAction.REJECTED, { comment, moderatorId, moderatorName });
+    // The moderator's comment is the whole point of this one: it is the only
+    // place the founder is told what to fix.
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_REJECTED,
+      payload: { ...ProjectsService.about(saved), comment, actorName: moderatorName },
+    });
     return saved;
   }
 
@@ -491,7 +803,17 @@ export class ProjectsService {
     project.riskSetByName = moderatorName;
     project.riskSetByUserId = moderatorId;
     project.riskSetAt = new Date();
-    return this.projectsRepository.save(project);
+    const saved = await this.projectsRepository.save(project);
+    // Everyone with a stake in it: the risk rating is a judgement on what they
+    // are holding, and the founder is judged by it.
+    const payload = { riskLevel: saved.riskLevel, comment: saved.riskReason, actorName: moderatorName };
+    await this.notifications.notify({
+      userId: saved.founderId,
+      type: NotificationType.PROJECT_RISK_CHANGED,
+      payload: { ...ProjectsService.about(saved), ...payload },
+    });
+    await this.notifyHolders(saved, NotificationType.PROJECT_RISK_CHANGED, payload);
+    return saved;
   }
 
   async setPriority(
@@ -516,13 +838,4 @@ export class ProjectsService {
     return saved;
   }
 
-  async incrementFunding(id: string, amount: number, ticketsCount: number): Promise<Project> {
-    const project = await this.findOne(id);
-    project.collectedAmount = (parseFloat(project.collectedAmount) + amount).toFixed(2);
-    project.ticketsSold += ticketsCount;
-    if (project.ticketsSold >= project.totalTickets) {
-      project.status = ProjectStatus.FUNDED;
-    }
-    return this.projectsRepository.save(project);
-  }
 }

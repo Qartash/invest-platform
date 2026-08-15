@@ -13,8 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
+import { IMAGE_UPLOAD_TYPES, uploadOptions } from '../common/upload-storage';
 import { UsersService } from './users.service';
 import { TicketsService } from '../tickets/tickets.service';
 import { ProjectsService } from '../projects/projects.service';
@@ -51,21 +50,10 @@ export class UsersController {
 
   @Post('me/avatar')
   @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads/avatars',
-        filename: (req, file, cb) => {
-          cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${extname(file.originalname)}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) {
-          return cb(new BadRequestException('Only image files are allowed'), false);
-        }
-        cb(null, true);
-      },
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
+    FileInterceptor(
+      'file',
+      uploadOptions({ destination: './uploads/avatars', accept: IMAGE_UPLOAD_TYPES, maxBytes: 5 * 1024 * 1024 }),
+    ),
   )
   async uploadAvatar(@CurrentUser() user: User, @UploadedFile() file: Express.Multer.File) {
     if (!file) {

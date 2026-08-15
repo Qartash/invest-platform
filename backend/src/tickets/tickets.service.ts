@@ -2,16 +2,35 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { DataSource, EntityManager, In } from 'typeorm';
 import { Ticket } from './entities/ticket.entity';
 import { EarningsSnapshot } from '../earnings/entities/earnings-snapshot.entity';
-import { Wallet } from '../wallets/entities/wallet.entity';
 import { Project } from '../projects/entities/project.entity';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { BuyTicketDto } from './dto/buy-ticket.dto';
-import { ProjectStatus, TicketStatus, TransactionStatus, TransactionType } from '../common/enums';
+import { MovementKind, ProjectStatus, TicketStatus, TransactionStatus, TransactionType } from '../common/enums';
 import { computeTicketPricing, computeTicketPurchaseCost } from '../projects/pricing';
+import { lockProject, lockWallet, lockWallets } from '../common/row-locks';
+import { LedgerService, projectTreasury, userBalance, userInvest } from '../ledger/ledger.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType, NotifyInput } from '../notifications/notification-types';
 
 @Injectable()
 export class TicketsService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly notifications: NotificationsService,
+    private readonly ledger: LedgerService,
+  ) {}
+
+  // Everyone currently holding a ticket in a project, each id once. Used to tell
+  // a project's investors about something that happened to all of them at once.
+  async holderIds(projectId: string): Promise<string[]> {
+    const rows: Array<{ ownerId: string }> = await this.dataSource
+      .getRepository(Ticket)
+      .createQueryBuilder('ticket')
+      .select('DISTINCT ticket.owner_id', 'ownerId')
+      .where('ticket.project_id = :projectId', { projectId })
+      .getRawMany();
+    return rows.map((row) => row.ownerId);
+  }
 
   // The valuation feed is a flat placeholder: a ticket's snapshot value always
   // equals its purchase price (zero return until a real feed exists). So whenever
@@ -24,11 +43,13 @@ export class TicketsService {
   }
 
   async buyTicket(userId: string, dto: BuyTicketDto): Promise<Ticket> {
-    return this.dataSource.transaction(async (manager) => {
-      const project = await manager.findOne(Project, { where: { id: dto.projectId } });
-      if (!project) {
-        throw new BadRequestException('Project not found');
-      }
+    const outcome = await this.dataSource.transaction(async (manager) => {
+      // Held FOR UPDATE for the whole purchase: ticketsSold, the tier the price is read
+      // from and the treasury are all read-modify-write. Unlocked, parallel buys read the
+      // same ticketsSold and overwrite each other's increment while every one of them still
+      // creates a ticket row — twelve tickets issued in a five-ticket project, charged for
+      // one, with the "not enough tickets" check never seeing the other eleven.
+      const project = await lockProject(manager, dto.projectId);
       if (project.status !== ProjectStatus.ACTIVE) {
         throw new BadRequestException('Project is not open for investment');
       }
@@ -40,10 +61,7 @@ export class TicketsService {
       const { tiers } = computeTicketPricing(project);
       const totalCost = computeTicketPurchaseCost(tiers, project.ticketsSold, dto.quantity);
 
-      const wallet = await manager.findOne(Wallet, { where: { userId } });
-      if (!wallet) {
-        throw new BadRequestException('Wallet not found');
-      }
+      const wallet = await lockWallet(manager, userId);
       // Invest credit (earned from work, non-withdrawable) is spent first, then
       // the withdrawable balance covers the rest.
       const credit = parseFloat(wallet.investCredit);
@@ -61,7 +79,11 @@ export class TicketsService {
       // the founder — it's released to spendable per stage by a moderator.
       project.treasuryBalance = (parseFloat(project.treasuryBalance) + totalCost).toFixed(2);
       project.ticketsSold += dto.quantity;
-      if (project.ticketsSold >= project.totalTickets) {
+      // This purchase is the one that closed the raise. Only ever true once: the
+      // check at the top of the transaction refuses to sell into anything but an
+      // ACTIVE project, and the row is locked for the whole of it.
+      const justFunded = project.ticketsSold >= project.totalTickets;
+      if (justFunded) {
         project.status = ProjectStatus.FUNDED;
       }
       await manager.save(project);
@@ -84,8 +106,64 @@ export class TicketsService {
       });
       await manager.save(transaction);
 
-      return savedTicket;
+      // Two movements when the purchase was split between the two buckets, because
+      // it was two different kinds of money: invest credit the platform granted and
+      // cash the investor put in. One row for the pair would hide which was which,
+      // and the panel's whole job is telling them apart.
+      await this.ledger.recordMany(
+        manager,
+        [
+          { spent: fromCredit, from: userInvest(userId) },
+          { spent: totalCost - fromCredit, from: userBalance(userId) },
+        ]
+          .filter((part) => part.spent > 0)
+          .map((part) => ({
+            kind: MovementKind.TICKET_PURCHASE,
+            amount: part.spent,
+            from: part.from,
+            to: projectTreasury(project.id),
+            transactionId: transaction.id,
+            description: `${dto.quantity} ticket(s)`,
+          })),
+      );
+
+      return { ticket: savedTicket, project, totalCost, justFunded };
     });
+
+    const { ticket, project, totalCost, justFunded } = outcome;
+    const about = { projectId: project.id, projectTitle: project.title };
+
+    // Sent only now the transaction has committed. Inside it, a failed insert
+    // would roll the purchase back, and a successful one would have announced a
+    // purchase that a later failure undid.
+    const messages: NotifyInput[] = [
+      {
+        userId,
+        type: NotificationType.TICKETS_PURCHASED,
+        payload: { ...about, quantity: ticket.quantity, amount: totalCost },
+      },
+      {
+        userId: project.founderId,
+        type: NotificationType.INVESTMENT_RECEIVED,
+        payload: { ...about, quantity: ticket.quantity, amount: totalCost },
+      },
+    ];
+
+    if (justFunded) {
+      // The founder and everyone holding a ticket, the buyer included: the raise
+      // closing is the project's news, not one investor's.
+      const holders = await this.holderIds(project.id);
+      for (const holderId of new Set([project.founderId, ...holders])) {
+        messages.push({
+          userId: holderId,
+          type: NotificationType.PROJECT_FUNDED,
+          payload: { ...about, amount: parseFloat(project.collectedAmount) },
+        });
+      }
+    }
+
+    await this.notifications.notifyMany(messages);
+    return ticket;
   }
 
   findByOwner(ownerId: string): Promise<Ticket[]> {
@@ -112,32 +190,53 @@ export class TicketsService {
       unitPrice: parseFloat(ticket.purchasePrice) / ticket.quantity,
       totalPrice: parseFloat(ticket.purchasePrice),
       purchaseDate: ticket.purchaseDate,
+      // These are current holdings, not a log of what the project sold: a resold ticket
+      // reports its secondary price and its new owner, and the original purchase it
+      // replaced is gone. Callers showing what the project raised must use the project's
+      // collectedAmount rather than summing these.
+      isResale: ticket.acquiredViaResale,
     }));
   }
 
-  async countInvestors(projectId: string): Promise<number> {
-    const result = await this.dataSource
+  // Both counts below answer for a whole list of projects in one query rather than one
+  // project per call. The project cards need them for every card on screen, and asking per
+  // card turned a single list into dozens of round trips — each one paid in full when the
+  // database is waking from sleep. Projects with nothing to count are simply absent from
+  // the result; callers read them as zero.
+
+  async countInvestorsByProject(projectIds: string[]): Promise<Map<string, number>> {
+    if (projectIds.length === 0) return new Map();
+    const rows: Array<{ projectId: string; count: string }> = await this.dataSource
       .getRepository(Ticket)
       .createQueryBuilder('ticket')
-      .select('COUNT(DISTINCT ticket.owner_id)', 'count')
-      .where('ticket.project_id = :projectId', { projectId })
-      .getRawOne<{ count: string }>();
-    return parseInt(result?.count ?? '0', 10);
+      .select('ticket.project_id', 'projectId')
+      .addSelect('COUNT(DISTINCT ticket.owner_id)', 'count')
+      .where('ticket.project_id IN (:...projectIds)', { projectIds })
+      .groupBy('ticket.project_id')
+      .getRawMany();
+    return new Map(rows.map((row) => [row.projectId, parseInt(row.count, 10)]));
   }
 
-  async getResaleStats(projectId: string): Promise<{ listingsCount: number; ticketsCount: number }> {
-    const result = await this.dataSource
+  async getResaleStatsByProject(
+    projectIds: string[],
+  ): Promise<Map<string, { listingsCount: number; ticketsCount: number }>> {
+    if (projectIds.length === 0) return new Map();
+    const rows: Array<{ projectId: string; listingsCount: string; ticketsCount: string }> = await this.dataSource
       .getRepository(Ticket)
       .createQueryBuilder('ticket')
-      .select('COUNT(*)', 'listingsCount')
+      .select('ticket.project_id', 'projectId')
+      .addSelect('COUNT(*)', 'listingsCount')
       .addSelect('COALESCE(SUM(ticket.quantity), 0)', 'ticketsCount')
-      .where('ticket.project_id = :projectId', { projectId })
+      .where('ticket.project_id IN (:...projectIds)', { projectIds })
       .andWhere('ticket.status = :status', { status: TicketStatus.LISTED_FOR_SALE })
-      .getRawOne<{ listingsCount: string; ticketsCount: string }>();
-    return {
-      listingsCount: parseInt(result?.listingsCount ?? '0', 10),
-      ticketsCount: parseInt(result?.ticketsCount ?? '0', 10),
-    };
+      .groupBy('ticket.project_id')
+      .getRawMany();
+    return new Map(
+      rows.map((row) => [
+        row.projectId,
+        { listingsCount: parseInt(row.listingsCount, 10), ticketsCount: parseInt(row.ticketsCount, 10) },
+      ]),
+    );
   }
 
   // ticketIds may span several purchase lots for the same project (grouped together in the
@@ -153,7 +252,13 @@ export class TicketsService {
         throw new BadRequestException('Asking price must be positive');
       }
 
-      const tickets = await manager.find(Ticket, { where: { id: In(ticketIds) } });
+      // Locked in id order: listing splits a lot by rewriting its quantity and cost basis, so
+      // two listings racing over the same lot would each split from the same starting figures.
+      const tickets = await manager.find(Ticket, {
+        where: { id: In(ticketIds) },
+        order: { id: 'ASC' },
+        lock: { mode: 'pessimistic_write' },
+      });
       if (tickets.length !== ticketIds.length) {
         throw new NotFoundException('Ticket not found');
       }
@@ -221,20 +326,28 @@ export class TicketsService {
     });
   }
 
+  // Runs in a transaction holding the listing row so it cannot cross with a buyer taking the
+  // same listing: read outside one, this could re-save a stale row over a completed sale and
+  // hand the seller back a ticket they had already been paid for.
   async cancelListing(ticketId: string, ownerId: string): Promise<Ticket> {
-    const ticket = await this.dataSource.getRepository(Ticket).findOne({ where: { id: ticketId } });
-    if (!ticket) {
-      throw new NotFoundException('Ticket not found');
-    }
-    if (ticket.ownerId !== ownerId) {
-      throw new ForbiddenException('Not your ticket');
-    }
-    if (ticket.status !== TicketStatus.LISTED_FOR_SALE) {
-      throw new BadRequestException('Ticket is not listed for sale');
-    }
-    ticket.status = TicketStatus.ACTIVE;
-    ticket.askingPrice = null;
-    return this.dataSource.getRepository(Ticket).save(ticket);
+    return this.dataSource.transaction(async (manager) => {
+      const ticket = await manager.findOne(Ticket, {
+        where: { id: ticketId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!ticket) {
+        throw new NotFoundException('Ticket not found');
+      }
+      if (ticket.ownerId !== ownerId) {
+        throw new ForbiddenException('Not your ticket');
+      }
+      if (ticket.status !== TicketStatus.LISTED_FOR_SALE) {
+        throw new BadRequestException('Ticket is not listed for sale');
+      }
+      ticket.status = TicketStatus.ACTIVE;
+      ticket.askingPrice = null;
+      return manager.save(ticket);
+    });
   }
 
   async findListingsByProject(projectId: string) {
@@ -258,10 +371,20 @@ export class TicketsService {
   // or they simply want fewer). A partial buy splits the listing: the bought portion becomes
   // a new ACTIVE ticket for the buyer, and the remainder stays LISTED_FOR_SALE under the seller.
   async buyListing(listingId: string, buyerId: string, quantity?: number): Promise<Ticket> {
-    return this.dataSource.transaction(async (manager) => {
-      const ticket = await manager.findOne(Ticket, { where: { id: listingId } });
-      if (!ticket || ticket.status !== TicketStatus.LISTED_FOR_SALE || !ticket.askingPrice) {
-        throw new BadRequestException('Listing not found');
+    const outcome = await this.dataSource.transaction(async (manager) => {
+      // FOR UPDATE so two buyers cannot both pass the status check on the same listing, and
+      // so a seller cancelling mid-sale queues behind the transfer instead of overwriting it.
+      const ticket = await manager.findOne(Ticket, {
+        where: { id: listingId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!ticket) {
+        throw new NotFoundException('Listing not found');
+      }
+      // Separate from the 404 above so a buyer who lost the race to another buyer, or to the
+      // seller cancelling, is told the listing went rather than that it never existed.
+      if (ticket.status !== TicketStatus.LISTED_FOR_SALE || !ticket.askingPrice) {
+        throw new BadRequestException('This listing is no longer for sale');
       }
       if (ticket.ownerId === buyerId) {
         throw new BadRequestException('Cannot buy your own listing');
@@ -278,18 +401,15 @@ export class TicketsService {
         ? totalAskingPrice
         : Math.round(((totalAskingPrice / ticket.quantity) * purchaseQuantity) * 100) / 100;
 
-      const buyerWallet = await manager.findOne(Wallet, { where: { userId: buyerId } });
-      if (!buyerWallet) {
-        throw new BadRequestException('Wallet not found');
-      }
+      // Both sides locked together in a fixed order, so two resales running in opposite
+      // directions between the same pair cannot each hold what the other waits for.
+      const wallets = await lockWallets(manager, [buyerId, ticket.ownerId]);
+      const buyerWallet = wallets.get(buyerId)!;
+      const sellerWallet = wallets.get(ticket.ownerId)!;
+
       const buyerBalance = parseFloat(buyerWallet.balance);
       if (buyerBalance < price) {
         throw new BadRequestException('Insufficient wallet balance');
-      }
-
-      const sellerWallet = await manager.findOne(Wallet, { where: { userId: ticket.ownerId } });
-      if (!sellerWallet) {
-        throw new BadRequestException('Seller wallet not found');
       }
 
       buyerWallet.balance = (buyerBalance - price).toFixed(2);
@@ -305,6 +425,9 @@ export class TicketsService {
         ticket.status = TicketStatus.ACTIVE;
         ticket.purchasePrice = ticket.askingPrice;
         ticket.askingPrice = null;
+        // The row now describes a secondary holding: its price is what this buyer paid
+        // another investor, not what the project ever collected for it.
+        ticket.acquiredViaResale = true;
         purchasedTicket = await manager.save(ticket);
         // Row is reused for the buyer at a new cost basis (the price paid); drop
         // the seller-era snapshots so the buyer doesn't inherit a phantom return.
@@ -328,6 +451,7 @@ export class TicketsService {
             quantity: purchaseQuantity,
             purchasePrice: price.toFixed(2),
             status: TicketStatus.ACTIVE,
+            acquiredViaResale: true,
           }),
         );
       }
@@ -342,7 +466,7 @@ export class TicketsService {
           status: TransactionStatus.COMPLETED,
         }),
       );
-      await manager.save(
+      const buyerTransaction = await manager.save(
         manager.create(Transaction, {
           userId: buyerId,
           type: TransactionType.BUY,
@@ -353,8 +477,44 @@ export class TicketsService {
         }),
       );
 
-      return purchasedTicket;
+      // A resale is between two investors and never touches the project: the money
+      // does not reach its treasury and the project raised nothing by it. The
+      // project is still named on the movement so a moderator can ask "what
+      // happened around this project" and see the secondary market too.
+      await this.ledger.record(manager, {
+        kind: MovementKind.TICKET_RESALE,
+        amount: price,
+        from: userBalance(buyerId),
+        to: userBalance(sellerId),
+        transactionId: buyerTransaction.id,
+        description: `${purchaseQuantity} ticket(s) resold`,
+      });
+
+      return { ticket: purchasedTicket, sellerId, price, purchaseQuantity, isFullPurchase };
     });
+
+    const { ticket, sellerId, price, purchaseQuantity, isFullPurchase } = outcome;
+    // Read after the sale rather than inside it: the title is only wanted so the
+    // notification can name the project, and holding the listing's lock while
+    // fetching it would make every resale wait on a read nothing depends on.
+    const project = await this.dataSource
+      .getRepository(Project)
+      .findOne({ where: { id: ticket.projectId }, select: { id: true, title: true } });
+    const about = { projectId: ticket.projectId, projectTitle: project?.title ?? null };
+
+    await this.notifications.notifyMany([
+      {
+        userId: sellerId,
+        type: NotificationType.LISTING_SOLD,
+        payload: { ...about, quantity: purchaseQuantity, amount: price, partial: !isFullPurchase },
+      },
+      {
+        userId: buyerId,
+        type: NotificationType.LISTING_BOUGHT,
+        payload: { ...about, quantity: purchaseQuantity, amount: price },
+      },
+    ]);
+    return ticket;
   }
 
   async findActiveProjectsForOwner(ownerId: string) {

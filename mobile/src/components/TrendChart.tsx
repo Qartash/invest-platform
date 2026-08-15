@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Line, Path, Stop, Circle, Text as SvgText } from 'react-native-svg';
 import { useTranslation } from 'react-i18next';
-import { colors } from '../theme';
+import { ThemeColors, useTheme, useThemeStyles } from '../theme';
 import { formatDate } from '../utils/date';
 import { SeriesPoint } from '../api/stats';
 
@@ -20,8 +20,13 @@ function formatCompact(value: number): string {
   return `${Math.round(value)}`;
 }
 
-export function TrendChart({ points, width, height = 180, color = colors.primary }: Props) {
+export function TrendChart({ points, width, height = 180, color }: Props) {
+  const styles = useThemeStyles(createStyles);
+  const { colors } = useTheme();
   const { t, i18n } = useTranslation();
+  // Defaulted here rather than in the signature: a default parameter is evaluated before
+  // the palette is available from the context.
+  const lineColor = color ?? colors.primary;
 
   if (points.length === 0) {
     return <Text style={styles.empty}>{t('reports.noData')}</Text>;
@@ -58,8 +63,8 @@ export function TrendChart({ points, width, height = 180, color = colors.primary
       <Svg width={width} height={height}>
         <Defs>
           <LinearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={color} stopOpacity={0.28} />
-            <Stop offset="1" stopColor={color} stopOpacity={0.02} />
+            <Stop offset="0" stopColor={lineColor} stopOpacity={0.28} />
+            <Stop offset="1" stopColor={lineColor} stopOpacity={0.02} />
           </LinearGradient>
         </Defs>
 
@@ -84,8 +89,8 @@ export function TrendChart({ points, width, height = 180, color = colors.primary
         </SvgText>
 
         {areaPath ? <Path d={areaPath} fill="url(#trendFill)" /> : null}
-        <Path d={linePath} stroke={color} strokeWidth={2} fill="none" />
-        <Circle cx={lastX} cy={lastY} r={3.5} fill={color} />
+        <Path d={linePath} stroke={lineColor} strokeWidth={2} fill="none" />
+        <Circle cx={lastX} cy={lastY} r={3.5} fill={lineColor} />
 
         <SvgText x={padding.left} y={height - 6} fontSize={9} fill={colors.textMuted}>
           {formatDate(points[0].date, i18n.language)}
@@ -100,11 +105,12 @@ export function TrendChart({ points, width, height = 180, color = colors.primary
   );
 }
 
-const styles = StyleSheet.create({
-  empty: {
-    textAlign: 'center',
-    color: colors.textMuted,
-    fontSize: 13,
-    paddingVertical: 40,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    empty: {
+      textAlign: 'center',
+      color: c.textMuted,
+      fontSize: 13,
+      paddingVertical: 40,
+    },
+  });

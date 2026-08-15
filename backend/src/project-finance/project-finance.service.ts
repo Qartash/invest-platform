@@ -13,13 +13,31 @@ import { ProjectFinancialReport } from './entities/project-financial-report.enti
 import { ReportPayout } from './entities/report-payout.entity';
 import { Project } from '../projects/entities/project.entity';
 import { Ticket } from '../tickets/entities/ticket.entity';
-import { Wallet } from '../wallets/entities/wallet.entity';
+import { lockWallets } from '../common/row-locks';
 import { Transaction } from '../transactions/entities/transaction.entity';
 import { ProjectsService } from '../projects/projects.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { CreateIncomeDto } from './dto/create-income.dto';
 import { CreateFinancialReportDto } from './dto/create-financial-report.dto';
-import { FinancialReportStatus, TransactionStatus, TransactionType, UserRole } from '../common/enums';
+import {
+  FinancialReportStatus,
+  MovementKind,
+  TransactionStatus,
+  TransactionType,
+  UserRole,
+} from '../common/enums';
+import { LedgerService, userBalance } from '../ledger/ledger.service';
+import { TicketsService } from '../tickets/tickets.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType, NotifyInput } from '../notifications/notification-types';
+import { UpdatesService } from '../project-social/updates.service';
+
+// More tickets held than the project ever issued — the state that puts a
+// dividend run on hold until a person has looked at it.
+interface LedgerMismatch {
+  ticketsIssued: number;
+  ticketsHeld: number;
+}
 
 @Injectable()
 export class ProjectFinanceService {
@@ -33,6 +51,11 @@ export class ProjectFinanceService {
     @InjectRepository(ReportPayout)
     private readonly payoutsRepository: Repository<ReportPayout>,
     private readonly projectsService: ProjectsService,
+    private readonly ticketsService: TicketsService,
+    private readonly notifications: NotificationsService,
+    private readonly ledger: LedgerService,
+    // Posts the published report to the project feed — see addReport.
+    private readonly updates: UpdatesService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -191,7 +214,7 @@ export class ProjectFinanceService {
   }
 
   async addReport(projectId: string, userId: string, userRole: UserRole, dto: CreateFinancialReportDto) {
-    await this.assertCanEdit(projectId, userId, userRole);
+    const project = await this.assertCanEdit(projectId, userId, userRole);
     const currentPeriod = new Date().toISOString().slice(0, 7);
     if (dto.period > currentPeriod) {
       throw new BadRequestException('Cannot publish a report for a future month');
@@ -214,6 +237,35 @@ export class ProjectFinanceService {
       publishedAt: new Date(),
     });
     const saved = await this.reportsRepository.save(report);
+    // Investors are told a month's books are closed, not what they will be paid:
+    // publishing a report and paying its dividends are two separate acts, and the
+    // founder may never take the second one.
+    const holders = await this.ticketsService.holderIds(projectId);
+    await this.notifications.notifyMany(
+      holders
+        .filter((holderId) => holderId !== project.founderId)
+        .map((holderId) => ({
+          userId: holderId,
+          type: NotificationType.FINANCIAL_REPORT_PUBLISHED,
+          payload: {
+            projectId,
+            projectTitle: project.title,
+            period: saved.period,
+            netProfit: parseFloat(saved.netProfit),
+          },
+        })),
+    );
+    // And the same event as a post in the project's feed. The founder writes
+    // nothing for it: closing the books is the one piece of news every holder
+    // reliably wants, so the flow that produces it says so itself. Failing to
+    // post must never undo a published report, which is why the call swallows
+    // its own errors rather than being awaited for a result.
+    await this.updates.postReportPublished(projectId, {
+      id: saved.id,
+      periodLabel: saved.period,
+      revenue: parseFloat(saved.incomeTotal),
+      holders: holders.length,
+    });
     return this.toReportView(saved, null);
   }
 
@@ -251,11 +303,17 @@ export class ProjectFinanceService {
   }
 
   // Pays the investors' share of a published report's net profit out of the
-  // founder's wallet, proportionally to tickets held right now. The share base
-  // is totalTickets, so the unsold portion of the project stays with the
-  // founder. Cent remainders from flooring also stay with the founder.
+  // founder's wallet, proportionally to the equity their tickets carry right now.
+  // The share base is totalTickets scaled by equityOfferedPercent, so both the
+  // unsold tickets and the equity the founder never offered stay with the founder.
+  // Cent remainders from flooring also stay with the founder.
   async payReport(projectId: string, reportId: string, userId: string) {
-    return this.dataSource.transaction(async (manager) => {
+    // Set inside the transaction, read after it has rolled back: the mismatch
+    // below is refused, so the only way to tell anyone about it is to carry the
+    // fact out past the exception.
+    let ledgerMismatch: LedgerMismatch | null = null;
+    const run = () =>
+      this.dataSource.transaction(async (manager) => {
       const report = await manager.findOne(ProjectFinancialReport, {
         where: { id: reportId, projectId },
         lock: { mode: 'pessimistic_write' },
@@ -290,22 +348,46 @@ export class ProjectFinanceService {
 
       const netCents = BigInt(Math.round(netProfit * 100));
       const totalTickets = BigInt(project.totalTickets);
+      // All totalTickets together carry equityOfferedPercent of the company, not all of
+      // it, so a holder's cut of the profit is scaled down by that share. Counted in
+      // hundredths of a percent to stay in integers; at the default 100% this is a
+      // multiply and divide by the same 10000 and the split is unchanged.
+      const equityHundredths = BigInt(Math.round(parseFloat(project.equityOfferedPercent) * 100));
       const holders = [...ticketsByOwner.entries()]
         .map(([ownerId, quantity]) => ({
           ownerId,
           quantity,
-          amountCents: (netCents * BigInt(quantity)) / totalTickets,
+          // One division at the end: dividing per factor would floor twice and lose cents.
+          amountCents: (netCents * BigInt(quantity) * equityHundredths) / (totalTickets * 10000n),
         }))
         .filter((holder) => holder.amountCents > 0n);
 
       const payoutTotalCents = holders.reduce((sum, holder) => sum + holder.amountCents, 0n);
       const payoutTotal = Number(payoutTotalCents) / 100;
 
+      // The shares are computed against totalTickets, so they can only add up to more than the
+      // offered slice of the profit if more tickets exist than the project ever issued. That
+      // should be impossible now the purchase path locks the project row, but paying out of a
+      // ledger that says otherwise takes real money out of the founder's wallet — a five-ticket
+      // project carrying twelve tickets billed 2.4x the whole profit. Refuse and let a human
+      // reconcile instead of overpaying.
+      const maxPayableCents = (netCents * equityHundredths) / 10000n;
+      if (payoutTotalCents > maxPayableCents) {
+        ledgerMismatch = {
+          ticketsIssued: project.totalTickets,
+          ticketsHeld: [...ticketsByOwner.values()].reduce((sum, quantity) => sum + quantity, 0),
+        };
+        throw new ConflictException(
+          'Ticket holdings for this project exceed its issued tickets; dividends are on hold until the ledger is reconciled',
+        );
+      }
+
       if (payoutTotalCents > 0n) {
-        const founderWallet = await manager.findOne(Wallet, { where: { userId: project.founderId } });
-        if (!founderWallet) {
-          throw new BadRequestException('Founder wallet not found');
-        }
+        // Founder and every holder taken together, in one fixed order, before any of them is
+        // touched: the payout is a read-modify-write on each balance, and a holder being paid
+        // by two projects at once would otherwise lose one of the two credits.
+        const wallets = await lockWallets(manager, [project.founderId, ...holders.map((h) => h.ownerId)]);
+        const founderWallet = wallets.get(project.founderId)!;
         const founderBalance = parseFloat(founderWallet.balance);
         if (founderBalance < payoutTotal) {
           throw new BadRequestException('Insufficient wallet balance to pay dividends');
@@ -316,14 +398,11 @@ export class ProjectFinanceService {
         for (const holder of holders) {
           const amount = Number(holder.amountCents) / 100;
 
-          let wallet = await manager.findOne(Wallet, { where: { userId: holder.ownerId } });
-          if (!wallet) {
-            wallet = manager.create(Wallet, { userId: holder.ownerId, balance: '0', currency: 'AMD' });
-          }
+          const wallet = wallets.get(holder.ownerId)!;
           wallet.balance = (parseFloat(wallet.balance) + amount).toFixed(2);
           await manager.save(wallet);
 
-          await manager.save(
+          const payout = await manager.save(
             manager.create(Transaction, {
               userId: holder.ownerId,
               type: TransactionType.DIVIDEND,
@@ -333,12 +412,28 @@ export class ProjectFinanceService {
             }),
           );
 
+          // Both ends, at last. The holder's side had a transaction row; the
+          // founder's side was a wallet quietly dropping by the size of the whole
+          // run, with nothing anywhere to say the money had been paid out.
+          await this.ledger.record(manager, {
+            kind: MovementKind.DIVIDEND,
+            amount,
+            from: userBalance(project.founderId),
+            to: userBalance(holder.ownerId),
+            transactionId: payout.id,
+            description: `Dividend on ${holder.quantity} ticket(s)`,
+          });
+
           await manager.save(
             manager.create(ReportPayout, {
               reportId: report.id,
               userId: holder.ownerId,
               tickets: holder.quantity,
-              sharePercent: ((holder.quantity / project.totalTickets) * 100).toFixed(4),
+              // Share of the company, not of the ticket pool: what the holder owns.
+              sharePercent: (
+                (holder.quantity / project.totalTickets) *
+                parseFloat(project.equityOfferedPercent)
+              ).toFixed(4),
               amount: amount.toFixed(2),
             }),
           );
@@ -349,7 +444,48 @@ export class ProjectFinanceService {
       report.paidAt = new Date();
       report.payoutTotal = payoutTotal.toFixed(2);
       const saved = await manager.save(report);
-      return this.toReportView(saved, null);
-    });
+        return {
+          view: this.toReportView(saved, null),
+          period: saved.period,
+          projectTitle: project.title,
+          paid: holders.map((holder) => ({
+            ownerId: holder.ownerId,
+            amount: Number(holder.amountCents) / 100,
+          })),
+        };
+      });
+
+    let outcome: Awaited<ReturnType<typeof run>>;
+    try {
+      outcome = await run();
+    } catch (err) {
+      // A project whose ticket ledger says more tickets exist than were ever
+      // issued is a moderation problem, not the founder's: they tapped pay and
+      // were refused, and nobody else would ever hear about it.
+      // Re-stated rather than read straight: the compiler follows the assignment
+      // no further than the closure it happens in, and reads the variable here as
+      // the null it was declared with.
+      const mismatch = ledgerMismatch as LedgerMismatch | null;
+      if (mismatch) {
+        await this.notifications.notifyAdmins(NotificationType.MOD_DIVIDEND_LEDGER_MISMATCH, {
+          projectId,
+          ...mismatch,
+        });
+      }
+      throw err;
+    }
+
+    const messages: NotifyInput[] = outcome.paid.map((holder) => ({
+      userId: holder.ownerId,
+      type: NotificationType.DIVIDENDS_RECEIVED,
+      payload: {
+        projectId,
+        projectTitle: outcome.projectTitle,
+        period: outcome.period,
+        amount: holder.amount,
+      },
+    }));
+    await this.notifications.notifyMany(messages);
+    return outcome.view;
   }
 }

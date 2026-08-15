@@ -61,6 +61,14 @@ export class Project {
   @Column('decimal', { precision: 5, scale: 2, default: 20, name: 'price_tier_increment_percent' })
   priceTierIncrementPercent: string;
 
+  // What share of the company all totalTickets together represent. One ticket is
+  // worth equityOfferedPercent / totalTickets of the company, and the unsold
+  // remainder stays with the founder along with 100 - equityOfferedPercent.
+  // Defaults to 100 because that is what the payout split assumed before this
+  // column existed — projects created back then really did offer the whole company.
+  @Column('decimal', { precision: 5, scale: 2, default: 100, name: 'equity_offered_percent' })
+  equityOfferedPercent: string;
+
   @Column({ type: 'enum', enum: ProjectStatus, default: ProjectStatus.DRAFT })
   status: ProjectStatus;
 
@@ -94,9 +102,6 @@ export class Project {
   @Column({ type: 'text', nullable: true, name: 'pending_change_reason' })
   pendingChangeReason: string | null;
 
-  @Column({ type: 'enum', enum: ProjectStatus, nullable: true, name: 'status_before_review' })
-  statusBeforeReview: ProjectStatus | null;
-
   @Column({ type: 'timestamptz', nullable: true, name: 'deletion_requested_at' })
   deletionRequestedAt: Date | null;
 
@@ -120,6 +125,33 @@ export class Project {
 
   @Column('int', { default: 30, name: 'payout_start_days' })
   payoutStartDays: number;
+
+  // ── How this founder treats the people who asked ──────────────────────────
+  //
+  // Kept on the project, recomputed by ProjectSocialService whenever an answer
+  // lands, and never written by hand. The list screen shows all three as one
+  // badge next to the risk level, which is the only reason the whole questions
+  // feature changes anything: an investor sees "does not answer · 6 questions"
+  // before they open the project, not after they have paid.
+  //
+  // Stored rather than aggregated on read because the catalogue renders dozens
+  // of projects at once, and a median over each one's questions is three joins
+  // per card. The numbers are only ever behind by the length of one request.
+  @Column('int', { default: 0, name: 'questions_count' })
+  questionsCount: number;
+
+  @Column('int', { default: 0, name: 'questions_answered_count' })
+  questionsAnsweredCount: number;
+
+  // Median, not mean: one question left for a month would otherwise drag a
+  // founder who answers everything else in an hour down to "answers in days".
+  @Column('int', { nullable: true, name: 'answer_median_minutes' })
+  answerMedianMinutes: number | null;
+
+  // When the founder last posted an update. Null means never — which for a
+  // funded project is itself the thing a moderator wants to see.
+  @Column({ type: 'timestamptz', nullable: true, name: 'last_update_at' })
+  lastUpdateAt: Date | null;
 
   @OneToMany(() => Ticket, (ticket) => ticket.project)
   tickets: Ticket[];

@@ -1,78 +1,253 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import axios from 'axios';
 import { TextField } from '../../components/TextField';
 import { PrimaryButton } from '../../components/PrimaryButton';
-import { colors, spacing } from '../../theme';
+import { PageContainer } from '../../components/ui';
+import {
+  ColorSchemeName,
+  maxWidth,
+  radius,
+  shadow,
+  spacing,
+  ThemeColors,
+  typography,
+  useBreakpoint,
+  useThemeStyles,
+} from '../../theme';
+import { OrDivider } from '../../components/OrDivider';
+import { GoogleSignInButton, isGoogleSignInConfigured } from '../../components/GoogleSignInButton';
 import { register } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { useReferralStore } from '../../store/referralStore';
+import { apiErrorMessage } from '../../utils/apiError';
+import { AuthStackParamList } from '../../navigation/AuthNavigator';
 import i18n from '../../i18n';
 
-export function RegisterScreen() {
+type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
+
+const MIN_PASSWORD_LENGTH = 8;
+
+export function RegisterScreen({ navigation }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
+  const { isCompact } = useBreakpoint();
   const setSession = useAuthStore((s) => s.setSession);
+  const pendingCode = useReferralStore((s) => s.pendingCode);
+  const clearPendingCode = useReferralStore((s) => s.clearPendingCode);
   const [fullName, setFullName] = useState('');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [referralCode, setReferralCode] = useState(pendingCode ?? '');
+  // Whether the code came from the link this visitor followed, as opposed to being typed in.
+  // Read once, from the value the field started with, so it cannot flip mid-form.
+  const [invitedByLink] = useState(!!pendingCode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // The platform is invite-only, so a code is as required as the email. Checked here as well
+  // as on the server so the button simply does not fire rather than making a round trip to be
+  // told what the form could have said itself.
+  const canSubmit =
+    email.includes('@') && password.length >= MIN_PASSWORD_LENGTH && referralCode.trim().length > 0;
 
   const handleRegister = async () => {
     setError(null);
     setLoading(true);
     try {
       const response = await register({
-        username: username.trim(),
+        email: email.trim(),
         password,
         fullName: fullName.trim() || undefined,
         languagePref: i18n.language,
+        referralCode: referralCode.trim() || undefined,
       });
+      clearPendingCode();
       setSession(response.accessToken, response.user);
-    } catch {
-      setError(t('common.error'));
+    } catch (e) {
+      // A taken email is the one failure the user can actually act on, so it gets
+      // its own message instead of the generic one. The three ways an invite can be refused
+      // are equally actionable and are translated the same way every other backend refusal
+      // is — a generic "something went wrong" over a rejected code tells nobody whether to
+      // retype it or go back to the person who sent it.
+      setError(axios.isAxiosError(e) && e.response?.status === 409 ? t('auth.emailTaken') : apiErrorMessage(e, t));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <TextField label={t('auth.fullName')} value={fullName} onChangeText={setFullName} />
-      <TextField
-        label={t('auth.username')}
-        value={username}
-        onChangeText={setUsername}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      <TextField
-        label={t('auth.password')}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-      {error && <Text style={styles.error}>{error}</Text>}
-      <PrimaryButton
-        title={t('auth.registerButton')}
-        onPress={handleRegister}
-        loading={loading}
-        disabled={!username || password.length < 3}
-      />
-    </View>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={[styles.content, !isCompact && styles.contentWide]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Same card as the sign-in screen, and deliberately the same width: the two
+            screens hand off to each other, and a form that changes size on the way reads
+            as a different page rather than the next step. */}
+        <PageContainer maxWidth={maxWidth.form} style={styles.card}>
+          <View style={styles.hero}>
+            <Text style={styles.title}>{t('auth.registerTitle')}</Text>
+            <Text style={styles.subtitle}>{t('auth.registerSubtitle')}</Text>
+          </View>
+
+          <View style={styles.form}>
+            {/* Above the form, not below: the one-tap path should be the first
+                thing offered when creating an account. */}
+            {isGoogleSignInConfigured && (
+              <>
+                <GoogleSignInButton label={t('auth.signUpWithGoogle')} />
+                <OrDivider label={t('auth.orWithEmail')} />
+              </>
+            )}
+
+            <TextField
+              label={t('auth.fullName')}
+              value={fullName}
+              onChangeText={setFullName}
+              autoCapitalize="words"
+              textContentType="name"
+            />
+            <TextField
+              label={t('auth.email')}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              textContentType="emailAddress"
+            />
+            <TextField
+              label={t('auth.password')}
+              value={password}
+              onChangeText={setPassword}
+              hint={t('auth.passwordHint')}
+              secureToggle
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="newPassword"
+              // Enter submits from the last field, the desktop habit; disabled until the
+              // form is actually valid so it can't fire a doomed request.
+              onSubmitEditing={canSubmit ? handleRegister : undefined}
+              returnKeyType="go"
+            />
+            {/* A code that arrived on a link is shown but not editable. It used to be a plain
+                field "still editable so a code typed off a friend's screen can be corrected" —
+                except a code that came from the link needs no correcting, and leaving it open
+                meant an invitee could clear it without understanding what it was, silently
+                costing the person who invited them their credit. Someone typing a code they
+                read out still gets a writable field, because there was no link to trust. */}
+            <TextField
+              label={t('auth.referralCode')}
+              value={referralCode}
+              onChangeText={invitedByLink ? undefined : setReferralCode}
+              editable={!invitedByLink}
+              hint={invitedByLink ? t('auth.referralCodeLocked') : t('auth.referralCodeRequiredHint')}
+              style={invitedByLink ? styles.lockedField : undefined}
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+
+            {error && <Text style={styles.error}>{error}</Text>}
+          </View>
+
+          <View style={styles.foot}>
+            <PrimaryButton
+              title={t('auth.registerButton')}
+              onPress={handleRegister}
+              loading={loading}
+              disabled={!canSubmit}
+            />
+            <Text style={styles.terms}>{t('auth.terms')}</Text>
+            <Pressable hitSlop={8} onPress={() => navigation.navigate('Login')} style={styles.footLink}>
+              <Text style={styles.footText}>
+                {t('auth.haveAccount')} <Text style={styles.footAccent}>{t('auth.loginButton')}</Text>
+              </Text>
+            </Pressable>
+          </View>
+        </PageContainer>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    padding: spacing.lg,
-    paddingTop: spacing.xl,
-  },
-  error: {
-    color: colors.danger,
-    marginBottom: spacing.md,
-  },
-});
+const createStyles = (c: ThemeColors, scheme: ColorSchemeName) =>
+  StyleSheet.create({
+    flex: {
+      flex: 1,
+      backgroundColor: c.background,
+    },
+    content: {
+      flexGrow: 1,
+      padding: spacing.lg,
+    },
+    contentWide: {
+      justifyContent: 'center',
+      padding: spacing.xl,
+    },
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: radius.xl,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: c.border,
+      padding: spacing.xl,
+      ...shadow(scheme),
+    },
+    hero: {
+      paddingTop: spacing.md,
+    },
+    title: {
+      ...typography.title,
+      color: c.text,
+    },
+    subtitle: {
+      ...typography.caption,
+      color: c.textMuted,
+      marginTop: spacing.xs,
+    },
+    form: {
+      marginTop: spacing.lg,
+    },
+    // A locked field has to read as "this is filled in for you", not as a field you failed to
+    // type in: dimmed background, muted text, no caret to invite an edit.
+    lockedField: {
+      backgroundColor: c.background,
+      color: c.textMuted,
+    },
+    error: {
+      ...typography.caption,
+      color: c.danger,
+      backgroundColor: c.dangerSoft,
+      borderRadius: radius.md,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      marginBottom: spacing.md,
+    },
+    foot: {
+      marginTop: 'auto',
+      paddingTop: spacing.lg,
+    },
+    terms: {
+      ...typography.micro,
+      color: c.textMuted,
+      textAlign: 'center',
+      marginTop: spacing.md,
+      lineHeight: 17,
+    },
+    footLink: {
+      marginTop: spacing.md,
+      alignItems: 'center',
+    },
+    footText: {
+      ...typography.label,
+      color: c.textMuted,
+    },
+    footAccent: {
+      ...typography.labelStrong,
+      color: c.primary,
+    },
+  });

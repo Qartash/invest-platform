@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import { updateMe, uploadAvatar } from '../api/users';
 import { showAlert } from '../utils/alert';
-import { colors, spacing } from '../theme';
+import { apiErrorMessage } from '../utils/apiError';
+import { spacing, ThemeColors, useThemeStyles } from '../theme';
+import { Dialog } from './ui';
 import { PrimaryButton } from './PrimaryButton';
 import { Avatar } from './Avatar';
 import { AuthUser } from '../types';
@@ -18,6 +20,7 @@ interface Props {
 }
 
 export function AvatarPickerModal({ visible, onClose, onUpdated }: Props) {
+  const styles = useThemeStyles(createStyles);
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
 
@@ -39,7 +42,7 @@ export function AvatarPickerModal({ visible, onClose, onUpdated }: Props) {
       onUpdated(updated);
       onClose();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
@@ -52,16 +55,15 @@ export function AvatarPickerModal({ visible, onClose, onUpdated }: Props) {
       onUpdated(updated);
       onClose();
     } catch (err: any) {
-      showAlert(t('common.error'), err?.response?.data?.message ?? undefined);
+      showAlert(t('common.error'), apiErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
+    <Dialog visible={visible} onClose={onClose}>
+      <View style={styles.card}>
           <Text style={styles.title}>{t('profile.chooseAvatarTitle')}</Text>
 
           <PrimaryButton title={t('profile.uploadPhoto')} onPress={handlePickPhoto} loading={busy} />
@@ -77,43 +79,37 @@ export function AvatarPickerModal({ visible, onClose, onUpdated }: Props) {
 
           <View style={{ height: spacing.sm }} />
           <PrimaryButton title={t('common.close')} variant="outline" onPress={onClose} />
-        </View>
       </View>
-    </Modal>
+    </Dialog>
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 14,
-    padding: spacing.lg,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  orLabel: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-  },
-  emojiCell: {
-    margin: spacing.xs,
-  },
-});
+const createStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    card: {
+      backgroundColor: c.surface,
+      borderRadius: 14,
+      padding: spacing.lg,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: spacing.md,
+    },
+    orLabel: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+      textAlign: 'center',
+    },
+    grid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+    },
+    emojiCell: {
+      margin: spacing.xs,
+    },
+  });

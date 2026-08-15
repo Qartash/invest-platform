@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Партнёрская программа — прототип</title>
+<style>
+  /* Токены 1:1 из mobile/src/theme/tokens.ts */
+  :root {
+    --primary:#2E6F45; --primary-dark:#1F4E30; --primary-soft:rgba(46,111,69,.10);
+    --bg:#F6F8F7; --surface:#FFFFFF; --surface-sunken:#F1F4F2;
+    --text:#16201A; --text-muted:#6B7A70;
+    --on-accent:#FFFFFF; --on-accent-muted:rgba(255,255,255,.82);
+    --border:#E2E7E3;
+    --success:#22A559; --success-soft:rgba(34,165,89,.12);
+    --danger:#DC2626;  --danger-soft:rgba(220,38,38,.10);
+    --warning:#D97706; --warning-soft:rgba(217,119,6,.14);
+    --chart:#2563EB;
+    --shadow: 0 6px 16px rgba(0,0,0,.08);
+    --xs:4px; --sm:8px; --md:16px; --lg:24px; --xl:32px;
+    --r-sm:8px; --r-md:10px; --r-lg:13px; --r-xl:16px; --r-pill:999px;
+  }
+  [data-theme="dark"] {
+    --primary:#63B37F; --primary-dark:#4C9366; --primary-soft:rgba(99,179,127,.14);
+    --bg:#171C18; --surface:#1F2620; --surface-sunken:#161B17;
+    --text:#E9EFEA; --text-muted:#93A398;
+    --on-accent:#0E1710; --on-accent-muted:rgba(14,23,16,.72);
+    --border:#2C352E;
+    --success:#4ECB7D; --success-soft:rgba(78,203,125,.14);
+    --danger:#F87171;  --danger-soft:rgba(248,113,113,.12);
+    --warning:#FBBF24; --warning-soft:rgba(251,191,36,.14);
+    --chart:#60A5FA;
+    --shadow: 0 6px 16px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    background:#0d100e; color:var(--text);
+    min-height:100vh; padding:28px 16px 60px;
+    display:flex; flex-direction:column; align-items:center; gap:22px;
+  }
+
+  .harness { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-content:center; color:#8b968f; font-size:13px; max-width:960px; }
+  .harness button {
+    font:inherit; font-size:12px; font-weight:600; cursor:pointer;
+    background:#1e2420; color:#cfd8d2; border:1px solid #2f3833;
+    border-radius:999px; padding:7px 14px;
+    transition:background 140ms cubic-bezier(.23,1,.32,1), transform 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .harness button:hover { background:#28302b; }
+  .harness button:active { transform:scale(.97); }
+  .harness button[aria-pressed="true"] { background:#2E6F45; border-color:#3d8a58; color:#fff; }
+
+  .stage { display:flex; gap:26px; flex-wrap:wrap; justify-content:center; align-items:flex-start; }
+  .slot { display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .slot-caption { color:#8b968f; font-size:12px; font-weight:600; letter-spacing:.4px; text-transform:uppercase; }
+  .slot-note { color:#6b746e; font-size:11px; max-width:390px; text-align:center; line-height:1.5; }
+  .slot-note.warn { color:#c99a4e; }
+
+  .phone {
+    width:390px; height:820px; background:var(--bg);
+    border-radius:28px; overflow:hidden;
+    display:flex; flex-direction:column;
+    box-shadow:0 0 0 1px rgba(255,255,255,.08), 0 24px 60px rgba(0,0,0,.5);
+  }
+  .screen { flex:1; display:flex; flex-direction:column; padding:0 var(--lg) var(--lg); overflow-y:auto; }
+  .screen::-webkit-scrollbar { width:0 }
+  .status {
+    height:44px; flex:none; display:flex; align-items:center; justify-content:space-between;
+    padding:0 var(--lg); font-size:12px; font-weight:600; color:var(--text);
+    font-variant-numeric:tabular-nums;
+  }
+  .navbar { display:flex; align-items:center; gap:var(--sm); height:48px; flex:none; margin-bottom:var(--sm); }
+  .navbar .back { width:32px; height:32px; margin-left:-6px; display:grid; place-items:center; color:var(--text); cursor:pointer; }
+  .navbar h1 { font-size:22px; font-weight:700; letter-spacing:-.4px; flex:1; }
+
+  .t-heading  { font-size:18px; font-weight:700; letter-spacing:-.2px; }
+  .t-body     { font-size:15px; }
+  .t-body-b   { font-size:15px; font-weight:600; }
+  .t-label-b  { font-size:14px; font-weight:600; }
+  .t-caption  { font-size:13px; color:var(--text-muted); line-height:1.5; }
+  .t-caption-b{ font-size:13px; font-weight:600; }
+  .t-micro    { font-size:12px; color:var(--text-muted); line-height:1.5; }
+  .t-eyebrow  { font-size:11px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:var(--text-muted); }
+  .muted { color:var(--text-muted); }
+  .nums { font-variant-numeric:tabular-nums; }
+  .center { text-align:center; }
+  .ok { color:var(--success); } .warn { color:var(--warning); } .bad { color:var(--danger); }
+
+  .stack-sm > * + * { margin-top:var(--sm); }
+  .stack-md > * + * { margin-top:var(--md); }
+  .stack-lg > * + * { margin-top:var(--lg); }
+
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-xl); padding:var(--md); }
+  .card-flush { padding:0; overflow:hidden; }
+  .section-head { display:flex; align-items:baseline; justify-content:space-between; margin:var(--lg) 0 var(--sm); }
+  .section-head:first-child { margin-top:0; }
+
+  .row { display:flex; align-items:center; gap:var(--md); padding:14px var(--md); cursor:pointer; transition:background 140ms cubic-bezier(.23,1,.32,1); }
+  .row:hover { background:var(--surface-sunken); }
+  .row + .row { border-top:1px solid var(--border); }
+  .row-plaque { width:38px; height:38px; flex:none; border-radius:var(--r-md); background:var(--primary-soft); color:var(--primary); display:grid; place-items:center; font-size:17px; }
+  .row-main { flex:1; min-width:0; }
+  .row-label { font-size:15px; font-weight:600; }
+  .row-sub { font-size:13px; color:var(--text-muted); margin-top:2px; }
+  .chev { color:var(--text-muted); flex:none; }
+
+  .pill { display:inline-flex; align-items:center; gap:5px; height:24px; padding:0 10px; border-radius:var(--r-pill); font-size:12px; font-weight:700; white-space:nowrap; }
+  .pill-success { background:var(--success-soft); color:var(--success); }
+  .pill-warning { background:var(--warning-soft); color:var(--warning); }
+  .pill-danger  { background:var(--danger-soft);  color:var(--danger); }
+  .pill-muted   { background:var(--surface-sunken); color:var(--text-muted); border:1px solid var(--border); }
+  .pill-primary { background:var(--primary-soft); color:var(--primary); }
+
+  .btn { width:100%; height:52px; border-radius:var(--r-lg); border:1px solid transparent; font:inherit; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; transition:transform 140ms cubic-bezier(.23,1,.32,1), background 140ms cubic-bezier(.23,1,.32,1); }
+  .btn:active { transform:scale(.98); }
+  .btn-primary { background:var(--primary); color:var(--on-accent); }
+  .btn-primary:hover { background:var(--primary-dark); }
+  .btn-outline { background:transparent; color:var(--text); border-color:var(--border); }
+  .btn-danger { background:var(--danger-soft); color:var(--danger); }
+  .btn-sm { height:42px; font-size:14px; }
+  .btn-row { display:flex; gap:var(--sm); }
+
+  .kv { display:flex; justify-content:space-between; align-items:center; gap:var(--md); font-size:13px; }
+  .kv + .kv { margin-top:10px; }
+  .kv > span:last-child { font-weight:600; font-variant-numeric:tabular-nums; }
+  .kv-total { padding-top:10px; margin-top:10px; border-top:1px solid var(--border); }
+
+  .note { background:var(--surface-sunken); border:1px solid var(--border); border-radius:var(--r-lg); padding:var(--md); font-size:12px; color:var(--text-muted); line-height:1.6; }
+  .note b { color:var(--text); font-weight:600; }
+  .note-warn { background:var(--warning-soft); border-color:transparent; }
+  .note-warn b { color:var(--warning); }
+  .note-bad { background:var(--danger-soft); border-color:transparent; }
+  .note-bad b { color:var(--danger); }
+
+  .hero {
+    background:linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color:var(--on-accent); border-radius:var(--r-xl); padding:var(--lg) var(--md);
+    box-shadow:var(--shadow);
+  }
+  .hero-eyebrow { font-size:11px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:var(--on-accent-muted); }
+  .hero-title { font-size:24px; font-weight:700; letter-spacing:-.5px; margin-top:8px; }
+  .hero-sub { font-size:13px; color:var(--on-accent-muted); margin-top:8px; line-height:1.5; }
+
+  .rate-grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); border-radius:var(--r-xl); overflow:hidden; border:1px solid var(--border); }
+  .rate { background:var(--surface); padding:var(--md); }
+  .rate-v { font-size:22px; font-weight:700; letter-spacing:-.4px; font-variant-numeric:tabular-nums; color:var(--primary); }
+  .rate-l { font-size:11px; color:var(--text-muted); margin-top:4px; line-height:1.35; }
+
+  .field { margin-bottom:var(--md); }
+  .field-label { display:block; font-size:13px; font-weight:600; color:var(--text-muted); margin-bottom:6px; }
+  .input, .textarea, .select {
+    width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg);
+    padding:0 14px; font:inherit; font-size:15px; color:var(--text);
+    transition:border-color 140ms cubic-bezier(.23,1,.32,1), box-shadow 140ms cubic-bezier(.23,1,.32,1);
+  }
+  .input, .select { height:50px; }
+  .textarea { padding:13px 14px; min-height:92px; resize:vertical; font-size:14px; line-height:1.5; }
+  .input::placeholder, .textarea::placeholder { color:var(--text-muted); }
+  .input:focus, .textarea:focus, .select:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-soft); }
+
+  .check { display:flex; gap:10px; align-items:flex-start; cursor:pointer; }
+  .check-box {
+    width:20px; height:20px; flex:none; border-radius:6px; margin-top:1px;
+    border:1.5px solid var(--border); background:var(--surface);
+    display:grid; place-items:center; color:transparent;
+  }
+  .check[aria-checked="true"] .check-box { background:var(--primary); border-color:var(--primary); color:var(--on-accent); }
+
+  /* статус заявки */
+  .track { display:flex; flex-direction:column; gap:0; }
+  .track-item { display:flex; gap:12px; }
+  .track-rail { display:flex; flex-direction:column; align-items:center; flex:none; }
+  .track-dot { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; font-size:11px; font-weight:700; background:var(--surface-sunken); border:1px solid var(--border); color:var(--text-muted); }
+  .track-dot.done { background:var(--success); border-color:transparent; color:#fff; }
+  .track-dot.now { background:var(--warning); border-color:transparent; color:#fff; }
+  .track-line { width:1px; flex:1; background:var(--border); min-height:26px; }
+  .track-body { padding-bottom:var(--md); flex:1; }
+  .track-title { font-size:14px; font-weight:600; }
+  .track-sub { font-size:12px; color:var(--text-muted); margin-top:2px; line-height:1.45; }
+
+  /* калькулятор */
+  .slider-row { margin-bottom:var(--md); }
+  .slider-head { display:flex; justify-content:space-between; font-size:13px; margin-bottom:8px; }
+  .slider-head b { font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; -webkit-appearance:none; appearance:none; height:6px; border-radius:3px; background:var(--surface-sunken); outline:none; }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; appearance:none; width:20px; height:20px; border-radius:50%;
+    background:var(--primary); cursor:pointer; border:3px solid var(--surface); box-shadow:0 1px 4px rgba(0,0,0,.3);
+  }
+  .funnel-row { display:flex; align-items:center; gap:var(--sm); }
+  .funnel-bar { flex:1; height:24px; border-radius:var(--r-sm); background:var(--surface-sunken); overflow:hidden; }
+  .funnel-bar > span { display:block; height:100%; background:var(--primary); opacity:.85; transition:width 200ms cubic-bezier(.23,1,.32,1); }
+  .funnel-num { font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; width:52px; text-align:right; }
+  .funnel-label { font-size:12px; color:var(--text-muted); width:78px; flex:none; }
+  .payout { border-radius:var(--r-xl); padding:var(--md); text-align:center; background:var(--primary-soft); }
+  .payout-v { font-size:30px; font-weight:700; letter-spacing:-.8px; font-variant-numeric:tabular-nums; color:var(--primary); }
+  .payout-l { font-size:12px; color:var(--text-muted); margin-top:4px; }
+
+  /* кабинет партнёра */
+  .camp { display:flex; align-items:center; gap:12px; padding:var(--md); }
+  .camp + .camp { border-top:1px solid var(--border); }
+  .camp-ico { width:36px; height:36px; flex:none; border-radius:var(--r-md); background:var(--surface-sunken); border:1px solid var(--border); display:grid; place-items:center; font-size:17px; }
+  .camp-main { flex:1; min-width:0; }
+  .camp-title { font-size:14px; font-weight:600; }
+  .camp-sub { font-size:11px; color:var(--text-muted); margin-top:2px; font-variant-numeric:tabular-nums; }
+  .camp-v { font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--success); }
+
+  .link-box { display:flex; align-items:center; gap:10px; background:var(--surface-sunken); border:1px solid var(--border); border-radius:var(--r-lg); padding:11px var(--md); }
+  .link-text { flex:1; min-width:0; font-size:12px; font-variant-numeric:tabular-nums; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .link-copy { background:none; border:none; color:var(--primary); cursor:pointer; display:grid; place-items:center; flex:none; }
+
+  /* модерация */
+  .mod { width:430px; }
+  .mod .phone { width:430px; height:auto; min-height:820px; border-radius:20px; }
+  .mod .screen { padding:var(--lg); }
+  .flag { display:flex; gap:10px; align-items:flex-start; padding:11px 0; }
+  .flag + .flag { border-top:1px solid var(--border); }
+  .flag-ico { width:22px; height:22px; flex:none; border-radius:50%; display:grid; place-items:center; font-size:12px; font-weight:700; }
+  .flag-ok { background:var(--success-soft); color:var(--success); }
+  .flag-no { background:var(--danger-soft); color:var(--danger); }
+  .flag-idk { background:var(--warning-soft); color:var(--warning); }
+  .flag-main { flex:1; }
+  .flag-t { font-size:13px; font-weight:600; }
+  .flag-s { font-size:11px; color:var(--text-muted); margin-top:2px; line-height:1.45; }
+</style>
+</head>
+<body data-theme="dark">
+
+<div class="harness">
+  <button id="themeBtn">Светлая / тёмная</button>
+  <button data-filter="all" aria-pressed="true">Все</button>
+  <button data-filter="offer">Витрина</button>
+  <button data-filter="calc">Калькулятор блогера</button>
+  <button data-filter="apply">Заявка</button>
+  <button data-filter="status">Статус заявки</button>
+  <button data-filter="cabinet">Кабинет партнёра</button>
+  <button data-filter="mod">Модерация</button>
+</div>
+
+<div class="stage">
+
+  <!-- ═══════════ 1. ВИТРИНА ═══════════ -->
+  <div class="slot" data-screen="offer">
+    <div class="slot-caption">1 · Витрина</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Партнёрам</h1>
+        </div>
+
+        <div class="stack-md">
+          <div class="hero">
+            <div class="hero-eyebrow">Для тех, у кого есть аудитория</div>
+            <div class="hero-title">Партнёрская программа</div>
+            <div class="hero-sub">Если ты ведёшь блог, канал или сообщество про финансы и бизнес — условия другие, чем у обычных приглашений. Выплаты живыми деньгами на карту.</div>
+          </div>
+
+          <div class="rate-grid">
+            <div class="rate">
+              <div class="rate-v">500 ֏</div>
+              <div class="rate-l">за приглашённого, который пополнил счёт</div>
+            </div>
+            <div class="rate">
+              <div class="rate-v">2%</div>
+              <div class="rate-l">от первого пополнения, до 10 000 ֏</div>
+            </div>
+            <div class="rate">
+              <div class="rate-v">На карту</div>
+              <div class="rate-l">выплата раз в месяц по договору</div>
+            </div>
+            <div class="rate">
+              <div class="rate-v">Без глубины</div>
+              <div class="rate-l">только те, кого привёл лично ты</div>
+            </div>
+          </div>
+
+          <div class="note note-warn">
+            <b>Почему без дерева.</b> Партнёр получает в 5 раз больше за прямого приглашённого, но не зарабатывает на чужих приглашениях. Это реклама с оплатой за результат, а не сеть — так это и оформляется договором.
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">Чем отличается от обычных приглашений</div></div>
+            <div class="card">
+              <div class="kv"><span class="muted">Ставка за человека</span><span>500 ֏ <span class="muted" style="font-weight:400">вместо 100</span></span></div>
+              <div class="kv"><span class="muted">Куда приходят деньги</span><span>на карту <span class="muted" style="font-weight:400">не кредитом</span></span></div>
+              <div class="kv"><span class="muted">Глубина</span><span>1 уровень <span class="muted" style="font-weight:400">вместо ∞</span></span></div>
+              <div class="kv"><span class="muted">Договор</span><span>обязателен</span></div>
+              <div class="kv"><span class="muted">Проверка модератором</span><span>да</span></div>
+              <div class="kv"><span class="muted">Маркировка рекламы</span><span>обязательна</span></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">Что можно и нельзя говорить</div></div>
+            <div class="card stack-sm">
+              <div style="display:flex; gap:10px; align-items:flex-start">
+                <span class="flag-ico flag-ok">✓</span>
+                <div class="t-caption" style="color:var(--text)">«Площадка, где можно вложиться в местный бизнес»</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:flex-start">
+                <span class="flag-ico flag-ok">✓</span>
+                <div class="t-caption" style="color:var(--text)">Показывать свой реальный портфель, включая убыточные проекты</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:flex-start">
+                <span class="flag-ico flag-no">✕</span>
+                <div class="t-caption" style="color:var(--text)">«Доходность 30% годовых», любые обещания прибыли</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:flex-start">
+                <span class="flag-ico flag-no">✕</span>
+                <div class="t-caption" style="color:var(--text)">«Пассивный доход», «заработок без вложений»</div>
+              </div>
+              <div style="display:flex; gap:10px; align-items:flex-start">
+                <span class="flag-ico flag-no">✕</span>
+                <div class="t-caption" style="color:var(--text)">Скрывать, что публикация оплачена</div>
+              </div>
+            </div>
+            <div class="t-micro" style="margin-top:8px">Нарушение — расторжение договора и отмена невыплаченных начислений.</div>
+          </div>
+
+          <div class="card card-flush">
+            <div class="row">
+              <div class="row-plaque">🧮</div>
+              <div class="row-main"><div class="row-label">Посчитать заработок</div><div class="row-sub">Калькулятор по твоей аудитории</div></div>
+              <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+          </div>
+
+          <button class="btn btn-primary">Подать заявку</button>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Выше ставка в обмен на отказ от глубины. Партнёру это выгоднее (500 ֏ против 100 ֏), а платформе снимает риск: реклама с оплатой за результат — понятная правовая конструкция, в отличие от многоуровневой сети.</div>
+  </div>
+
+  <!-- ═══════════ 2. КАЛЬКУЛЯТОР БЛОГЕРА ═══════════ -->
+  <div class="slot" data-screen="calc">
+    <div class="slot-caption">2 · Калькулятор блогера</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Сколько выйдет</h1>
+        </div>
+
+        <div class="stack-md">
+          <div class="card">
+            <div class="slider-row">
+              <div class="slider-head"><span class="muted">Подписчиков</span><b id="oAud">25 000</b></div>
+              <input type="range" id="rAud" min="1000" max="500000" step="1000" value="25000">
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span class="muted">Охват публикации</span><b id="oReach">20%</b></div>
+              <input type="range" id="rReach" min="1" max="60" step="1" value="20">
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span class="muted">Переходят по ссылке</span><b id="oCtr">3%</b></div>
+              <input type="range" id="rCtr" min="1" max="20" step="1" value="3">
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span class="muted">Регистрируются</span><b id="oReg">18%</b></div>
+              <input type="range" id="rReg" min="1" max="60" step="1" value="18">
+            </div>
+            <div class="slider-row">
+              <div class="slider-head"><span class="muted">Пополняют счёт</span><b id="oPay">25%</b></div>
+              <input type="range" id="rPay" min="1" max="80" step="1" value="25">
+            </div>
+            <div class="slider-row" style="margin-bottom:0">
+              <div class="slider-head"><span class="muted">Среднее пополнение</span><b id="oDep">30 000 ֏</b></div>
+              <input type="range" id="rDep" min="5000" max="200000" step="5000" value="30000">
+            </div>
+          </div>
+
+          <div class="card stack-sm">
+            <div class="funnel-row">
+              <div class="funnel-label">Увидели</div>
+              <div class="funnel-bar"><span id="bReach" style="width:100%"></span></div>
+              <div class="funnel-num" id="vReach">5 000</div>
+            </div>
+            <div class="funnel-row">
+              <div class="funnel-label">Перешли</div>
+              <div class="funnel-bar"><span id="bClick" style="width:3%"></span></div>
+              <div class="funnel-num" id="vClick">150</div>
+            </div>
+            <div class="funnel-row">
+              <div class="funnel-label">Зарегистр.</div>
+              <div class="funnel-bar"><span id="bReg" style="width:1%"></span></div>
+              <div class="funnel-num" id="vReg">27</div>
+            </div>
+            <div class="funnel-row">
+              <div class="funnel-label">Пополнили</div>
+              <div class="funnel-bar"><span id="bPaid" style="width:1%"></span></div>
+              <div class="funnel-num ok" id="vPaid">7</div>
+            </div>
+          </div>
+
+          <div class="payout">
+            <div class="payout-v" id="vTotal">5 550 ֏</div>
+            <div class="payout-l">за одну публикацию</div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Из чего складывается</div>
+            <div class="kv"><span class="muted">Фикс: <span id="vPaid2">7</span> × 500 ֏</span><span id="vFix">3 500 ֏</span></div>
+            <div class="kv"><span class="muted">2% с пополнений</span><span id="vPct">2 050 ֏</span></div>
+            <div class="kv kv-total"><span class="t-caption-b" style="color:var(--text)">Итого</span><span class="ok" id="vTotal2">5 550 ֏</span></div>
+            <div class="kv"><span class="muted">В пересчёте на 1 000 показов</span><span id="vCpm">1 110 ֏</span></div>
+          </div>
+
+          <div class="note">
+            <b>Сравни со своей обычной ставкой за рекламу.</b> Если фиксированный пост стоит дороже, чем выходит здесь — партнёрка тебе не подходит, и это нормально. Она выгодна тем, у кого аудитория реально интересуется инвестициями, а не тем, у кого она просто большая.
+          </div>
+
+          <div class="note note-warn">
+            <b>Цифры в калькуляторе — не обещание.</b> Проценты по умолчанию взяты как средние по площадке. Твои будут другими, и заранее их не знает никто.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Живые ползунки. Последняя плашка обязательна: калькулятор, который выглядит как обещание дохода, — это то самое, из-за чего программы такого рода попадают под претензии регулятора.</div>
+  </div>
+
+  <!-- ═══════════ 3. ЗАЯВКА ═══════════ -->
+  <div class="slot" data-screen="apply">
+    <div class="slot-caption">3 · Заявка</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Заявка</h1>
+        </div>
+
+        <div>
+          <div class="field">
+            <label class="field-label">Где твоя аудитория</label>
+            <select class="select">
+              <option>Telegram-канал</option>
+              <option>YouTube</option>
+              <option>Instagram</option>
+              <option>TikTok</option>
+              <option>Сайт или рассылка</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Ссылка на канал</label>
+            <input class="input" type="url" placeholder="t.me/mychannel" />
+          </div>
+
+          <div class="field">
+            <label class="field-label">Сколько подписчиков</label>
+            <input class="input" type="text" placeholder="25 000" />
+          </div>
+
+          <div class="field">
+            <label class="field-label">О чём канал</label>
+            <textarea class="textarea" placeholder="Личные финансы, малый бизнес в Армении, разборы компаний..."></textarea>
+          </div>
+
+          <div class="field">
+            <label class="field-label">Как планируешь рассказывать о платформе</label>
+            <textarea class="textarea" placeholder="Обзор на 10 минут с разбором двух проектов, честно про риски..."></textarea>
+          </div>
+
+          <div class="card stack-sm" style="margin-bottom:var(--md)">
+            <div class="check" aria-checked="true">
+              <div class="check-box"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+              <div class="t-caption" style="color:var(--text)">Не буду обещать доходность и называть это заработком</div>
+            </div>
+            <div class="check" aria-checked="true">
+              <div class="check-box"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+              <div class="t-caption" style="color:var(--text)">Буду помечать публикации как рекламу</div>
+            </div>
+            <div class="check" aria-checked="false">
+              <div class="check-box"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+              <div class="t-caption" style="color:var(--text)">Согласен, что материалы проверяются после публикации</div>
+            </div>
+          </div>
+
+          <div class="note" style="margin-bottom:var(--md)">
+            Заявку смотрит модератор. Обычно это занимает 2–3 рабочих дня. Если аудитория не подходит по тематике, мы откажем и объясним причину.
+          </div>
+
+          <button class="btn btn-primary">Отправить</button>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">«Как планируешь рассказывать» — самое важное поле формы. По нему модератор понимает, будет ли человек продавать доходность, ещё до того как тот получит ссылку.</div>
+  </div>
+
+  <!-- ═══════════ 4. СТАТУС ═══════════ -->
+  <div class="slot" data-screen="status">
+    <div class="slot-caption">4 · Статус заявки</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Заявка</h1>
+        </div>
+
+        <div class="stack-md">
+          <div class="card center">
+            <span class="pill pill-warning">На проверке</span>
+            <div class="t-heading" style="margin-top:12px">Отправлена 22 июля</div>
+            <div class="t-caption" style="margin-top:6px">Обычно отвечаем за 2–3 рабочих дня</div>
+          </div>
+
+          <div class="card">
+            <div class="track">
+              <div class="track-item">
+                <div class="track-rail"><div class="track-dot done">✓</div><div class="track-line"></div></div>
+                <div class="track-body">
+                  <div class="track-title">Заявка отправлена</div>
+                  <div class="track-sub">22 июля, 14:20</div>
+                </div>
+              </div>
+              <div class="track-item">
+                <div class="track-rail"><div class="track-dot done">✓</div><div class="track-line"></div></div>
+                <div class="track-body">
+                  <div class="track-title">Канал проверен</div>
+                  <div class="track-sub">Тематика и аудитория подходят</div>
+                </div>
+              </div>
+              <div class="track-item">
+                <div class="track-rail"><div class="track-dot now">2</div><div class="track-line"></div></div>
+                <div class="track-body">
+                  <div class="track-title">Проверка модератором</div>
+                  <div class="track-sub">Смотрим последние публикации: нет ли обещаний доходности в других рекламных интеграциях</div>
+                </div>
+              </div>
+              <div class="track-item">
+                <div class="track-rail"><div class="track-dot">3</div><div class="track-line"></div></div>
+                <div class="track-body">
+                  <div class="track-title">Договор</div>
+                  <div class="track-sub">Подписывается электронно</div>
+                </div>
+              </div>
+              <div class="track-item">
+                <div class="track-rail"><div class="track-dot">4</div></div>
+                <div class="track-body">
+                  <div class="track-title">Доступ к кабинету</div>
+                  <div class="track-sub">Ссылки, статистика, выплаты</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:10px">Пока ждёшь</div>
+            <div class="t-caption">Обычные приглашения работают и без партнёрства — код уже активен, начисления идут на инвест-счёт.</div>
+            <button class="btn btn-outline btn-sm" style="margin-top:var(--md)">Открыть мой код</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">Проверка чужих рекламных интеграций на канале — самый дешёвый фильтр: человек, который вчера продавал «100% за месяц», завтра продаст так же и тебя.</div>
+  </div>
+
+  <!-- ═══════════ 5. КАБИНЕТ ═══════════ -->
+  <div class="slot" data-screen="cabinet">
+    <div class="slot-caption">5 · Кабинет партнёра</div>
+    <div class="phone">
+      <div class="status"><span>9:41</span><span>▮▮▮ ▮</span></div>
+      <div class="screen">
+        <div class="navbar">
+          <div class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+          <h1>Партнёрство</h1>
+          <span class="pill pill-success">Активно</span>
+        </div>
+
+        <div class="stack-md">
+          <div class="card center">
+            <div class="t-eyebrow">К выплате 1 августа</div>
+            <div class="payout-v" style="margin-top:6px">47 300 ֏</div>
+            <div class="t-micro" style="margin-top:6px">На карту •••4417 · по акту за июль</div>
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">Ссылки под кампании</div><div class="t-caption-b" style="color:var(--primary); cursor:pointer">+ Новая</div></div>
+            <div class="stack-sm">
+              <div class="link-box">
+                <div class="link-text">invest.am/i/BLOG?c=july-video</div>
+                <button class="link-copy"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+              </div>
+              <div class="link-box">
+                <div class="link-text">invest.am/p/ararat?i=BLOG&c=stories</div>
+                <button class="link-copy"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="section-head"><div class="t-eyebrow">Кампании за июль</div></div>
+            <div class="card card-flush">
+              <div class="camp">
+                <div class="camp-ico">🎬</div>
+                <div class="camp-main">
+                  <div class="camp-title">Видео «Куда вложить 100 000»</div>
+                  <div class="camp-sub">1 240 переходов · 58 пополнили</div>
+                </div>
+                <div class="camp-v">+34 100 ֏</div>
+              </div>
+              <div class="camp">
+                <div class="camp-ico">📖</div>
+                <div class="camp-main">
+                  <div class="camp-title">Сторис про «Арарат»</div>
+                  <div class="camp-sub">410 переходов · 19 пополнили</div>
+                </div>
+                <div class="camp-v">+11 200 ֏</div>
+              </div>
+              <div class="camp">
+                <div class="camp-ico">📌</div>
+                <div class="camp-main">
+                  <div class="camp-title">Ссылка в закрепе</div>
+                  <div class="camp-sub">96 переходов · 4 пополнили</div>
+                </div>
+                <div class="camp-v">+2 000 ֏</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Итоги месяца</div>
+            <div class="kv"><span class="muted">Переходов</span><span>1 746</span></div>
+            <div class="kv"><span class="muted">Регистраций</span><span>312</span></div>
+            <div class="kv"><span class="muted">Пополнили счёт</span><span class="ok">81</span></div>
+            <div class="kv"><span class="muted">Конверсия перехода в пополнение</span><span>4.6%</span></div>
+            <div class="kv kv-total"><span class="t-caption-b" style="color:var(--text)">Начислено</span><span class="ok">47 300 ֏</span></div>
+          </div>
+
+          <div class="card card-flush">
+            <div class="row">
+              <div class="row-plaque">📄</div>
+              <div class="row-main"><div class="row-label">Договор и акты</div><div class="row-sub">Скачать за июль</div></div>
+              <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+            <div class="row">
+              <div class="row-plaque">📢</div>
+              <div class="row-main"><div class="row-label">Готовые материалы</div><div class="row-sub">Тексты с корректными формулировками</div></div>
+              <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+          </div>
+
+          <div class="note">
+            <b>Выплата после проверки.</b> Начисления за месяц закрываются 1-го числа: те, кто вернул пополнение или оказался фейком, из акта вычитаются.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note">«Готовые материалы» — не забота о партнёре, а страховка: текст, написанный юристом платформы, безопаснее того, что блогер придумает сам.</div>
+  </div>
+
+  <!-- ═══════════ 6. МОДЕРАЦИЯ ═══════════ -->
+  <div class="slot mod" data-screen="mod">
+    <div class="slot-caption">6 · Модерация — вид админа</div>
+    <div class="phone">
+      <div class="status"><span>Админка</span><span>Заявка #248</span></div>
+      <div class="screen">
+        <div class="navbar"><h1>Заявка в партнёры</h1></div>
+
+        <div class="stack-md">
+          <div class="card">
+            <div style="display:flex; align-items:center; gap:12px">
+              <div class="row-plaque" style="width:44px; height:44px; font-size:20px">📹</div>
+              <div style="flex:1">
+                <div class="t-body-b">Тигран Оганесян</div>
+                <div class="t-micro">YouTube · «Деньги и дело» · 48 200 подписчиков</div>
+              </div>
+              <span class="pill pill-warning">Ждёт</span>
+            </div>
+            <div class="kv" style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border)">
+              <span class="muted">Подана</span><span>22 июля, 14:20</span>
+            </div>
+            <div class="kv"><span class="muted">Аккаунт на платформе</span><span>с марта 2026</span></div>
+            <div class="kv"><span class="muted">Свои инвестиции</span><span>4 проекта · 180 000 ֏</span></div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:6px">Автопроверки</div>
+            <div class="flag">
+              <span class="flag-ico flag-ok">✓</span>
+              <div class="flag-main">
+                <div class="flag-t">Канал существует и активен</div>
+                <div class="flag-s">Последняя публикация 3 дня назад, регулярность стабильная</div>
+              </div>
+            </div>
+            <div class="flag">
+              <span class="flag-ico flag-ok">✓</span>
+              <div class="flag-main">
+                <div class="flag-t">Тематика подходит</div>
+                <div class="flag-s">Личные финансы, малый бизнес. Аудитория преимущественно из Армении</div>
+              </div>
+            </div>
+            <div class="flag">
+              <span class="flag-ico flag-idk">!</span>
+              <div class="flag-main">
+                <div class="flag-t">Накрутка подписчиков не исключена</div>
+                <div class="flag-s">Просмотры 2 100 при 48 200 подписчиков — низковато, но в пределах нормы для формата</div>
+              </div>
+            </div>
+            <div class="flag">
+              <span class="flag-ico flag-no">✕</span>
+              <div class="flag-main">
+                <div class="flag-t">В прошлой рекламе обещали доходность</div>
+                <div class="flag-s">Ролик от 12 мая: интеграция с обещанием «30% годовых без риска». Требует разговора до подписания договора</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:8px">Как планирует рассказывать</div>
+            <div class="t-caption" style="color:var(--text)">«Сделаю обзор на 12–15 минут: покажу свой портфель на платформе, включая проект, который просел. Отдельно проговорю, что деньги можно потерять, и что это не депозит.»</div>
+          </div>
+
+          <div class="card">
+            <div class="t-caption-b" style="margin-bottom:12px">Если одобрить</div>
+            <div class="kv"><span class="muted">Ожидаемые переходы с ролика</span><span>~1 400</span></div>
+            <div class="kv"><span class="muted">Прогноз выплат в месяц</span><span>~40 000 ֏</span></div>
+            <div class="kv"><span class="muted">Потолок без допсоглашения</span><span>200 000 ֏</span></div>
+          </div>
+
+          <div class="note note-warn">
+            <b>Что решает модератор.</b> Не «хороший ли блогер», а один вопрос: будет ли он продавать доходность. Всё остальное поправимо готовыми материалами.
+          </div>
+
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm">Одобрить</button>
+            <button class="btn btn-outline btn-sm">Запросить правки</button>
+          </div>
+          <button class="btn btn-danger btn-sm">Отклонить</button>
+        </div>
+      </div>
+    </div>
+    <div class="slot-note warn">Вид админа, не пользователя. Красный флаг про прошлую интеграцию — то, ради чего модерация вообще нужна: он виден только человеку, который открыл чужие ролики.</div>
+  </div>
+
+</div>
+
+<script>
+  const body = document.body;
+  document.getElementById('themeBtn').onclick = () => {
+    body.dataset.theme = body.dataset.theme === 'dark' ? 'light' : 'dark';
+  };
+
+  const slots = [...document.querySelectorAll('.slot')];
+  const filters = [...document.querySelectorAll('[data-filter]')];
+  filters.forEach(b => b.onclick = () => {
+    filters.forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    const f = b.dataset.filter;
+    slots.forEach(s => s.style.display = (f === 'all' || s.dataset.screen === f) ? '' : 'none');
+  });
+
+  document.querySelectorAll('.check').forEach(c => {
+    c.onclick = () => c.setAttribute('aria-checked', c.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+  });
+
+  document.querySelectorAll('.link-copy').forEach(b => {
+    b.onclick = () => {
+      const old = b.innerHTML;
+      b.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>';
+      setTimeout(() => { b.innerHTML = old; }, 1200);
+    };
+  });
+
+  // ---- калькулятор блогера ----
+  (function () {
+    const el = id => document.getElementById(id);
+    if (!el('rAud')) return;
+    const fmt = n => Math.round(n).toLocaleString('ru-RU').replace(/,/g, ' ');
+
+    const FIX = 500;      // ֏ за приглашённого, который пополнил
+    const PCT = 0.02;     // 2% от первого пополнения
+    const PCT_CAP = 10000; // потолок процентной части на человека
+
+    function render() {
+      const aud = +el('rAud').value;
+      const reach = +el('rReach').value / 100;
+      const ctr = +el('rCtr').value / 100;
+      const reg = +el('rReg').value / 100;
+      const pay = +el('rPay').value / 100;
+      const dep = +el('rDep').value;
+
+      el('oAud').textContent = fmt(aud);
+      el('oReach').textContent = (reach * 100).toFixed(0) + '%';
+      el('oCtr').textContent = (ctr * 100).toFixed(0) + '%';
+      el('oReg').textContent = (reg * 100).toFixed(0) + '%';
+      el('oPay').textContent = (pay * 100).toFixed(0) + '%';
+      el('oDep').textContent = fmt(dep) + ' ֏';
+
+      const seen = aud * reach;
+      const clicks = seen * ctr;
+      const regs = clicks * reg;
+      const paid = regs * pay;
+
+      el('vReach').textContent = fmt(seen);
+      el('vClick').textContent = fmt(clicks);
+      el('vReg').textContent = fmt(regs);
+      el('vPaid').textContent = fmt(paid);
+      el('vPaid2').textContent = fmt(paid);
+
+      // Полосы воронки — доли от верхней ступени, с минимумом чтобы не исчезали
+      const w = v => Math.max(1.5, (v / seen) * 100) + '%';
+      el('bReach').style.width = '100%';
+      el('bClick').style.width = w(clicks);
+      el('bReg').style.width = w(regs);
+      el('bPaid').style.width = w(paid);
+
+      const fix = paid * FIX;
+      const pct = paid * Math.min(dep * PCT, PCT_CAP);
+      const total = fix + pct;
+
+      el('vFix').textContent = fmt(fix) + ' ֏';
+      el('vPct').textContent = fmt(pct) + ' ֏';
+      el('vTotal').textContent = fmt(total) + ' ֏';
+      el('vTotal2').textContent = fmt(total) + ' ֏';
+      el('vCpm').textContent = seen > 0 ? fmt(total / seen * 1000) + ' ֏' : '0 ֏';
+    }
+
+    ['rAud', 'rReach', 'rCtr', 'rReg', 'rPay', 'rDep'].forEach(id => el(id).addEventListener('input', render));
+    render();
+  })();
+</script>
+</body>
+</html>

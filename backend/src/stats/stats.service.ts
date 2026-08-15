@@ -222,7 +222,12 @@ export class StatsService {
   // bucket (hour/day/month depending on range). Gap buckets are filled with 0
   // via generate_series so the chart line is continuous.
   async getSeries(rangeParam: string) {
-    const range: SeriesRange = (SERIES_RANGES as Record<string, unknown>)[rangeParam]
+    // Own properties only. A plain lookup also answers for everything on Object's
+    // prototype, so `?range=constructor` passed this check, destructured to three
+    // undefineds below and reached Postgres as `date_trunc('undefined', …)`. The values
+    // that go into the SQL text have to come from this table and nowhere else — that is
+    // the whole reason inlining them is safe.
+    const range: SeriesRange = Object.prototype.hasOwnProperty.call(SERIES_RANGES, rangeParam)
       ? (rangeParam as SeriesRange)
       : 'month';
     const { since, unit, step } = SERIES_RANGES[range];
