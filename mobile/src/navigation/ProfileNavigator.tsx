@@ -14,7 +14,6 @@ import { QuestsScreen } from '../screens/referrals/QuestsScreen';
 import { PartnerScreen } from '../screens/referrals/PartnerScreen';
 import { GuideScreen } from '../screens/GuideScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
-import { useAuthStore } from '../store/authStore';
 
 export type ProfileStackParamList = {
   Profile: undefined;
@@ -33,8 +32,8 @@ export type ProfileStackParamList = {
 
 const Stack = createNativeStackNavigator<ProfileStackParamList>();
 
-// Admin-only, and one of the heaviest screens in the app — fetched when an admin actually
-// opens it rather than shipped to everyone who signs in.
+// One of the heaviest screens in the app — fetched when somebody actually opens it rather
+// than shipped inside the first bundle everyone downloads.
 const ReportsScreen = lazyScreen(() =>
   import('../screens/ReportsScreen').then((m) => ({ default: m.ReportsScreen })),
 );
@@ -51,11 +50,6 @@ function BackToProfileButton({ navigation }: { navigation: NativeStackNavigation
 
 export function ProfileStackNavigator() {
   const { t } = useTranslation();
-  // Reports is the platform-wide moderation dashboard — turnover across every account and a
-  // by-name feed of everyone's deposits. Registering it only for admins keeps /reports from
-  // being reachable by typing the URL now that the web build has real routes; the API
-  // answers non-admins with 403 either way, so this is about not showing a broken screen.
-  const isAdmin = useAuthStore((s) => s.user?.role === 'admin');
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Profile" component={ProfileScreen} />
@@ -85,17 +79,15 @@ export function ProfileStackNavigator() {
           headerLeft: () => <BackToProfileButton navigation={navigation} />,
         })}
       />
-      {isAdmin && (
-        <Stack.Screen
-          name="Reports"
-          component={ReportsScreen}
-          options={({ navigation }) => ({
-            headerShown: true,
-            title: t('reports.title'),
-            headerLeft: () => <BackToProfileButton navigation={navigation} />,
-          })}
-        />
-      )}
+      <Stack.Screen
+        name="Reports"
+        component={ReportsScreen}
+        options={({ navigation }) => ({
+          headerShown: true,
+          title: t('reports.title'),
+          headerLeft: () => <BackToProfileButton navigation={navigation} />,
+        })}
+      />
       <Stack.Screen
         name="Referrals"
         component={ReferralScreen}
